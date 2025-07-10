@@ -7,12 +7,21 @@ export async function testZendeskConnection() {
     console.log("1️⃣ Testing authentication...");
     const authResponse = await fetch("/api/test-zendesk");
     const authData = await authResponse.json();
+
+    let userInfo = "No user data";
+    if (authData.body) {
+      try {
+        const parsedBody = JSON.parse(authData.body);
+        userInfo = parsedBody.user?.name || "No user name";
+      } catch (parseError) {
+        userInfo = `Parse error: ${authData.body.substring(0, 50)}...`;
+      }
+    }
+
     console.log("✅ Auth test:", {
       status: authData.status,
       success: authData.success,
-      userInfo: authData.body
-        ? JSON.parse(authData.body).user?.name
-        : "No user data",
+      userInfo,
     });
 
     // Test users endpoint
