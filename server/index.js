@@ -208,6 +208,132 @@ app.get("/api/test-zendesk", async (req, res) => {
   }
 });
 
+// Demo data endpoints for when API is rate-limited
+app.get("/api/zendesk-demo/users", (req, res) => {
+  const demoUsers = {
+    users: [
+      {
+        id: 1,
+        name: "Alexander Bridgeman",
+        email: "alexander@builder.io",
+        role: "agent",
+        active: true,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-12-01T00:00:00Z",
+      },
+      {
+        id: 2,
+        name: "Demo Engineer 1",
+        email: "engineer1@builder.io",
+        role: "agent",
+        active: true,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-12-01T00:00:00Z",
+      },
+      {
+        id: 3,
+        name: "Demo Engineer 2",
+        email: "engineer2@builder.io",
+        role: "agent",
+        active: true,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-12-01T00:00:00Z",
+      },
+    ],
+    count: 3,
+    next_page: null,
+    previous_page: null,
+  };
+  res.json(demoUsers);
+});
+
+app.get("/api/zendesk-demo/tickets", (req, res) => {
+  const demoTickets = {
+    tickets: [
+      {
+        id: 1001,
+        subject: "Demo ticket 1",
+        status: "solved",
+        priority: "normal",
+        type: "question",
+        assignee_id: 1,
+        requester_id: 100,
+        submitter_id: 100,
+        created_at: "2025-06-15T10:00:00Z",
+        updated_at: "2025-06-16T14:00:00Z",
+        solved_at: "2025-06-16T14:00:00Z",
+        tags: ["support", "general"],
+        custom_fields: [],
+      },
+      {
+        id: 1002,
+        subject: "Demo ticket 2",
+        status: "closed",
+        priority: "high",
+        type: "problem",
+        assignee_id: 2,
+        requester_id: 101,
+        submitter_id: 101,
+        created_at: "2025-06-20T09:00:00Z",
+        updated_at: "2025-06-20T17:00:00Z",
+        solved_at: "2025-06-20T17:00:00Z",
+        tags: ["technical", "api"],
+        custom_fields: [],
+      },
+      {
+        id: 1003,
+        subject: "Demo ticket 3",
+        status: "open",
+        priority: "normal",
+        type: "question",
+        assignee_id: 3,
+        requester_id: 102,
+        submitter_id: 102,
+        created_at: "2025-07-01T08:00:00Z",
+        updated_at: "2025-07-01T08:00:00Z",
+        solved_at: null,
+        tags: ["support"],
+        custom_fields: [],
+      },
+    ],
+    count: 3,
+    next_page: null,
+    previous_page: null,
+  };
+  res.json(demoTickets);
+});
+
+app.get("/api/zendesk-demo/satisfaction_ratings", (req, res) => {
+  const demoRatings = {
+    satisfaction_ratings: [
+      {
+        id: 2001,
+        score: "good",
+        ticket_id: 1001,
+        assignee_id: 1,
+        requester_id: 100,
+        comment: "Great support!",
+        created_at: "2025-06-16T15:00:00Z",
+        updated_at: "2025-06-16T15:00:00Z",
+      },
+      {
+        id: 2002,
+        score: "good",
+        ticket_id: 1002,
+        assignee_id: 2,
+        requester_id: 101,
+        comment: "Quick resolution",
+        created_at: "2025-06-20T18:00:00Z",
+        updated_at: "2025-06-20T18:00:00Z",
+      },
+    ],
+    count: 2,
+    next_page: null,
+    previous_page: null,
+  };
+  res.json(demoRatings);
+});
+
 app.listen(PORT, () => {
   console.log(`Zendesk proxy server running on port ${PORT}`);
 });
