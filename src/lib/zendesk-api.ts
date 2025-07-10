@@ -491,6 +491,18 @@ export async function fetchAllEngineerMetrics(
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
   try {
+    // Define the specific engineers we want to show (matching server-side filter)
+    const targetEngineers = new Map([
+      ["Jared Beckler", 29215234714775],
+      ["Rahul Joshi", 29092423638935],
+      ["Parth Sharma", 29092389569431],
+      ["Fernando Duran", 24100359866391],
+      ["Alex Bridgeman", 19347232342679],
+      ["Sheema Parwaz", 16211207272855],
+      ["Manish Sharma", 5773445002519],
+      ["Akash Singh", 26396676511767],
+    ]);
+
     // Check backend health first
     const isBackendHealthy = await checkBackendHealth();
     if (!isBackendHealthy) {
@@ -506,20 +518,31 @@ export async function fetchAllEngineerMetrics(
       getSatisfactionRatings(startDate, endDate),
     ]);
 
-    return users.map((user) =>
+    // Filter users to only include engineers from our nameToIdMap
+    const filteredUsers = users.filter(
+      (user) =>
+        targetEngineers.has(user.name) &&
+        targetEngineers.get(user.name) === user.id,
+    );
+
+    // Calculate metrics only for filtered engineers
+    return filteredUsers.map((user) =>
       calculateEngineerMetrics(user, tickets, ratings),
     );
   } catch (error) {
     console.error("Error fetching engineer metrics:", error);
 
-    // Provide helpful error messages based on environment
-    if (isCloudEnvironment()) {
-      throw new Error(
-        "Backend server not available in cloud environment. This demo requires a running backend server for real Zendesk data.",
-      );
-    } else {
-      throw error;
+    // Return empty array instead of throwing error for missing data
+    if (
+      error instanceof Error &&
+      (error.message.includes("Backend server not available") ||
+        error.message.includes("Cannot connect"))
+    ) {
+      throw error; // Re-throw connectivity errors
     }
+
+    // For other errors (like empty data), return empty array
+    return [];
   }
 }
 
