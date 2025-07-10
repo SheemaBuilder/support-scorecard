@@ -330,7 +330,14 @@ export function calculateEngineerMetrics(
     creationCount: calculateTechnicalAccuracy(userTickets),
     enterprisePercent: technicalStats.enterprisePercent,
     technicalPercent: technicalStats.technicalPercent,
-    surveyCount: userRatings.length,
+    surveyCount:
+      cesStats.cesPercent > 0
+        ? userTickets.filter((ticket) =>
+            ticket.custom_fields?.find(
+              (field) => field.id === 31797439524887 && field.value !== null,
+            ),
+          ).length
+        : 0,
   };
 }
 
