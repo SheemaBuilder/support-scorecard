@@ -439,7 +439,10 @@ function calculateOverallQuality(
   const satisfactionScore = calculateSatisfactionScore(ratings);
   const handlingScore = calculateHandlingScore(tickets);
 
-  return (avgResolutionScore + satisfactionScore + handlingScore) / 3;
+  const quality = (avgResolutionScore + satisfactionScore + handlingScore) / 3;
+
+  // Ensure we return a reasonable value (between 1-5 scale)
+  return Math.max(1, Math.min(5, quality));
 }
 
 function calculateCommunicationScore(tickets: ZendeskTicket[]): number {
@@ -591,7 +594,7 @@ export async function fetchAllEngineerMetrics(
     );
 
     console.log(
-      "👥 Filtered engineers:",
+      "��� Filtered engineers:",
       filteredUsers.map((u) => ({ id: u.id, name: u.name })),
     );
 
