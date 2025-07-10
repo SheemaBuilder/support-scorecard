@@ -201,14 +201,9 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  // In cloud environments, skip API calls entirely since backend isn't accessible
-  if (isCloudEnvironment()) {
-    console.warn("Cloud environment detected, returning empty users array");
-    return [];
-  }
-
   try {
     const response = await apiRequest<ZendeskUsersResponse>("/users");
+    console.log("🔍 getUsers() success:", response.users.length, "users");
     return response.users;
   } catch (error) {
     console.warn(
