@@ -587,12 +587,23 @@ export async function fetchAllEngineerMetrics(
       userSample: users.slice(0, 3).map((u) => ({ id: u.id, name: u.name })),
     });
 
-    // Filter users to only include engineers from our hardcoded list
-    const filteredUsers = users.filter(
-      (user) =>
-        TARGET_ENGINEERS.has(user.name) &&
-        TARGET_ENGINEERS.get(user.name) === user.id,
+    // Debug the filtering process
+    console.log("🔍 Engineer filtering debug:");
+    console.log("  Expected engineers:", Array.from(TARGET_ENGINEERS.keys()));
+    console.log(
+      "  API returned users:",
+      users.map((u) => ({ id: u.id, name: u.name })),
     );
+
+    // Filter users to only include engineers from our hardcoded list
+    const filteredUsers = users.filter((user) => {
+      const hasName = TARGET_ENGINEERS.has(user.name);
+      const hasCorrectId = TARGET_ENGINEERS.get(user.name) === user.id;
+      console.log(
+        `  ${user.name} (${user.id}): hasName=${hasName}, hasCorrectId=${hasCorrectId}`,
+      );
+      return hasName && hasCorrectId;
+    });
 
     console.log(
       "👥 Filtered engineers:",
