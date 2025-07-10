@@ -410,6 +410,20 @@ export default function Index() {
                     {engineerData[0].cesPercent.toFixed(1)}%
                   </div>
                 )}
+                <div className="mt-3 flex space-x-2">
+                  <button
+                    onClick={() => testZendeskConnection()}
+                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >
+                    🔬 Test Zendesk API
+                  </button>
+                  <button
+                    onClick={() => refetch(selectedPeriod)}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  >
+                    🔄 Refetch Data
+                  </button>
+                </div>
               </div>
             </details>
           </div>
