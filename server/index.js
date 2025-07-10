@@ -105,7 +105,8 @@ app.get("/api/zendesk/users", async (req, res) => {
 
 app.get("/api/zendesk/tickets", async (req, res) => {
   try {
-    let endpoint = "/tickets.json?include=users";
+    // Start with a simpler request
+    let endpoint = "/tickets.json?per_page=100";
 
     const { start_date, end_date } = req.query;
     if (start_date && end_date) {
