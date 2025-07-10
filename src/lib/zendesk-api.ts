@@ -25,20 +25,30 @@ const isCloudEnvironment = () => {
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    // In cloud environments, health check won't work
+    // Build the health check URL based on environment
+    let healthUrl: string;
     if (isCloudEnvironment()) {
-      console.warn("Skipping health check in cloud environment");
-      return false;
+      healthUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/health`;
+    } else {
+      healthUrl = "/api/health";
     }
 
-    const response = await fetch("/api/health");
+    console.log("Checking backend health at:", healthUrl);
+    const response = await fetch(healthUrl);
     if (!response.ok) {
+      console.warn(
+        "Health check failed:",
+        response.status,
+        response.statusText,
+      );
       return false;
     }
 
     const responseText = await response.text();
     const data = JSON.parse(responseText);
-    return data.status === "OK";
+    const isHealthy = data.status === "OK";
+    console.log("Backend health check result:", isHealthy);
+    return isHealthy;
   } catch (error) {
     console.warn("Backend health check failed:", error);
     return false;
