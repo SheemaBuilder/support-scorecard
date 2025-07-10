@@ -438,22 +438,22 @@ export default function Index() {
                     onClick={async () => {
                       console.log("🎯 Checking ticket 19934...");
                       try {
-                        const response = await fetch("/api/debug/ticket/19934");
+                        // Add timestamp to prevent caching issues
+                        const url = `/api/debug/ticket/19934?t=${Date.now()}`;
+                        const response = await fetch(url);
 
-                        // Read the response body once as text first
-                        const responseText = await response.text();
-
+                        // Check if response is ok before reading
                         if (!response.ok) {
                           console.error(
                             "🎯 API Error:",
                             response.status,
-                            responseText,
+                            response.statusText,
                           );
                           return;
                         }
 
-                        // Parse the text as JSON
-                        const data = JSON.parse(responseText);
+                        // Read response as JSON directly
+                        const data = await response.json();
                         console.log("🎯 Ticket 19934 details:", data);
 
                         // Specific logging for CES field
