@@ -221,31 +221,53 @@ app.get("/api/zendesk/tickets", async (req, res) => {
 
 app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
   try {
-    let endpoint = "/satisfaction_ratings.json";
-    const params = new URLSearchParams();
+    // Define the specific engineer IDs we want satisfaction ratings for
+    const targetEngineerIds = [
+      29215234714775, // Jared Beckler
+      29092423638935, // Rahul Joshi
+      29092389569431, // Parth Sharma
+      24100359866391, // Fernando Duran
+      19347232342679, // Alex Bridgeman
+      16211207272855, // Sheema Parwaz
+      5773445002519, // Manish Sharma
+      26396676511767, // Akash Singh
+    ];
+
+    console.log(
+      `Fetching satisfaction ratings for ${targetEngineerIds.length} specific engineers`,
+    );
 
     const { start_time, end_time } = req.query;
 
-    // For now, let's try without date filtering to see if the basic endpoint works
-    // If start_time and end_time are provided, we'll log them but not use them initially
+    // Try to get all satisfaction ratings first, then filter
+    // The Zendesk API doesn't support filtering by assignee_id directly for satisfaction ratings
+    let endpoint = "/satisfaction_ratings.json?per_page=100";
+
     if (start_time && end_time) {
       console.log(
-        `Date filtering requested: start_time=${start_time}, end_time=${end_time}`,
+        `Date filtering: start_time=${start_time}, end_time=${end_time}`,
       );
-      console.log(
-        `Note: Date filtering temporarily disabled to debug API access`,
-      );
-      // params.append("start_time", start_time);
-      // params.append("end_time", end_time);
-    }
-
-    if (params.toString()) {
-      endpoint += `?${params.toString()}`;
+      endpoint += `&start_time=${start_time}&end_time=${end_time}`;
     }
 
     console.log(`Fetching satisfaction ratings from: ${endpoint}`);
     const data = await proxyZendeskRequest(endpoint);
-    res.json(data);
+
+    // Filter ratings to only include those for our target engineers
+    const filteredRatings = (data.satisfaction_ratings || []).filter((rating) =>
+      targetEngineerIds.includes(rating.assignee_id),
+    );
+
+    console.log(
+      `Filtered ${filteredRatings.length} satisfaction ratings for specified engineers`,
+    );
+
+    res.json({
+      satisfaction_ratings: filteredRatings,
+      count: filteredRatings.length,
+      next_page: null,
+      previous_page: null,
+    });
   } catch (error) {
     console.error("Error fetching satisfaction ratings:", error);
     // Return empty result instead of demo data
