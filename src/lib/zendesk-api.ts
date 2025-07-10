@@ -91,27 +91,12 @@ async function apiRequest<T>(
     console.log(`Response length: ${responseText.length} characters`);
     console.log(`Response preview: ${responseText.substring(0, 200)}...`);
 
-    // Check if it's JSON
-    if (contentType && contentType.includes("application/json")) {
-      try {
-        return JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error(`Failed to parse JSON:`, responseText.substring(0, 500));
-        throw new Error(`Invalid JSON response: ${jsonError}`);
-      }
-    } else {
-      // If it's not JSON, try to parse it anyway as it might still be valid JSON
-      try {
-        return JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error(
-          `Non-JSON response received:`,
-          responseText.substring(0, 500),
-        );
-        throw new Error(
-          `Expected JSON response but got: ${contentType || "unknown"}. Response: ${responseText.substring(0, 200)}...`,
-        );
-      }
+    // Parse as JSON
+    try {
+      return JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error(`Failed to parse JSON:`, responseText.substring(0, 500));
+      throw new Error(`Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
