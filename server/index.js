@@ -339,7 +339,39 @@ app.get("/api/test-zendesk", async (req, res) => {
   }
 });
 
-// Demo endpoints removed - no fallback data per user requirements
+// Debug endpoint to check specific ticket
+app.get("/api/debug/ticket/:id", async (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    console.log(`Debug: Fetching ticket ${ticketId}`);
+
+    const ticketData = await proxyZendeskRequest(`/tickets/${ticketId}.json`);
+
+    res.json({
+      ticket: ticketData.ticket,
+      assignee_id: ticketData.ticket?.assignee_id,
+      custom_fields: ticketData.ticket?.custom_fields?.map((cf) => ({
+        id: cf.id,
+        value: cf.value,
+      })),
+      debug_info: {
+        isTrackedEngineer: [
+          29215234714775, // Jared Beckler
+          29092423638935, // Rahul Joshi
+          29092389569431, // Parth Sharma
+          24100359866391, // Fernando Duran
+          19347232342679, // Alex Bridgeman
+          16211207272855, // Sheema Parwaz
+          5773445002519, // Manish Sharma
+          26396676511767, // Akash Singh
+        ].includes(ticketData.ticket?.assignee_id),
+      },
+    });
+  } catch (error) {
+    console.error(`Error fetching ticket ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Zendesk proxy server running on port ${PORT}`);
