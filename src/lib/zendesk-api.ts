@@ -380,19 +380,58 @@ function calculateCESStats(userTickets: ZendeskTicket[]) {
   // Get CES scores from custom field 31797439524887
   const CES_FIELD_ID = 31797439524887;
 
+  console.log(
+    `🔍 CES Debug: Processing ${userTickets.length} tickets for CES field ${CES_FIELD_ID}`,
+  );
+
+  // Check if we have the specific ticket 19934 mentioned by user
+  const ticket19934 = userTickets.find((t) => t.id === 19934);
+  if (ticket19934) {
+    console.log(
+      `🎯 Found ticket 19934! Custom fields:`,
+      ticket19934.custom_fields,
+    );
+    const cesField19934 = ticket19934.custom_fields?.find(
+      (field) => field.id === CES_FIELD_ID,
+    );
+    console.log(`🎯 Ticket 19934 CES field:`, cesField19934);
+  } else {
+    console.log(`❌ Ticket 19934 not found in user tickets`);
+    console.log(
+      `📝 Available ticket IDs:`,
+      userTickets.map((t) => t.id).slice(0, 10),
+    );
+  }
+
   const cesScores: number[] = [];
 
   userTickets.forEach((ticket) => {
+    // Log all custom fields for first few tickets to debug structure
+    if (ticket.id === 19934 || cesScores.length < 3) {
+      console.log(
+        `🔍 Ticket ${ticket.id} custom fields:`,
+        ticket.custom_fields?.map((cf) => ({
+          id: cf.id,
+          value: cf.value,
+          type: typeof cf.value,
+        })),
+      );
+    }
+
     const cesField = ticket.custom_fields?.find(
       (field) => field.id === CES_FIELD_ID,
     );
     if (cesField && cesField.value !== null && cesField.value !== undefined) {
+      console.log(`✅ Found CES field in ticket ${ticket.id}:`, cesField);
       const score =
         typeof cesField.value === "string"
           ? parseFloat(cesField.value)
           : Number(cesField.value);
       if (!isNaN(score) && score >= 1 && score <= 7) {
+        console.log(`✅ Valid CES score ${score} from ticket ${ticket.id}`);
         cesScores.push(score);
+      } else {
+        console.log(`❌ Invalid CES score from ticket ${ticket.id}:`, score);
       }
     }
   });
