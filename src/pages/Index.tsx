@@ -391,7 +391,7 @@ export default function Index() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <details className="text-sm">
               <summary className="cursor-pointer text-yellow-800 font-medium">
-                🔍 Debug Info (Click to expand)
+                ��� Debug Info (Click to expand)
               </summary>
               <div className="mt-2 space-y-1 text-yellow-700">
                 <div>Engineers loaded: {engineerData.length}</div>
@@ -412,13 +412,24 @@ export default function Index() {
                 )}
                 <div className="mt-3 flex space-x-2">
                   <button
-                    onClick={() => testZendeskConnection()}
+                    onClick={async () => {
+                      console.log("🔬 Testing Zendesk API...");
+                      try {
+                        const result = await testZendeskConnection();
+                        console.log("Test result:", result);
+                      } catch (error) {
+                        console.error("Test failed:", error);
+                      }
+                    }}
                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                   >
                     🔬 Test Zendesk API
                   </button>
                   <button
-                    onClick={() => refetch(selectedPeriod)}
+                    onClick={() => {
+                      console.log("🔄 Refetching data...");
+                      refetch(selectedPeriod);
+                    }}
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                   >
                     🔄 Refetch Data
