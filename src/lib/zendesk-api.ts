@@ -309,8 +309,8 @@ export function calculateEngineerMetrics(
   // Calculate closure times
   const closureStats = calculateClosureStats(closedTickets);
 
-  // Calculate satisfaction scores
-  const cesStats = calculateCESStats(userRatings);
+  // Calculate CES scores from custom field
+  const cesStats = calculateCESStats(userTickets);
 
   // Calculate technical percentages from tags
   const technicalStats = calculateTechnicalStats(userTickets);
