@@ -32,7 +32,7 @@ export function useZendeskData(
   initialDateRange?: DateRange,
 ): UseZendeskDataReturn {
   const [state, setState] = useState<UseZendeskDataState>({
-    engineerData: [],
+    engineerData: getHardcodedEngineers(), // Show hardcoded engineers immediately
     averageMetrics: null,
     alerts: [],
     isLoading: true,
