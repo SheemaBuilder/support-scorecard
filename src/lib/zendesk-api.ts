@@ -109,7 +109,7 @@ async function apiRequest<T>(
       throw new Error(`Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`❌ API request failed for ${url.toString()}:`, error);
+    console.error(`❌ API request failed for ${urlString}:`, error);
 
     // Provide more helpful error messages for common issues
     if (
