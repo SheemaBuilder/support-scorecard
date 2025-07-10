@@ -384,6 +384,37 @@ export default function Index() {
         </div>
       </header>
 
+      {/* Debug Panel - only in development */}
+      {DEBUG_MODE && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <details className="text-sm">
+              <summary className="cursor-pointer text-yellow-800 font-medium">
+                🔍 Debug Info (Click to expand)
+              </summary>
+              <div className="mt-2 space-y-1 text-yellow-700">
+                <div>Engineers loaded: {engineerData.length}</div>
+                <div>
+                  Average metrics: {averageMetrics ? "✅ Loaded" : "❌ Missing"}
+                </div>
+                <div>Loading: {isLoading ? "⏳ Yes" : "✅ Complete"}</div>
+                <div>Error: {error || "None"}</div>
+                <div>
+                  Last updated: {lastUpdated?.toLocaleString() || "Never"}
+                </div>
+                {engineerData.length > 0 && (
+                  <div>
+                    Sample engineer: {engineerData[0].name} - Closed:{" "}
+                    {engineerData[0].closed}, CES:{" "}
+                    {engineerData[0].cesPercent.toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
+        </div>
+      )}
+
       {/* Alerts Panel */}
       {showAlerts && (
         <div className="bg-yellow-50 border-b border-yellow-200">
