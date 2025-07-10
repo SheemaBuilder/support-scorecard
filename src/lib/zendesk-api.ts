@@ -66,9 +66,34 @@ async function apiRequest<T>(
     const response = await fetch(url.toString());
 
     console.log(`Response status: ${response.status}`);
-    console.log(`Response headers:`, response.headers);
+    console.log(
+      `Response headers:`,
+      Object.fromEntries(response.headers.entries()),
+    );
 
-    // Handle different response types
+    // Check if response is ok first
+    if (!response.ok) {
+      let errorText = "Unknown error";
+      try {
+        errorText = await response.text();
+      } catch (readError) {
+        console.error("Failed to read error response:", readError);
+      }
+      console.error(`API error response:`, errorText);
+      throw new Error(
+        `API error: ${response.status} ${response.statusText} - ${errorText}`,
+      );
+    }
+
+    // Handle successful response
+    const contentType = response.headers.get("content-type");
+    console.log(`Content-Type: ${contentType}`);
+
+    if (!contentType) {
+      console.warn("No content-type header found");
+    }
+
+    // Read response text once
     let responseText: string;
     try {
       responseText = await response.text();
@@ -77,27 +102,30 @@ async function apiRequest<T>(
       throw new Error("Failed to read response from server");
     }
 
-    if (!response.ok) {
-      console.error(`API error response:`, responseText);
-      throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${responseText}`,
-      );
-    }
+    console.log(`Response length: ${responseText.length} characters`);
+    console.log(`Response preview: ${responseText.substring(0, 200)}...`);
 
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.error(`Expected JSON but got:`, responseText);
-      throw new Error(
-        `Expected JSON response but got: ${contentType}. Response: ${responseText.substring(0, 200)}...`,
-      );
-    }
-
-    // Parse the text as JSON since we already read it
-    try {
-      return JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error(`Failed to parse JSON:`, responseText.substring(0, 200));
-      throw new Error(`Invalid JSON response: ${jsonError}`);
+    // Check if it's JSON
+    if (contentType && contentType.includes("application/json")) {
+      try {
+        return JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error(`Failed to parse JSON:`, responseText.substring(0, 500));
+        throw new Error(`Invalid JSON response: ${jsonError}`);
+      }
+    } else {
+      // If it's not JSON, try to parse it anyway as it might still be valid JSON
+      try {
+        return JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error(
+          `Non-JSON response received:`,
+          responseText.substring(0, 500),
+        );
+        throw new Error(
+          `Expected JSON response but got: ${contentType || "unknown"}. Response: ${responseText.substring(0, 200)}...`,
+        );
+      }
     }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
