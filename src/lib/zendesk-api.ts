@@ -195,6 +195,12 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
+  // In cloud environments, skip API calls entirely since backend isn't accessible
+  if (isCloudEnvironment()) {
+    console.warn("Cloud environment detected, returning empty users array");
+    return [];
+  }
+
   try {
     const response = await apiRequest<ZendeskUsersResponse>("/users");
     return response.users;
@@ -211,6 +217,12 @@ export async function getTickets(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskTicket[]> {
+  // In cloud environments, skip API calls entirely since backend isn't accessible
+  if (isCloudEnvironment()) {
+    console.warn("Cloud environment detected, returning empty tickets array");
+    return [];
+  }
+
   try {
     const params = new URLSearchParams();
 
@@ -237,6 +249,14 @@ export async function getSatisfactionRatings(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskSatisfactionRating[]> {
+  // In cloud environments, skip API calls entirely since backend isn't accessible
+  if (isCloudEnvironment()) {
+    console.warn(
+      "Cloud environment detected, returning empty satisfaction ratings array",
+    );
+    return [];
+  }
+
   try {
     const params = new URLSearchParams();
 
