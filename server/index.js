@@ -177,10 +177,8 @@ app.get("/api/zendesk/tickets", async (req, res) => {
         let searchQuery = `type:ticket assignee:${assigneeId}`;
 
         if (start_date && end_date) {
-          // Format dates for Zendesk search (YYYY-MM-DD format)
-          const startDate = new Date(start_date).toISOString().split("T")[0];
-          const endDate = new Date(end_date).toISOString().split("T")[0];
-          searchQuery += ` updated>=${startDate} updated<=${endDate}`;
+          // Instead of using absolute dates, use relative date filtering for recent tickets
+          searchQuery += ` updated>30days_ago`;
           console.log(`✅ Search query for ${assigneeId}: ${searchQuery}`);
         } else {
           console.log(`❌ No date filtering for assignee ${assigneeId}`);
