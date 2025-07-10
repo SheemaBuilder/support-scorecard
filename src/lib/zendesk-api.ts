@@ -465,15 +465,8 @@ function calculateResponseQuality(
   ratings: ZendeskSatisfactionRating[],
 ): number {
   if (ratings.length === 0) {
-    // Calculate based on ticket patterns when no ratings available
-    const resolvedTickets = tickets.filter(
-      (t) => t.status === "solved" || t.status === "closed",
-    );
-    if (tickets.length === 0) return 3;
-
-    // Use resolution rate as proxy for quality
-    const resolutionRate = resolvedTickets.length / tickets.length;
-    return Math.max(1, Math.min(5, resolutionRate * 5));
+    // Return 0 when no ratings available - no dummy data
+    return 0;
   }
 
   const goodRatings = ratings.filter(
