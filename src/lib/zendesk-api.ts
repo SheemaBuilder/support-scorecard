@@ -506,20 +506,13 @@ export async function fetchAllEngineerMetrics(
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
   try {
-    // In cloud environments, skip health check since localhost isn't available
-    if (!isCloudEnvironment()) {
-      // Check backend health first in local development
-      const isBackendHealthy = await checkBackendHealth();
-      if (!isBackendHealthy) {
-        throw new Error(
-          "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.",
-        );
-      }
-    } else {
-      // In cloud environment, inform user that backend is required
-      console.warn(
-        "Running in cloud environment - backend server required for real data",
-      );
+    // Check backend health first
+    const isBackendHealthy = await checkBackendHealth();
+    if (!isBackendHealthy) {
+      const errorMsg = isCloudEnvironment()
+        ? "Backend server is not available. Please ensure the server is running on port 3001."
+        : "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.";
+      throw new Error(errorMsg);
     }
 
     const [users, tickets, ratings] = await Promise.all([
