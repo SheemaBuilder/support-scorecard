@@ -464,14 +464,22 @@ function calculateResponseQuality(
   tickets: ZendeskTicket[],
   ratings: ZendeskSatisfactionRating[],
 ): number {
-  if (ratings.length === 0) return 3; // Default score
+  if (ratings.length === 0) {
+    // Calculate based on ticket patterns when no ratings available
+    const resolvedTickets = tickets.filter(
+      (t) => t.status === "solved" || t.status === "closed",
+    );
+    if (tickets.length === 0) return 3;
+
+    // Use resolution rate as proxy for quality
+    const resolutionRate = resolvedTickets.length / tickets.length;
+    return Math.max(1, Math.min(5, resolutionRate * 5));
+  }
 
   const goodRatings = ratings.filter(
     (rating) => rating.score === "good",
   ).length;
   const badRatings = ratings.filter((rating) => rating.score === "bad").length;
-
-  if (ratings.length === 0) return 3;
 
   const score = (goodRatings * 5 + badRatings * 1) / ratings.length;
   return Math.max(1, Math.min(5, score));
@@ -594,7 +602,7 @@ export async function fetchAllEngineerMetrics(
     );
 
     console.log(
-      "��� Filtered engineers:",
+      "👥 Filtered engineers:",
       filteredUsers.map((u) => ({ id: u.id, name: u.name })),
     );
 
