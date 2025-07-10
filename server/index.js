@@ -99,6 +99,13 @@ app.get("/api/zendesk/users", async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("Error fetching users:", error);
+
+    // If rate limited, fall back to demo data
+    if (error.message.includes("rate limit")) {
+      console.log("Falling back to demo data due to rate limiting");
+      return res.redirect("/api/zendesk-demo/users");
+    }
+
     res.status(500).json({ error: error.message });
   }
 });
