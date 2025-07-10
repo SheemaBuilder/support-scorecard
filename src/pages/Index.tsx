@@ -439,10 +439,31 @@ export default function Index() {
                       console.log("🎯 Checking ticket 19934...");
                       try {
                         const response = await fetch("/api/debug/ticket/19934");
+
+                        if (!response.ok) {
+                          const errorText = await response.text();
+                          console.error(
+                            "🎯 API Error:",
+                            response.status,
+                            errorText,
+                          );
+                          return;
+                        }
+
                         const data = await response.json();
                         console.log("🎯 Ticket 19934 details:", data);
+
+                        // Specific logging for CES field
+                        const cesField = data.custom_fields?.find(
+                          (cf) => cf.id === 31797439524887,
+                        );
+                        if (cesField) {
+                          console.log("✅ Found CES field:", cesField);
+                        } else {
+                          console.log("❌ CES field not found");
+                        }
                       } catch (error) {
-                        console.error("Ticket check error:", error);
+                        console.error("🎯 Ticket check error:", error.message);
                       }
                     }}
                     className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
