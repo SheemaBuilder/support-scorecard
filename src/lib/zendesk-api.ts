@@ -566,16 +566,8 @@ export async function fetchAllEngineerMetrics(
   } catch (error) {
     console.error("Error fetching engineer metrics:", error);
 
-    // Return empty array instead of throwing error for missing data
-    if (
-      error instanceof Error &&
-      (error.message.includes("Backend server not available") ||
-        error.message.includes("Cannot connect"))
-    ) {
-      throw error; // Re-throw connectivity errors
-    }
-
-    // For other errors (like empty data), return empty array
+    // Always return empty array instead of throwing errors
+    console.warn("Returning empty engineer metrics due to error");
     return [];
   }
 }
