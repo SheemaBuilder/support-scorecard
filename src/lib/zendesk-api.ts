@@ -68,7 +68,7 @@ async function apiRequest<T>(
   console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
-    const response = await fetch(url.toString());
+    const response = await fetch(urlString);
 
     console.log(`📋 Response status: ${response.status}`);
     console.log(
