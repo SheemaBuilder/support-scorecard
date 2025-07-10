@@ -2,7 +2,14 @@ import { EngineerMetrics } from "./types";
 
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
-  // In cloud environments (like Builder.io preview), use current origin
+  // Check if we're in a cloud environment by looking at hostname
+  if (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    // In cloud environments, try to connect to the backend server on port 3001
+    return `${window.location.protocol}//${window.location.hostname}:3001/api/zendesk`;
+  }
   // In local development, use relative URLs that Vite will proxy to localhost:3001
   return "/api/zendesk";
 };
