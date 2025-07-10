@@ -657,6 +657,12 @@ export async function fetchAllEngineerMetrics(
             acc[t.status] = (acc[t.status] || 0) + 1;
             return acc;
           }, {}),
+          sampleCustomFields: userTickets.slice(0, 2).map((t) => ({
+            ticketId: t.id,
+            customFields:
+              t.custom_fields?.map((cf) => ({ id: cf.id, value: cf.value })) ||
+              [],
+          })),
         });
 
         const metrics = calculateEngineerMetrics(user, tickets, ratings);
