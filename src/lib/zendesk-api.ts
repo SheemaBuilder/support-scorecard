@@ -565,34 +565,6 @@ const TARGET_ENGINEERS = new Map([
   ["Akash Singh", 26396676511767],
 ]);
 
-// Create default engineer metrics for display before data loads
-function createDefaultEngineerMetrics(name: string): EngineerMetrics {
-  return {
-    name,
-    cesPercent: 75,
-    avgPcc: 24,
-    closed: 15,
-    open: 5,
-    openGreaterThan14: 1,
-    closedLessThan7: 80,
-    closedEqual1: 40,
-    participationRate: 3.5,
-    linkCount: 3.0,
-    citationCount: 3.5,
-    creationCount: 3.5,
-    enterprisePercent: 25,
-    technicalPercent: 60,
-    surveyCount: 5,
-  };
-}
-
-// Get hardcoded engineer list for immediate display
-export function getHardcodedEngineers(): EngineerMetrics[] {
-  return Array.from(TARGET_ENGINEERS.keys()).map((name) =>
-    createDefaultEngineerMetrics(name),
-  );
-}
-
 // Main data fetching function
 export async function fetchAllEngineerMetrics(
   startDate?: Date,
