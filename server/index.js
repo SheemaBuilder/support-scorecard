@@ -175,14 +175,15 @@ app.get("/api/zendesk/tickets", async (req, res) => {
       try {
         let endpoint = `/tickets.json?assignee=${assigneeId}&per_page=100`;
 
-        // Temporarily disable date filtering to get all tickets and find recent ones
-        console.log(
-          `Fetching ALL tickets for assignee ${assigneeId} (no date filter to test)`,
-        );
-
-        // if (start_date && end_date) {
-        //   endpoint += `&created>${start_date}&created<${end_date}`;
-        // }
+        if (start_date && end_date) {
+          // Use updated date instead of created date to catch recently solved tickets
+          endpoint += `&updated>${start_date}&updated<${end_date}`;
+          console.log(
+            `Date filtering enabled: updated>${start_date}&updated<${end_date}`,
+          );
+        } else {
+          console.log(`No date filtering applied for assignee ${assigneeId}`);
+        }
 
         console.log(`Fetching tickets for assignee ID: ${assigneeId}`);
         const ticketData = await proxyZendeskRequest(endpoint);
