@@ -195,8 +195,16 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  const response = await apiRequest<ZendeskUsersResponse>("/users");
-  return response.users;
+  try {
+    const response = await apiRequest<ZendeskUsersResponse>("/users");
+    return response.users;
+  } catch (error) {
+    console.warn(
+      "Failed to fetch users, returning empty array:",
+      error.message,
+    );
+    return [];
+  }
 }
 
 export async function getTickets(
