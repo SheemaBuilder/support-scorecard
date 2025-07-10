@@ -563,14 +563,21 @@ export async function fetchAllEngineerMetrics(
       ["Akash Singh", 26396676511767],
     ]);
 
-    // Skip health check and proceed directly with API calls
-    console.log("Fetching engineer metrics directly from API endpoints");
+    console.log("🔄 Fetching engineer metrics from API endpoints");
+    console.log("📅 Date range:", { startDate, endDate });
 
     const [users, tickets, ratings] = await Promise.all([
       getUsers(),
       getTickets(startDate, endDate),
       getSatisfactionRatings(startDate, endDate),
     ]);
+
+    console.log("📦 Raw API data:", {
+      usersCount: users.length,
+      ticketsCount: tickets.length,
+      ratingsCount: ratings.length,
+      userSample: users.slice(0, 3).map((u) => ({ id: u.id, name: u.name })),
+    });
 
     // Filter users to only include engineers from our nameToIdMap
     const filteredUsers = users.filter(
@@ -579,12 +586,47 @@ export async function fetchAllEngineerMetrics(
         targetEngineers.get(user.name) === user.id,
     );
 
-    // Calculate metrics only for filtered engineers
-    return filteredUsers.map((user) =>
-      calculateEngineerMetrics(user, tickets, ratings),
+    console.log(
+      "👥 Filtered engineers:",
+      filteredUsers.map((u) => ({ id: u.id, name: u.name })),
     );
+
+    // Calculate metrics only for filtered engineers
+    const engineerMetrics = filteredUsers.map((user) => {
+      console.log(`🔍 Calculating metrics for ${user.name} (ID: ${user.id})`);
+
+      const userTickets = tickets.filter(
+        (ticket) => ticket.assignee_id === user.id,
+      );
+      const userRatings = ratings.filter(
+        (rating) => rating.assignee_id === user.id,
+      );
+
+      console.log(`📊 ${user.name} raw data:`, {
+        ticketsCount: userTickets.length,
+        ratingsCount: userRatings.length,
+        ticketStatuses: userTickets.reduce((acc, t) => {
+          acc[t.status] = (acc[t.status] || 0) + 1;
+          return acc;
+        }, {}),
+      });
+
+      const metrics = calculateEngineerMetrics(user, tickets, ratings);
+
+      console.log(`📈 ${user.name} calculated metrics:`, {
+        closed: metrics.closed,
+        open: metrics.open,
+        cesPercent: metrics.cesPercent,
+        surveyCount: metrics.surveyCount,
+      });
+
+      return metrics;
+    });
+
+    console.log("✅ All engineer metrics calculated:", engineerMetrics.length);
+    return engineerMetrics;
   } catch (error) {
-    console.error("Error fetching engineer metrics:", error);
+    console.error("❌ Error fetching engineer metrics:", error);
 
     // Always return empty array instead of throwing errors
     console.warn("Returning empty engineer metrics due to error");
