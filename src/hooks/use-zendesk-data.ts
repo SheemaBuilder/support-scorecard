@@ -3,7 +3,6 @@ import { EngineerMetrics, DateRange, AlertItem } from "../lib/types";
 import {
   fetchAllEngineerMetrics,
   calculateTeamAverages,
-  getHardcodedEngineers,
 } from "../lib/zendesk-api";
 
 // Check if we're in a cloud environment where localhost isn't available
