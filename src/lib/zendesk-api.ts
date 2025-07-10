@@ -513,23 +513,8 @@ export async function fetchAllEngineerMetrics(
       ["Akash Singh", 26396676511767],
     ]);
 
-    // Try to check backend health, but don't block if it fails
-    try {
-      const isBackendHealthy = await checkBackendHealth();
-      if (isBackendHealthy) {
-        console.log("Backend health check passed");
-      } else {
-        console.warn(
-          "Backend health check failed, but continuing with API calls",
-        );
-      }
-    } catch (healthError) {
-      console.warn(
-        "Backend health check error:",
-        healthError.message,
-        "- continuing anyway",
-      );
-    }
+    // Skip health check and proceed directly with API calls
+    console.log("Fetching engineer metrics directly from API endpoints");
 
     const [users, tickets, ratings] = await Promise.all([
       getUsers(),
