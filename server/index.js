@@ -94,9 +94,28 @@ async function proxyZendeskRequest(endpoint) {
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
-    // Try simpler endpoint first without role filter
-    const data = await proxyZendeskRequest("/users.json?per_page=100");
-    res.json(data);
+    // Try the authenticated user endpoint first, then try agents
+    try {
+      const userData = await proxyZendeskRequest("/users/me.json");
+      // If we can get the current user, try to get all users
+      const allUsersData = await proxyZendeskRequest(
+        "/users.json?per_page=100",
+      );
+      res.json(allUsersData);
+    } catch (authError) {
+      console.log(
+        "All users endpoint failed, trying current user only:",
+        authError.message,
+      );
+      // If all users fails, just return the current user as a single-user array
+      const userData = await proxyZendeskRequest("/users/me.json");
+      res.json({
+        users: [userData.user],
+        count: 1,
+        next_page: null,
+        previous_page: null,
+      });
+    }
   } catch (error) {
     console.error("Error fetching users:", error);
 
