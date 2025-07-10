@@ -20,7 +20,13 @@ async function checkBackendHealth(): Promise<boolean> {
     const healthUrl = "/api/health";
     console.log("Checking backend health at:", healthUrl);
 
-    const response = await fetch(healthUrl);
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+    const response = await fetch(healthUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       console.warn(
         "Health check failed:",
@@ -36,7 +42,11 @@ async function checkBackendHealth(): Promise<boolean> {
     console.log("Backend health check result:", isHealthy);
     return isHealthy;
   } catch (error) {
-    console.warn("Backend health check failed:", error);
+    if (error.name === "AbortError") {
+      console.warn("Backend health check timed out");
+    } else {
+      console.warn("Backend health check failed:", error);
+    }
     return false;
   }
 }
