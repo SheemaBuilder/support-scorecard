@@ -71,35 +71,21 @@ async function apiRequest<T>(
       Object.fromEntries(response.headers.entries()),
     );
 
-    // Check if response is ok first
-    if (!response.ok) {
-      let errorText = "Unknown error";
-      try {
-        errorText = await response.text();
-      } catch (readError) {
-        console.error("Failed to read error response:", readError);
-      }
-      console.error(`API error response:`, errorText);
-      throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${errorText}`,
-      );
-    }
-
-    // Handle successful response
-    const contentType = response.headers.get("content-type");
-    console.log(`Content-Type: ${contentType}`);
-
-    if (!contentType) {
-      console.warn("No content-type header found");
-    }
-
-    // Read response text once
+    // Read response text once, regardless of status
     let responseText: string;
     try {
       responseText = await response.text();
     } catch (streamError) {
       console.error("Failed to read response stream:", streamError);
       throw new Error("Failed to read response from server");
+    }
+
+    // Check if response was not ok AFTER reading the text
+    if (!response.ok) {
+      console.error(`API error response:`, responseText);
+      throw new Error(
+        `API error: ${response.status} ${response.statusText} - ${responseText}`,
+      );
     }
 
     console.log(`Response length: ${responseText.length} characters`);
