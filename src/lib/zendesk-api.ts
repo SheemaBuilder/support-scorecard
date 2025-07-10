@@ -550,9 +550,24 @@ export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
 ): Promise<EngineerMetrics> {
   if (engineerMetrics.length === 0) {
-    throw new Error(
-      "No engineer metrics available for team average calculation",
-    );
+    // Return empty/zero metrics instead of throwing an error
+    return {
+      name: "Team Average",
+      cesPercent: 0,
+      avgPcc: 0,
+      closed: 0,
+      open: 0,
+      openGreaterThan14: 0,
+      closedLessThan7: 0,
+      closedEqual1: 0,
+      participationRate: 0,
+      linkCount: 0,
+      citationCount: 0,
+      creationCount: 0,
+      enterprisePercent: 0,
+      technicalPercent: 0,
+      surveyCount: 0,
+    };
   }
 
   const averages = engineerMetrics.reduce(
