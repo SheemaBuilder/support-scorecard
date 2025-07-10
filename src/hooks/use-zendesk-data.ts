@@ -112,12 +112,23 @@ export function useZendeskData(
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
 
+        console.log("🔄 Fetching engineer metrics with date range:", {
+          startDate: startDate?.toISOString(),
+          endDate: endDate?.toISOString(),
+        });
+
         const engineerMetrics = await fetchAllEngineerMetrics(
           startDate,
           endDate,
         );
+
+        console.log("📊 Raw engineer metrics:", engineerMetrics);
+
         const teamAverages = await calculateTeamAverages(engineerMetrics);
+        console.log("📈 Team averages:", teamAverages);
+
         const alerts = generateAlerts(engineerMetrics, teamAverages);
+        console.log("🚨 Generated alerts:", alerts);
 
         setState({
           engineerData: engineerMetrics,
@@ -127,8 +138,14 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+
+        console.log("✅ Successfully loaded data:", {
+          engineerCount: engineerMetrics.length,
+          hasAverages: !!teamAverages,
+          alertCount: alerts.length,
+        });
       } catch (error) {
-        console.error("Error fetching Zendesk data:", error);
+        console.error("❌ Error fetching Zendesk data:", error);
 
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
