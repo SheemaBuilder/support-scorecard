@@ -35,6 +35,11 @@ export async function testZendeskConnection() {
       });
     }
 
+    // Initialize variables for data collection
+    let usersData = { users: [] };
+    let ticketsData = { tickets: [] };
+    let ratingsData = { satisfaction_ratings: [] };
+
     // Test users endpoint
     console.log("2️⃣ Testing users endpoint...");
     const usersResponse = await fetch("/api/zendesk/users");
@@ -45,7 +50,7 @@ export async function testZendeskConnection() {
       const errorText = await usersResponse.text();
       console.error("Error response:", errorText.substring(0, 200));
     } else {
-      const usersData = await usersResponse.json();
+      usersData = await usersResponse.json();
       console.log("✅ Users test:", {
         totalUsers: usersData.users?.length || 0,
         users: usersData.users?.map((u) => ({ id: u.id, name: u.name })) || [],
@@ -62,7 +67,7 @@ export async function testZendeskConnection() {
       const errorText = await ticketsResponse.text();
       console.error("Error response:", errorText.substring(0, 200));
     } else {
-      const ticketsData = await ticketsResponse.json();
+      ticketsData = await ticketsResponse.json();
       console.log("✅ Tickets test:", {
         totalTickets: ticketsData.tickets?.length || 0,
         sampleTickets:
@@ -84,7 +89,7 @@ export async function testZendeskConnection() {
       const errorText = await ratingsResponse.text();
       console.error("Error response:", errorText.substring(0, 200));
     } else {
-      const ratingsData = await ratingsResponse.json();
+      ratingsData = await ratingsResponse.json();
       console.log("✅ Ratings test:", {
         totalRatings: ratingsData.satisfaction_ratings?.length || 0,
         sampleRatings: ratingsData.satisfaction_ratings?.slice(0, 3) || [],
