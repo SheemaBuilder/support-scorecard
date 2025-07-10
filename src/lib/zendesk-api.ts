@@ -70,14 +70,15 @@ async function apiRequest<T>(
     url.search = params.toString();
   }
 
-  console.log(`Making API request to: ${url.toString()}`);
+  console.log(`🌐 Making API request to: ${url.toString()}`);
+  console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
     const response = await fetch(url.toString());
 
-    console.log(`Response status: ${response.status}`);
+    console.log(`📋 Response status: ${response.status}`);
     console.log(
-      `Response headers:`,
+      `📋 Response headers:`,
       Object.fromEntries(response.headers.entries()),
     );
 
@@ -86,30 +87,35 @@ async function apiRequest<T>(
     try {
       responseText = await response.text();
     } catch (streamError) {
-      console.error("Failed to read response stream:", streamError);
+      console.error("❌ Failed to read response stream:", streamError);
       throw new Error("Failed to read response from server");
     }
 
+    console.log(`📄 Raw response length: ${responseText.length} characters`);
+    console.log(`📄 Raw response preview: ${responseText.substring(0, 300)}`);
+
     // Check if response was not ok AFTER reading the text
     if (!response.ok) {
-      console.error(`API error response:`, responseText);
+      console.error(`❌ API error response:`, responseText);
       throw new Error(
         `API error: ${response.status} ${response.statusText} - ${responseText}`,
       );
     }
 
-    console.log(`Response length: ${responseText.length} characters`);
-    console.log(`Response preview: ${responseText.substring(0, 200)}...`);
-
     // Parse as JSON
     try {
-      return JSON.parse(responseText);
+      const jsonData = JSON.parse(responseText);
+      console.log(`✅ Parsed JSON successfully:`, {
+        keys: Object.keys(jsonData),
+        dataPreview: jsonData,
+      });
+      return jsonData;
     } catch (jsonError) {
-      console.error(`Failed to parse JSON:`, responseText.substring(0, 500));
+      console.error(`❌ Failed to parse JSON:`, responseText.substring(0, 500));
       throw new Error(`Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`API request failed for ${url.toString()}:`, error);
+    console.error(`❌ API request failed for ${url.toString()}:`, error);
 
     // Provide more helpful error messages for common issues
     if (
