@@ -6,23 +6,34 @@ export async function testZendeskConnection() {
     // Test the basic auth endpoint
     console.log("1️⃣ Testing authentication...");
     const authResponse = await fetch("/api/test-zendesk");
-    const authData = await authResponse.json();
 
-    let userInfo = "No user data";
-    if (authData.body) {
-      try {
-        const parsedBody = JSON.parse(authData.body);
-        userInfo = parsedBody.user?.name || "No user name";
-      } catch (parseError) {
-        userInfo = `Parse error: ${authData.body.substring(0, 50)}...`;
+    if (!authResponse.ok) {
+      console.error(
+        `Auth endpoint failed: ${authResponse.status} ${authResponse.statusText}`,
+      );
+      const errorText = await authResponse.text();
+      console.error("Error response:", errorText.substring(0, 200));
+    } else {
+      const authData = await authResponse.json();
+
+      let userInfo = "No user data";
+      if (authData.body) {
+        try {
+          const parsedBody = JSON.parse(authData.body);
+          userInfo = parsedBody.user?.name || "No user name";
+        } catch (parseError) {
+          console.warn("JSON parse failed for auth body:", parseError.message);
+          userInfo = `Parse error - body starts with: ${authData.body.substring(0, 50)}...`;
+        }
       }
-    }
 
-    console.log("✅ Auth test:", {
-      status: authData.status,
-      success: authData.success,
-      userInfo,
-    });
+      console.log("✅ Auth test:", {
+        status: authData.status,
+        success: authData.success !== false,
+        userInfo,
+        bodyLength: authData.body?.length || 0,
+      });
+    }
 
     // Test users endpoint
     console.log("2️⃣ Testing users endpoint...");
