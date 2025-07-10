@@ -17,6 +17,9 @@ import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
 
+// Add debug helper
+const DEBUG_MODE = import.meta.env.DEV;
+
 // Default date ranges
 const dateRanges: DateRange[] = [
   {
