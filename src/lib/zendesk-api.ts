@@ -384,9 +384,9 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
 
 function calculateCESStats(ratings: ZendeskSatisfactionRating[]) {
   if (ratings.length === 0) {
-    // Return a reasonable default when no satisfaction data is available
-    console.log("⚠️ No satisfaction ratings available, using default CES");
-    return { cesPercent: 75 }; // Default to 75% as a reasonable baseline
+    // Return 0 when no satisfaction data is available - no dummy data
+    console.log("⚠️ No satisfaction ratings available, returning 0");
+    return { cesPercent: 0 };
   }
 
   const goodRatings = ratings.filter(
