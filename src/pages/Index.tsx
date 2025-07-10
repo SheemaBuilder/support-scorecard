@@ -75,6 +75,25 @@ export default function Index() {
     }
   }, [engineerData, selectedEngineer]);
 
+  // Debug logging
+  React.useEffect(() => {
+    if (DEBUG_MODE) {
+      console.log("🔍 Debug data state:", {
+        engineerDataLength: engineerData.length,
+        averageMetrics: averageMetrics,
+        isLoading,
+        error,
+        lastUpdated,
+        engineerSample: engineerData.slice(0, 2).map((e) => ({
+          name: e.name,
+          cesPercent: e.cesPercent,
+          closed: e.closed,
+          open: e.open,
+        })),
+      });
+    }
+  }, [engineerData, averageMetrics, isLoading, error, lastUpdated]);
+
   const currentEngineer =
     engineerData.find((e) => e.name === selectedEngineer) || engineerData[0];
 
