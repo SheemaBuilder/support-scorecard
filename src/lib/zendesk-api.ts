@@ -225,6 +225,26 @@ export async function getTickets(
       params,
     );
     console.log("🔍 getTickets() success:", response.tickets.length, "tickets");
+
+    // Check if ticket 19934 is in the response
+    const ticket19934 = response.tickets.find((t) => t.id === 19934);
+    if (ticket19934) {
+      console.log("🎯 Ticket 19934 found in API response!");
+      console.log("🎯 Ticket 19934 details:", {
+        id: ticket19934.id,
+        assignee_id: ticket19934.assignee_id,
+        status: ticket19934.status,
+        created_at: ticket19934.created_at,
+        custom_fields_count: ticket19934.custom_fields?.length || 0,
+      });
+    } else {
+      console.log("❌ Ticket 19934 NOT found in API response");
+      console.log(
+        "📝 Sample ticket IDs:",
+        response.tickets.slice(0, 10).map((t) => t.id),
+      );
+    }
+
     return response.tickets;
   } catch (error) {
     console.warn(
