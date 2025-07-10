@@ -174,6 +174,40 @@ app.get("/api/test-auth", (req, res) => {
   });
 });
 
+// Debug endpoint to test Zendesk API directly
+app.get("/api/test-zendesk", async (req, res) => {
+  try {
+    console.log("Testing Zendesk API directly...");
+    const response = await fetch(
+      "https://builderio.zendesk.com/api/v2/users/me.json",
+      {
+        headers: {
+          Authorization: getAuthHeader(),
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const responseText = await response.text();
+    console.log(`Zendesk API test response:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseText,
+    });
+
+    res.json({
+      status: response.status,
+      statusText: response.statusText,
+      body: responseText,
+      success: response.ok,
+    });
+  } catch (error) {
+    console.error("Zendesk API test failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Zendesk proxy server running on port ${PORT}`);
 });
