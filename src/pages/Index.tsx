@@ -440,17 +440,20 @@ export default function Index() {
                       try {
                         const response = await fetch("/api/debug/ticket/19934");
 
+                        // Read the response body once as text first
+                        const responseText = await response.text();
+
                         if (!response.ok) {
-                          const errorText = await response.text();
                           console.error(
                             "🎯 API Error:",
                             response.status,
-                            errorText,
+                            responseText,
                           );
                           return;
                         }
 
-                        const data = await response.json();
+                        // Parse the text as JSON
+                        const data = JSON.parse(responseText);
                         console.log("🎯 Ticket 19934 details:", data);
 
                         // Specific logging for CES field
@@ -461,6 +464,10 @@ export default function Index() {
                           console.log("✅ Found CES field:", cesField);
                         } else {
                           console.log("❌ CES field not found");
+                          console.log(
+                            "📝 Available custom field IDs:",
+                            data.custom_fields?.map((cf) => cf.id) || [],
+                          );
                         }
                       } catch (error) {
                         console.error("🎯 Ticket check error:", error.message);
