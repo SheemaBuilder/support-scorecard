@@ -211,15 +211,26 @@ export async function getTickets(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskTicket[]> {
-  const params = new URLSearchParams();
+  try {
+    const params = new URLSearchParams();
 
-  if (startDate && endDate) {
-    params.append("start_date", startDate.toISOString());
-    params.append("end_date", endDate.toISOString());
+    if (startDate && endDate) {
+      params.append("start_date", startDate.toISOString());
+      params.append("end_date", endDate.toISOString());
+    }
+
+    const response = await apiRequest<ZendeskTicketsResponse>(
+      "/tickets",
+      params,
+    );
+    return response.tickets;
+  } catch (error) {
+    console.warn(
+      "Failed to fetch tickets, returning empty array:",
+      error.message,
+    );
+    return [];
   }
-
-  const response = await apiRequest<ZendeskTicketsResponse>("/tickets", params);
-  return response.tickets;
 }
 
 export async function getSatisfactionRatings(
