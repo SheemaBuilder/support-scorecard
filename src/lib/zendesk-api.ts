@@ -237,21 +237,32 @@ export async function getSatisfactionRatings(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskSatisfactionRating[]> {
-  const params = new URLSearchParams();
+  try {
+    const params = new URLSearchParams();
 
-  if (startDate && endDate) {
-    params.append(
-      "start_time",
-      Math.floor(startDate.getTime() / 1000).toString(),
+    if (startDate && endDate) {
+      params.append(
+        "start_time",
+        Math.floor(startDate.getTime() / 1000).toString(),
+      );
+      params.append(
+        "end_time",
+        Math.floor(endDate.getTime() / 1000).toString(),
+      );
+    }
+
+    const response = await apiRequest<ZendeskSatisfactionRatingsResponse>(
+      "/satisfaction_ratings",
+      params,
     );
-    params.append("end_time", Math.floor(endDate.getTime() / 1000).toString());
+    return response.satisfaction_ratings;
+  } catch (error) {
+    console.warn(
+      "Failed to fetch satisfaction ratings, returning empty array:",
+      error.message,
+    );
+    return [];
   }
-
-  const response = await apiRequest<ZendeskSatisfactionRatingsResponse>(
-    "/satisfaction_ratings",
-    params,
-  );
-  return response.satisfaction_ratings;
 }
 
 // Data transformation functions
