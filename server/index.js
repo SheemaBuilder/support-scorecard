@@ -190,7 +190,23 @@ app.get("/api/zendesk/tickets", async (req, res) => {
         console.log(`🌐 Full API endpoint: ${endpoint}`);
         console.log(`🔍 Fetching tickets for assignee ID: ${assigneeId}`);
         const ticketData = await proxyZendeskRequest(endpoint);
-        return ticketData.tickets || [];
+
+        const tickets = ticketData.tickets || [];
+        console.log(
+          `📊 API returned ${tickets.length} tickets for assignee ${assigneeId}`,
+        );
+
+        if (tickets.length > 0) {
+          const ticketIds = tickets.map((t) => t.id).sort((a, b) => b - a); // Sort descending
+          console.log(
+            `📝 Ticket IDs: ${ticketIds.slice(0, 5).join(", ")}${tickets.length > 5 ? ` (and ${tickets.length - 5} more)` : ""}`,
+          );
+          console.log(
+            `📅 Date range of tickets: ${Math.min(...ticketIds)} to ${Math.max(...ticketIds)}`,
+          );
+        }
+
+        return tickets;
       } catch (error) {
         console.error(
           `Error fetching tickets for assignee ${assigneeId}:`,
