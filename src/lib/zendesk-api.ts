@@ -218,12 +218,6 @@ export async function getTickets(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskTicket[]> {
-  // In cloud environments, skip API calls entirely since backend isn't accessible
-  if (isCloudEnvironment()) {
-    console.warn("Cloud environment detected, returning empty tickets array");
-    return [];
-  }
-
   try {
     const params = new URLSearchParams();
 
@@ -236,6 +230,7 @@ export async function getTickets(
       "/tickets",
       params,
     );
+    console.log("🔍 getTickets() success:", response.tickets.length, "tickets");
     return response.tickets;
   } catch (error) {
     console.warn(
