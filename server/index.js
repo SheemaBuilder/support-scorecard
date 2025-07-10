@@ -148,10 +148,13 @@ app.get("/api/zendesk/tickets", async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("Error fetching tickets:", error);
-
-    // Fall back to demo data for any error (auth issues, rate limiting, etc.)
-    console.log("Falling back to demo data due to API error:", error.message);
-    return res.redirect("/api/zendesk-demo/tickets");
+    // Return empty result instead of demo data
+    res.json({
+      tickets: [],
+      count: 0,
+      next_page: null,
+      previous_page: null,
+    });
   }
 });
 
