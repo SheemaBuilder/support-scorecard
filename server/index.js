@@ -94,31 +94,47 @@ async function proxyZendeskRequest(endpoint) {
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
-    // Define the specific engineers we want to show
-    const targetEngineers = new Map([
-      ["Jared Beckler", 29215234714775],
-      ["Rahul Joshi", 29092423638935],
-      ["Parth Sharma", 29092389569431],
-      ["Fernando Duran", 24100359866391],
-      ["Alex Bridgeman", 19347232342679],
-      ["Sheema Parwaz", 16211207272855],
-      ["Manish Sharma", 5773445002519],
-      ["Akash Singh", 26396676511767],
-    ]);
+    // Define the specific engineer IDs we want to fetch
+    const targetEngineerIds = [
+      29215234714775, // Jared Beckler
+      29092423638935, // Rahul Joshi
+      29092389569431, // Parth Sharma
+      24100359866391, // Fernando Duran
+      19347232342679, // Alex Bridgeman
+      16211207272855, // Sheema Parwaz
+      5773445002519, // Manish Sharma
+      26396676511767, // Akash Singh
+    ];
 
-    // Try to get all users
-    const allUsersData = await proxyZendeskRequest("/users.json?per_page=100");
+    console.log(
+      `Fetching ${targetEngineerIds.length} specific engineers by ID`,
+    );
 
-    // Filter to only include engineers from our nameToIdMap
-    const filteredUsers = allUsersData.users.filter(
-      (user) =>
-        targetEngineers.has(user.name) &&
-        targetEngineers.get(user.name) === user.id,
+    // Fetch each engineer individually by ID
+    const userPromises = targetEngineerIds.map(async (userId) => {
+      try {
+        console.log(`Fetching user ID: ${userId}`);
+        const userData = await proxyZendeskRequest(`/users/${userId}.json`);
+        return userData.user;
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error.message);
+        return null; // Return null for failed requests
+      }
+    });
+
+    // Wait for all user requests to complete
+    const users = await Promise.all(userPromises);
+
+    // Filter out any null results (failed requests)
+    const validUsers = users.filter((user) => user !== null);
+
+    console.log(
+      `Successfully fetched ${validUsers.length} out of ${targetEngineerIds.length} engineers`,
     );
 
     res.json({
-      users: filteredUsers,
-      count: filteredUsers.length,
+      users: validUsers,
+      count: validUsers.length,
       next_page: null,
       previous_page: null,
     });
