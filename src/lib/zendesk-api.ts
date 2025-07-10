@@ -217,6 +217,12 @@ export async function getTickets(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskTicket[]> {
+  // In cloud environments, skip API calls entirely
+  if (isCloudEnvironment()) {
+    console.warn("Cloud environment detected, returning empty tickets array");
+    return [];
+  }
+
   try {
     const params = new URLSearchParams();
 
