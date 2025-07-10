@@ -27,34 +27,58 @@ export async function testZendeskConnection() {
     // Test users endpoint
     console.log("2️⃣ Testing users endpoint...");
     const usersResponse = await fetch("/api/zendesk/users");
-    const usersData = await usersResponse.json();
-    console.log("✅ Users test:", {
-      totalUsers: usersData.users?.length || 0,
-      users: usersData.users?.map((u) => ({ id: u.id, name: u.name })) || [],
-    });
+    if (!usersResponse.ok) {
+      console.error(
+        `Users endpoint failed: ${usersResponse.status} ${usersResponse.statusText}`,
+      );
+      const errorText = await usersResponse.text();
+      console.error("Error response:", errorText.substring(0, 200));
+    } else {
+      const usersData = await usersResponse.json();
+      console.log("✅ Users test:", {
+        totalUsers: usersData.users?.length || 0,
+        users: usersData.users?.map((u) => ({ id: u.id, name: u.name })) || [],
+      });
+    }
 
     // Test tickets endpoint
     console.log("3️⃣ Testing tickets endpoint...");
     const ticketsResponse = await fetch("/api/zendesk/tickets");
-    const ticketsData = await ticketsResponse.json();
-    console.log("✅ Tickets test:", {
-      totalTickets: ticketsData.tickets?.length || 0,
-      sampleTickets:
-        ticketsData.tickets?.slice(0, 3).map((t) => ({
-          id: t.id,
-          status: t.status,
-          assignee_id: t.assignee_id,
-        })) || [],
-    });
+    if (!ticketsResponse.ok) {
+      console.error(
+        `Tickets endpoint failed: ${ticketsResponse.status} ${ticketsResponse.statusText}`,
+      );
+      const errorText = await ticketsResponse.text();
+      console.error("Error response:", errorText.substring(0, 200));
+    } else {
+      const ticketsData = await ticketsResponse.json();
+      console.log("✅ Tickets test:", {
+        totalTickets: ticketsData.tickets?.length || 0,
+        sampleTickets:
+          ticketsData.tickets?.slice(0, 3).map((t) => ({
+            id: t.id,
+            status: t.status,
+            assignee_id: t.assignee_id,
+          })) || [],
+      });
+    }
 
     // Test satisfaction ratings endpoint
     console.log("4️⃣ Testing satisfaction ratings endpoint...");
     const ratingsResponse = await fetch("/api/zendesk/satisfaction_ratings");
-    const ratingsData = await ratingsResponse.json();
-    console.log("✅ Ratings test:", {
-      totalRatings: ratingsData.satisfaction_ratings?.length || 0,
-      sampleRatings: ratingsData.satisfaction_ratings?.slice(0, 3) || [],
-    });
+    if (!ratingsResponse.ok) {
+      console.error(
+        `Ratings endpoint failed: ${ratingsResponse.status} ${ratingsResponse.statusText}`,
+      );
+      const errorText = await ratingsResponse.text();
+      console.error("Error response:", errorText.substring(0, 200));
+    } else {
+      const ratingsData = await ratingsResponse.json();
+      console.log("✅ Ratings test:", {
+        totalRatings: ratingsData.satisfaction_ratings?.length || 0,
+        sampleRatings: ratingsData.satisfaction_ratings?.slice(0, 3) || [],
+      });
+    }
 
     return {
       success: true,
