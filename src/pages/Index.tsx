@@ -391,7 +391,7 @@ export default function Index() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <details className="text-sm">
               <summary className="cursor-pointer text-yellow-800 font-medium">
-                ��� Debug Info (Click to expand)
+                🔍 Debug Info (Click to expand)
               </summary>
               <div className="mt-2 space-y-1 text-yellow-700">
                 <div>Engineers loaded: {engineerData.length}</div>
@@ -433,6 +433,21 @@ export default function Index() {
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                   >
                     🔄 Refetch Data
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log("🚀 Manual API test...");
+                      try {
+                        const response = await fetch("/api/zendesk/users");
+                        const data = await response.json();
+                        console.log("Manual API response:", data);
+                      } catch (error) {
+                        console.error("Manual API error:", error);
+                      }
+                    }}
+                    className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                  >
+                    🚀 Manual API Test
                   </button>
                 </div>
               </div>
