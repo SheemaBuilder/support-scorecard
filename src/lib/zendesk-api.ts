@@ -58,19 +58,13 @@ async function apiRequest<T>(
 ): Promise<T> {
   const baseUrl = getApiBaseUrl();
 
-  // Construct URL properly - if baseUrl is absolute, don't use window.location.origin
-  let url: URL;
-  if (baseUrl.startsWith("http")) {
-    url = new URL(`${baseUrl}${endpoint}`);
-  } else {
-    url = new URL(`${baseUrl}${endpoint}`, window.location.origin);
-  }
-
+  // Construct relative URL for proxy
+  let urlString = `${baseUrl}${endpoint}`;
   if (params) {
-    url.search = params.toString();
+    urlString += `?${params.toString()}`;
   }
 
-  console.log(`🌐 Making API request to: ${url.toString()}`);
+  console.log(`🌐 Making API request to: ${urlString}`);
   console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
