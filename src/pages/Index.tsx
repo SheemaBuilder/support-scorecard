@@ -436,18 +436,18 @@ export default function Index() {
                   </button>
                   <button
                     onClick={async () => {
-                      console.log("🚀 Manual API test...");
+                      console.log("🎯 Checking ticket 19934...");
                       try {
-                        const response = await fetch("/api/zendesk/users");
+                        const response = await fetch("/api/debug/ticket/19934");
                         const data = await response.json();
-                        console.log("Manual API response:", data);
+                        console.log("🎯 Ticket 19934 details:", data);
                       } catch (error) {
-                        console.error("Manual API error:", error);
+                        console.error("Ticket check error:", error);
                       }
                     }}
                     className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
                   >
-                    🚀 Manual API Test
+                    🎯 Check Ticket 19934
                   </button>
                 </div>
               </div>
