@@ -108,20 +108,6 @@ export function useZendeskData(
     async (dateRange?: DateRange) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
-      if (isCloudEnvironment()) {
-        console.warn(
-          "Cloud environment detected - no backend server available",
-        );
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
-        }));
-        return;
-      }
-
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
