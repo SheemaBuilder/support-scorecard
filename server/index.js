@@ -152,16 +152,61 @@ app.get("/api/zendesk/users", async (req, res) => {
 
 app.get("/api/zendesk/tickets", async (req, res) => {
   try {
-    // Start with a simpler request
-    let endpoint = "/tickets.json?per_page=100";
+    // Define the specific engineer IDs we want tickets for
+    const targetEngineerIds = [
+      29215234714775, // Jared Beckler
+      29092423638935, // Rahul Joshi
+      29092389569431, // Parth Sharma
+      24100359866391, // Fernando Duran
+      19347232342679, // Alex Bridgeman
+      16211207272855, // Sheema Parwaz
+      5773445002519, // Manish Sharma
+      26396676511767, // Akash Singh
+    ];
+
+    console.log(
+      `Fetching tickets for ${targetEngineerIds.length} specific engineers`,
+    );
 
     const { start_date, end_date } = req.query;
-    if (start_date && end_date) {
-      endpoint += `&created>${start_date}&created<${end_date}`;
-    }
 
-    const data = await proxyZendeskRequest(endpoint);
-    res.json(data);
+    // Fetch tickets for each engineer individually
+    const ticketPromises = targetEngineerIds.map(async (assigneeId) => {
+      try {
+        let endpoint = `/tickets.json?assignee=${assigneeId}&per_page=100`;
+
+        if (start_date && end_date) {
+          endpoint += `&created>${start_date}&created<${end_date}`;
+        }
+
+        console.log(`Fetching tickets for assignee ID: ${assigneeId}`);
+        const ticketData = await proxyZendeskRequest(endpoint);
+        return ticketData.tickets || [];
+      } catch (error) {
+        console.error(
+          `Error fetching tickets for assignee ${assigneeId}:`,
+          error.message,
+        );
+        return []; // Return empty array for failed requests
+      }
+    });
+
+    // Wait for all ticket requests to complete
+    const ticketArrays = await Promise.all(ticketPromises);
+
+    // Flatten all ticket arrays into one array
+    const allTickets = ticketArrays.flat();
+
+    console.log(
+      `Successfully fetched ${allTickets.length} tickets for specified engineers`,
+    );
+
+    res.json({
+      tickets: allTickets,
+      count: allTickets.length,
+      next_page: null,
+      previous_page: null,
+    });
   } catch (error) {
     console.error("Error fetching tickets:", error);
     // Return empty result instead of demo data
