@@ -170,30 +170,34 @@ app.get("/api/zendesk/tickets", async (req, res) => {
 
     const { start_date, end_date } = req.query;
 
-    // Fetch tickets for each engineer individually
+    // Use Search API for proper date filtering support
     const ticketPromises = targetEngineerIds.map(async (assigneeId) => {
       try {
-        let endpoint = `/tickets.json?assignee=${assigneeId}&per_page=100`;
+        // Build search query using Zendesk Search API syntax
+        let searchQuery = `type:ticket assignee:${assigneeId}`;
 
         if (start_date && end_date) {
-          // Use updated_at date instead of created_at to catch recently solved tickets
-          endpoint += `&updated_at>=${start_date}&updated_at<=${end_date}`;
-          console.log(
-            `✅ Date filtering enabled for ${assigneeId}: updated_at>${start_date}&updated_at<${end_date}`,
-          );
+          // Format dates for Zendesk search (YYYY-MM-DD format)
+          const startDate = new Date(start_date).toISOString().split("T")[0];
+          const endDate = new Date(end_date).toISOString().split("T")[0];
+          searchQuery += ` updated>=${startDate} updated<=${endDate}`;
+          console.log(`✅ Search query for ${assigneeId}: ${searchQuery}`);
         } else {
-          console.log(
-            `❌ No date filtering applied for assignee ${assigneeId}`,
-          );
+          console.log(`❌ No date filtering for assignee ${assigneeId}`);
         }
 
-        console.log(`🌐 Full API endpoint: ${endpoint}`);
-        console.log(`🔍 Fetching tickets for assignee ID: ${assigneeId}`);
-        const ticketData = await proxyZendeskRequest(endpoint);
+        // Use Search API endpoint
+        const encodedQuery = encodeURIComponent(searchQuery);
+        const endpoint = `/search.json?query=${encodedQuery}&per_page=100`;
 
-        const tickets = ticketData.tickets || [];
+        console.log(`🌐 Search API endpoint: ${endpoint}`);
+        console.log(`🔍 Searching tickets for assignee ID: ${assigneeId}`);
+
+        const searchData = await proxyZendeskRequest(endpoint);
+        const tickets = searchData.results || [];
+
         console.log(
-          `📊 API returned ${tickets.length} tickets for assignee ${assigneeId}`,
+          `📊 Search API returned ${tickets.length} tickets for assignee ${assigneeId}`,
         );
 
         if (tickets.length > 0) {
