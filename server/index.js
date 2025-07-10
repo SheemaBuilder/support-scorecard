@@ -177,7 +177,7 @@ app.get("/api/zendesk/tickets", async (req, res) => {
 
         if (start_date && end_date) {
           // Use updated_at date instead of created_at to catch recently solved tickets
-          endpoint += `&updated_at>${start_date}&updated_at<${end_date}`;
+          endpoint += `&updated_at>=${start_date}&updated_at<=${end_date}`;
           console.log(
             `✅ Date filtering enabled for ${assigneeId}: updated_at>${start_date}&updated_at<${end_date}`,
           );
