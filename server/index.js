@@ -187,10 +187,13 @@ app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("Error fetching satisfaction ratings:", error);
-
-    // Fall back to demo data for any error (auth issues, rate limiting, etc.)
-    console.log("Falling back to demo data due to API error:", error.message);
-    return res.redirect("/api/zendesk-demo/satisfaction_ratings");
+    // Return empty result instead of demo data
+    res.json({
+      satisfaction_ratings: [],
+      count: 0,
+      next_page: null,
+      previous_page: null,
+    });
   }
 });
 
