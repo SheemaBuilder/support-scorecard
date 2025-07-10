@@ -503,13 +503,22 @@ export async function fetchAllEngineerMetrics(
       ["Akash Singh", 26396676511767],
     ]);
 
-    // Check backend health first
-    const isBackendHealthy = await checkBackendHealth();
-    if (!isBackendHealthy) {
-      const errorMsg = isCloudEnvironment()
-        ? "Backend server is not available. Please ensure the server is running on port 3001."
-        : "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.";
-      throw new Error(errorMsg);
+    // Try to check backend health, but don't block if it fails
+    try {
+      const isBackendHealthy = await checkBackendHealth();
+      if (isBackendHealthy) {
+        console.log("Backend health check passed");
+      } else {
+        console.warn(
+          "Backend health check failed, but continuing with API calls",
+        );
+      }
+    } catch (healthError) {
+      console.warn(
+        "Backend health check error:",
+        healthError.message,
+        "- continuing anyway",
+      );
     }
 
     const [users, tickets, ratings] = await Promise.all([
