@@ -215,9 +215,19 @@ export async function getTickets(
   try {
     const params = new URLSearchParams();
 
+    console.log("📅 getTickets() called with dates:", {
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+      startDateLocal: startDate?.toLocaleDateString(),
+      endDateLocal: endDate?.toLocaleDateString(),
+    });
+
     if (startDate && endDate) {
       params.append("start_date", startDate.toISOString());
       params.append("end_date", endDate.toISOString());
+      console.log("📅 Date params added to API call:", params.toString());
+    } else {
+      console.log("⚠️ No date filters applied - fetching all tickets");
     }
 
     const response = await apiRequest<ZendeskTicketsResponse>(
@@ -731,7 +741,7 @@ export async function fetchAllEngineerMetrics(
       });
 
       console.log(
-        "✅ All engineer metrics calculated:",
+        "��� All engineer metrics calculated:",
         engineerMetrics.length,
       );
       return engineerMetrics;
