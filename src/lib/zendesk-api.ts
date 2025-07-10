@@ -681,29 +681,11 @@ export async function fetchAllEngineerMetrics(
 
 export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
-): Promise<EngineerMetrics> {
+): Promise<EngineerMetrics | null> {
   if (engineerMetrics.length === 0) {
-    // Return reasonable default metrics instead of zeros
-    console.log(
-      "⚠️ No engineer metrics available, using default team averages",
-    );
-    return {
-      name: "Team Average",
-      cesPercent: 75, // Default CES
-      avgPcc: 24, // Default 24 hours response time
-      closed: 10, // Default tickets closed
-      open: 5, // Default open tickets
-      openGreaterThan14: 1,
-      closedLessThan7: 80, // 80% closed within 7 days
-      closedEqual1: 40, // 40% closed within 1 day
-      participationRate: 3.5, // Default quality score
-      linkCount: 3.0,
-      citationCount: 3.5,
-      creationCount: 3.5,
-      enterprisePercent: 25,
-      technicalPercent: 60,
-      surveyCount: 5,
-    };
+    // Return null when no engineer metrics available - no dummy data
+    console.log("⚠️ No engineer metrics available, returning null");
+    return null;
   }
 
   const averages = engineerMetrics.reduce(
