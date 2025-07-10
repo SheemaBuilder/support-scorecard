@@ -375,19 +375,47 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
   };
 }
 
-function calculateCESStats(ratings: ZendeskSatisfactionRating[]) {
-  if (ratings.length === 0) {
-    // Return 0 when no satisfaction data is available - no dummy data
-    console.log("⚠️ No satisfaction ratings available, returning 0");
+function calculateCESStats(userTickets: ZendeskTicket[]) {
+  // Get CES scores from custom field 31797439524887
+  const CES_FIELD_ID = 31797439524887;
+
+  const cesScores: number[] = [];
+
+  userTickets.forEach((ticket) => {
+    const cesField = ticket.custom_fields?.find(
+      (field) => field.id === CES_FIELD_ID,
+    );
+    if (cesField && cesField.value !== null && cesField.value !== undefined) {
+      const score =
+        typeof cesField.value === "string"
+          ? parseFloat(cesField.value)
+          : Number(cesField.value);
+      if (!isNaN(score) && score >= 1 && score <= 7) {
+        cesScores.push(score);
+      }
+    }
+  });
+
+  console.log(
+    `🔍 CES calculation: found ${cesScores.length} CES scores in ${userTickets.length} tickets`,
+  );
+  console.log(`🔍 CES scores:`, cesScores);
+
+  if (cesScores.length === 0) {
+    console.log("⚠️ No CES scores found in custom fields, returning 0");
     return { cesPercent: 0 };
   }
 
-  const goodRatings = ratings.filter(
-    (rating) => rating.score === "good",
-  ).length;
-  return {
-    cesPercent: (goodRatings / ratings.length) * 100,
-  };
+  // Calculate percentage of scores that are 5 or above (good scores)
+  // Assuming 5-7 are "good" scores on a 1-7 scale
+  const goodScores = cesScores.filter((score) => score >= 5).length;
+  const cesPercent = (goodScores / cesScores.length) * 100;
+
+  console.log(
+    `🔍 CES result: ${goodScores}/${cesScores.length} good scores = ${cesPercent.toFixed(1)}%`,
+  );
+
+  return { cesPercent };
 }
 
 function calculateOpenGreaterThan14Days(openTickets: ZendeskTicket[]): number {
