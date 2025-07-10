@@ -245,14 +245,6 @@ export async function getSatisfactionRatings(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskSatisfactionRating[]> {
-  // In cloud environments, skip API calls entirely since backend isn't accessible
-  if (isCloudEnvironment()) {
-    console.warn(
-      "Cloud environment detected, returning empty satisfaction ratings array",
-    );
-    return [];
-  }
-
   try {
     const params = new URLSearchParams();
 
@@ -270,6 +262,11 @@ export async function getSatisfactionRatings(
     const response = await apiRequest<ZendeskSatisfactionRatingsResponse>(
       "/satisfaction_ratings",
       params,
+    );
+    console.log(
+      "🔍 getSatisfactionRatings() success:",
+      response.satisfaction_ratings.length,
+      "ratings",
     );
     return response.satisfaction_ratings;
   } catch (error) {
