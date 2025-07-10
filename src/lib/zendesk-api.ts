@@ -673,18 +673,16 @@ export async function fetchAllEngineerMetrics(
       );
       return engineerMetrics;
     } else {
-      // If no engineers found in API, return hardcoded list with default metrics
-      console.log(
-        "⚠️ No engineers found in API, returning hardcoded list with default metrics",
-      );
-      return getHardcodedEngineers();
+      // If no engineers found in API, return empty array
+      console.log("⚠️ No engineers found in API, returning empty array");
+      return [];
     }
   } catch (error) {
     console.error("❌ Error fetching engineer metrics:", error);
 
-    // On error, return hardcoded engineers with default metrics
-    console.log("🔄 Returning hardcoded engineers due to API error");
-    return getHardcodedEngineers();
+    // On error, return empty array - no dummy data
+    console.log("🔄 Returning empty array due to API error");
+    return [];
   }
 }
 
