@@ -94,34 +94,43 @@ async function proxyZendeskRequest(endpoint) {
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
-    // Try the authenticated user endpoint first, then try agents
-    try {
-      const userData = await proxyZendeskRequest("/users/me.json");
-      // If we can get the current user, try to get all users
-      const allUsersData = await proxyZendeskRequest(
-        "/users.json?per_page=100",
-      );
-      res.json(allUsersData);
-    } catch (authError) {
-      console.log(
-        "All users endpoint failed, trying current user only:",
-        authError.message,
-      );
-      // If all users fails, just return the current user as a single-user array
-      const userData = await proxyZendeskRequest("/users/me.json");
-      res.json({
-        users: [userData.user],
-        count: 1,
-        next_page: null,
-        previous_page: null,
-      });
-    }
+    // Define the specific engineers we want to show
+    const targetEngineers = new Map([
+      ["Jared Beckler", 29215234714775],
+      ["Rahul Joshi", 29092423638935],
+      ["Parth Sharma", 29092389569431],
+      ["Fernando Duran", 24100359866391],
+      ["Alex Bridgeman", 19347232342679],
+      ["Sheema Parwaz", 16211207272855],
+      ["Manish Sharma", 5773445002519],
+      ["Akash Singh", 26396676511767],
+    ]);
+
+    // Try to get all users
+    const allUsersData = await proxyZendeskRequest("/users.json?per_page=100");
+
+    // Filter to only include engineers from our nameToIdMap
+    const filteredUsers = allUsersData.users.filter(
+      (user) =>
+        targetEngineers.has(user.name) &&
+        targetEngineers.get(user.name) === user.id,
+    );
+
+    res.json({
+      users: filteredUsers,
+      count: filteredUsers.length,
+      next_page: null,
+      previous_page: null,
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
-
-    // Fall back to demo data for any error (auth issues, rate limiting, etc.)
-    console.log("Falling back to demo data due to API error:", error.message);
-    return res.redirect("/api/zendesk-demo/users");
+    // Return empty result instead of demo data
+    res.json({
+      users: [],
+      count: 0,
+      next_page: null,
+      previous_page: null,
+    });
   }
 });
 
