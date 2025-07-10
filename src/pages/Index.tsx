@@ -16,6 +16,7 @@ import { MetricCard } from "../components/MetricCard";
 import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
+import { testZendeskConnection } from "../test-zendesk.js";
 
 // Add debug helper
 const DEBUG_MODE = import.meta.env.DEV;
