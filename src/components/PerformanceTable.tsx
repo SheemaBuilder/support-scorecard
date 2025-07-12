@@ -248,7 +248,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.cesPercent,
                       averageData.cesPercent,
                       true,
@@ -261,7 +261,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.surveyCount,
                       averageData.surveyCount,
                       true,
