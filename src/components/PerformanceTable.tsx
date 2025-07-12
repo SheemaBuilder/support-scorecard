@@ -59,8 +59,22 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
 
   const formatValue = (value: number | string, isPercentage = false) => {
     if (typeof value === "string") return value;
+    if (value === 0) return "-"; // Show dash for no data
     if (isPercentage) return `${value.toFixed(1)}%`;
     return value % 1 === 0 ? value.toString() : value.toFixed(1);
+  };
+
+  const getCellColor = (
+    value: number,
+    averageValue: number,
+    higherIsBetter: boolean = true,
+  ) => {
+    // If no data (0), show gray
+    if (value === 0) {
+      return "bg-gray-100 text-gray-500";
+    }
+    // Otherwise use performance color
+    return getPerformanceColor(value, averageValue, higherIsBetter);
   };
 
   const getCellClassName = (value: number, isGood: boolean) => {
