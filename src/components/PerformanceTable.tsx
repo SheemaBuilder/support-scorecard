@@ -343,7 +343,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.enterprisePercent,
                       averageData.enterprisePercent,
                       true,
@@ -356,7 +356,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.technicalPercent,
                       averageData.technicalPercent,
                       true,
