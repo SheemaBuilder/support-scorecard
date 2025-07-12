@@ -274,11 +274,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.closed,
-                      averageData.closed,
-                      true,
-                    ),
+                    getCellColor(engineer.closed, averageData.closed, true),
                   )}
                   style={{ fontSize: "10px" }}
                 >
@@ -287,11 +283,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.avgPcc,
-                      averageData.avgPcc,
-                      false,
-                    ),
+                    getCellColor(engineer.avgPcc, averageData.avgPcc, false),
                   )}
                   style={{ fontSize: "10px" }}
                 >
@@ -300,7 +292,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.closedLessThan7,
                       averageData.closedLessThan7,
                       true,
@@ -313,7 +305,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
+                    getCellColor(
                       engineer.closedEqual1,
                       averageData.closedEqual1,
                       true,
