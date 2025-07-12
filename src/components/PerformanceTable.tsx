@@ -180,30 +180,26 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </TableHeader>
 
               <TableHeader
-                sortKey="participationRate"
-                className="w-8 bg-purple-100"
-                title="Overall Quality Score"
+                className="w-8 bg-gray-200 text-gray-400"
+                title="Overall Quality Score (Coming Soon)"
               >
                 QA
               </TableHeader>
               <TableHeader
-                sortKey="linkCount"
-                className="w-8 bg-purple-100"
-                title="Communication Score"
+                className="w-8 bg-gray-200 text-gray-400"
+                title="Communication Score (Coming Soon)"
               >
                 Cm
               </TableHeader>
               <TableHeader
-                sortKey="citationCount"
-                className="w-8 bg-purple-100"
-                title="Quality of Responses Score"
+                className="w-8 bg-gray-200 text-gray-400"
+                title="Quality of Responses Score (Coming Soon)"
               >
                 Rs
               </TableHeader>
               <TableHeader
-                sortKey="creationCount"
-                className="w-8 bg-purple-100"
-                title="Technical Accuracy Score"
+                className="w-8 bg-gray-200 text-gray-400"
+                title="Technical Accuracy Score (Coming Soon)"
               >
                 Tc
               </TableHeader>
@@ -315,56 +311,28 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 </td>
 
                 <td
-                  className={cn(
-                    "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.participationRate,
-                      averageData.participationRate,
-                      true,
-                    ),
-                  )}
+                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.participationRate)}
+                  -
                 </td>
                 <td
-                  className={cn(
-                    "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.linkCount,
-                      averageData.linkCount,
-                      true,
-                    ),
-                  )}
+                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.linkCount)}
+                  -
                 </td>
                 <td
-                  className={cn(
-                    "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.citationCount,
-                      averageData.citationCount,
-                      true,
-                    ),
-                  )}
+                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.citationCount)}
+                  -
                 </td>
                 <td
-                  className={cn(
-                    "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getPerformanceColor(
-                      engineer.creationCount,
-                      averageData.creationCount,
-                      true,
-                    ),
-                  )}
+                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.creationCount)}
+                  -
                 </td>
                 <td
                   className={cn(
@@ -439,28 +407,28 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </td>
 
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
+                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.participationRate)}
+                -
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
+                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.linkCount)}
+                -
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
+                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.citationCount)}
+                -
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
+                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.creationCount)}
+                -
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
