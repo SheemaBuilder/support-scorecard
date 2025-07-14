@@ -175,24 +175,6 @@ interface ZendeskTicketsResponse {
   count: number;
 }
 
-interface ZendeskSatisfactionRating {
-  id: number;
-  score: "offered" | "unoffered" | "received" | "good" | "bad";
-  ticket_id: number;
-  assignee_id: number;
-  requester_id: number;
-  comment: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ZendeskSatisfactionRatingsResponse {
-  satisfaction_ratings: ZendeskSatisfactionRating[];
-  next_page: string | null;
-  previous_page: string | null;
-  count: number;
-}
-
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
   try {
