@@ -353,17 +353,20 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
   let ticketsWithoutSolvedAt = 0;
 
   closedTickets.forEach((ticket, index) => {
-    if (ticket.solved_at) {
+    // Use solved_at if available, otherwise fall back to updated_at for debugging
+    const resolvedDate = ticket.solved_at || ticket.updated_at;
+
+    if (resolvedDate) {
       ticketsWithSolvedAt++;
       const created = new Date(ticket.created_at);
-      const solved = new Date(ticket.solved_at);
+      const resolved = new Date(resolvedDate);
       const hoursDiff =
-        (solved.getTime() - created.getTime()) / (1000 * 60 * 60);
+        (resolved.getTime() - created.getTime()) / (1000 * 60 * 60);
 
       if (index < 3) {
         // Log first 3 tickets for debugging
         console.log(
-          `📊 Ticket ${ticket.id}: created=${ticket.created_at}, solved=${ticket.solved_at}, hours=${hoursDiff.toFixed(1)}`,
+          `📊 Ticket ${ticket.id}: created=${ticket.created_at}, resolved=${resolvedDate} (${ticket.solved_at ? "solved_at" : "updated_at"}), hours=${hoursDiff.toFixed(1)}, status=${ticket.status}`,
         );
       }
 
@@ -379,9 +382,9 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
     } else {
       ticketsWithoutSolvedAt++;
       if (index < 3) {
-        // Log first 3 tickets without solved_at
+        // Log first 3 tickets without resolved date
         console.log(
-          `⚠️ Ticket ${ticket.id}: status=${ticket.status}, no solved_at date`,
+          `⚠️ Ticket ${ticket.id}: status=${ticket.status}, no resolved date`,
         );
       }
     }
