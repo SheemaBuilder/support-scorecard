@@ -181,14 +181,14 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               <TableHeader
                 sortKey="closedLessThan7"
                 className="w-8 bg-purple-100"
-                title="Closed <= 14 Days"
+                title="Closed in 3-14 Days (72-336 hours)"
               >
                 CL_14
               </TableHeader>
               <TableHeader
                 sortKey="closedEqual1"
                 className="w-8 bg-purple-100"
-                title="Closed <= 3 Days"
+                title="Closed in 0-3 Days (0-72 hours)"
               >
                 CL_3
               </TableHeader>
