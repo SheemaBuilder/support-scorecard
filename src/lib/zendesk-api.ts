@@ -322,19 +322,34 @@ function calculateAverageResponseTime(tickets: ZendeskTicket[]): number {
 }
 
 function calculateClosureStats(closedTickets: ZendeskTicket[]) {
+  console.log(
+    `🔍 calculateClosureStats: Processing ${closedTickets.length} closed tickets`,
+  );
+
   if (closedTickets.length === 0) {
+    console.log(`⚠️ No closed tickets to process`);
     return { closedLessThan7Percent: 0, closedEqual1Percent: 0 };
   }
 
   let closedIn3Days = 0; // CL_3: 0-72 hours (0-3 days)
   let closedIn3To14Days = 0; // CL_14: 72-336 hours (3-14 days)
+  let ticketsWithSolvedAt = 0;
+  let ticketsWithoutSolvedAt = 0;
 
-  closedTickets.forEach((ticket) => {
+  closedTickets.forEach((ticket, index) => {
     if (ticket.solved_at) {
+      ticketsWithSolvedAt++;
       const created = new Date(ticket.created_at);
       const solved = new Date(ticket.solved_at);
       const hoursDiff =
         (solved.getTime() - created.getTime()) / (1000 * 60 * 60);
+
+      if (index < 3) {
+        // Log first 3 tickets for debugging
+        console.log(
+          `📊 Ticket ${ticket.id}: created=${ticket.created_at}, solved=${ticket.solved_at}, hours=${hoursDiff.toFixed(1)}`,
+        );
+      }
 
       // CL_3: 0-72 hours (0-3 days)
       if (hoursDiff <= 72) {
@@ -345,7 +360,25 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
       if (hoursDiff > 72 && hoursDiff <= 336) {
         closedIn3To14Days++;
       }
+    } else {
+      ticketsWithoutSolvedAt++;
+      if (index < 3) {
+        // Log first 3 tickets without solved_at
+        console.log(
+          `⚠️ Ticket ${ticket.id}: status=${ticket.status}, no solved_at date`,
+        );
+      }
     }
+  });
+
+  console.log(`📈 Closure stats summary:`, {
+    totalClosed: closedTickets.length,
+    withSolvedAt: ticketsWithSolvedAt,
+    withoutSolvedAt: ticketsWithoutSolvedAt,
+    closedIn3Days,
+    closedIn3To14Days,
+    cl3Percent: (closedIn3Days / closedTickets.length) * 100,
+    cl14Percent: (closedIn3To14Days / closedTickets.length) * 100,
   });
 
   return {
