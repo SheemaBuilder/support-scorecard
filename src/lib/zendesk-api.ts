@@ -289,7 +289,7 @@ export function calculateEngineerMetrics(
     openGreaterThan14: calculateOpenGreaterThan14Days(openTickets),
     closedLessThan7: closureStats.closedLessThan7Percent,
     closedEqual1: closureStats.closedEqual1Percent,
-    participationRate: calculateOverallQuality(userTickets, userRatings),
+    participationRate: 0, // Deferred - will be calculated later
     linkCount: calculateCommunicationScore(userTickets),
     citationCount: calculateResponseQuality(userTickets, userRatings),
     creationCount: calculateTechnicalAccuracy(userTickets),
