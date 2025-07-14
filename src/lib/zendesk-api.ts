@@ -109,7 +109,7 @@ async function apiRequest<T>(
       throw new Error(`Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`❌ API request failed for ${urlString}:`, error);
+    console.error(`��� API request failed for ${urlString}:`, error);
 
     // Provide more helpful error messages for common issues
     if (
@@ -241,43 +241,6 @@ export async function getTickets(
   } catch (error) {
     console.warn(
       "Failed to fetch tickets, returning empty array:",
-      error.message,
-    );
-    return [];
-  }
-}
-
-export async function getSatisfactionRatings(
-  startDate?: Date,
-  endDate?: Date,
-): Promise<ZendeskSatisfactionRating[]> {
-  try {
-    const params = new URLSearchParams();
-
-    if (startDate && endDate) {
-      params.append(
-        "start_time",
-        Math.floor(startDate.getTime() / 1000).toString(),
-      );
-      params.append(
-        "end_time",
-        Math.floor(endDate.getTime() / 1000).toString(),
-      );
-    }
-
-    const response = await apiRequest<ZendeskSatisfactionRatingsResponse>(
-      "/satisfaction_ratings",
-      params,
-    );
-    console.log(
-      "🔍 getSatisfactionRatings() success:",
-      response.satisfaction_ratings.length,
-      "ratings",
-    );
-    return response.satisfaction_ratings;
-  } catch (error) {
-    console.warn(
-      "Failed to fetch satisfaction ratings, returning empty array:",
       error.message,
     );
     return [];
