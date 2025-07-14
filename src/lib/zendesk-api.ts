@@ -284,8 +284,11 @@ export function calculateEngineerMetrics(
   // Calculate response times
   const avgPcc = calculateAverageResponseTime(userTickets);
 
-  // Calculate closure times
-  const closureStats = calculateClosureStats(closedTickets);
+  // Calculate closure times - temporarily use all tickets for debugging
+  console.log(
+    `🔍 ${user.name}: Using ${userTickets.length} total tickets for closure stats (${closedTickets.length} closed)`,
+  );
+  const closureStats = calculateClosureStats(userTickets);
 
   // Calculate CES scores from custom field
   const cesStats = calculateCESStats(userTickets);
