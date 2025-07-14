@@ -251,13 +251,9 @@ export async function getTickets(
 export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
-  satisfactionRatings: ZendeskSatisfactionRating[],
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
-  );
-  const userRatings = satisfactionRatings.filter(
-    (rating) => rating.assignee_id === user.id,
   );
 
   // Calculate metrics
