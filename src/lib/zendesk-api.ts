@@ -503,9 +503,19 @@ function calculateTechnicalStats(tickets: ZendeskTicket[]) {
     return { enterprisePercent: 0, technicalPercent: 0 };
   }
 
-  const enterpriseTickets = tickets.filter((ticket) =>
-    ticket.tags.some((tag) => tag.toLowerCase().includes("enterprise")),
-  ).length;
+  const enterpriseTickets = tickets.filter((ticket) => {
+    // Check if "sla_enterprise" is in the tags
+    const hasEnterpriseTag = ticket.tags.some(
+      (tag) => tag.toLowerCase() === "sla_enterprise",
+    );
+
+    // Check if custom field 9207050192535 is equal to "Enterprise"
+    const hasEnterpriseCustomField = ticket.custom_fields?.some(
+      (field) => field.id === 9207050192535 && field.value === "Enterprise",
+    );
+
+    return hasEnterpriseTag || hasEnterpriseCustomField;
+  }).length;
 
   const technicalTickets = tickets.filter((ticket) =>
     ticket.tags.some((tag) =>
