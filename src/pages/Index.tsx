@@ -545,7 +545,7 @@ export default function Index() {
               color="blue"
             />
             <MetricCard
-              title="Avg Response Time"
+              title="Avg RESOLUTION Time"
               value={`${averageMetrics.avgPcc.toFixed(1)}h`}
               subtitle="Hours"
               color="purple"
