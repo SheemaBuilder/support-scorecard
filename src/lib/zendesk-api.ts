@@ -502,21 +502,6 @@ function calculateTechnicalStats(tickets: ZendeskTicket[]) {
   };
 }
 
-function calculateOverallQuality(
-  tickets: ZendeskTicket[],
-  ratings: ZendeskSatisfactionRating[],
-): number {
-  // Calculate based on resolution time, customer satisfaction, and ticket handling
-  const avgResolutionScore = calculateResolutionScore(tickets);
-  const satisfactionScore = calculateSatisfactionScore(ratings);
-  const handlingScore = calculateHandlingScore(tickets);
-
-  const quality = (avgResolutionScore + satisfactionScore + handlingScore) / 3;
-
-  // Ensure we return a reasonable value (between 1-5 scale)
-  return Math.max(1, Math.min(5, quality));
-}
-
 function calculateCommunicationScore(tickets: ZendeskTicket[]): number {
   // Simple heuristic: assume tickets with more updates indicate better communication
   if (tickets.length === 0) return 0;
