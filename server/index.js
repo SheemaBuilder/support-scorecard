@@ -246,67 +246,6 @@ app.get("/api/zendesk/tickets", async (req, res) => {
   }
 });
 
-app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
-  try {
-    // Define the specific engineer IDs we want satisfaction ratings for
-    const targetEngineerIds = [
-      29215234714775, // Jared Beckler
-      29092423638935, // Rahul Joshi
-      29092389569431, // Parth Sharma
-      24100359866391, // Fernando Duran
-      19347232342679, // Alex Bridgeman
-      16211207272855, // Sheema Parwaz
-      5773445002519, // Manish Sharma
-      26396676511767, // Akash Singh
-    ];
-
-    console.log(
-      `Fetching satisfaction ratings for ${targetEngineerIds.length} specific engineers`,
-    );
-
-    const { start_time, end_time } = req.query;
-
-    // Try to get all satisfaction ratings first, then filter
-    // The Zendesk API doesn't support filtering by assignee_id directly for satisfaction ratings
-    let endpoint = "/satisfaction_ratings.json?per_page=100";
-
-    if (start_time && end_time) {
-      console.log(
-        `Date filtering: start_time=${start_time}, end_time=${end_time}`,
-      );
-      endpoint += `&start_time=${start_time}&end_time=${end_time}`;
-    }
-
-    console.log(`Fetching satisfaction ratings from: ${endpoint}`);
-    const data = await proxyZendeskRequest(endpoint);
-
-    // Filter ratings to only include those for our target engineers
-    const filteredRatings = (data.satisfaction_ratings || []).filter((rating) =>
-      targetEngineerIds.includes(rating.assignee_id),
-    );
-
-    console.log(
-      `Filtered ${filteredRatings.length} satisfaction ratings for specified engineers`,
-    );
-
-    res.json({
-      satisfaction_ratings: filteredRatings,
-      count: filteredRatings.length,
-      next_page: null,
-      previous_page: null,
-    });
-  } catch (error) {
-    console.error("Error fetching satisfaction ratings:", error);
-    // Return empty result instead of demo data
-    res.json({
-      satisfaction_ratings: [],
-      count: 0,
-      next_page: null,
-      previous_page: null,
-    });
-  }
-});
-
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
