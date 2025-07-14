@@ -517,13 +517,36 @@ function calculateTechnicalStats(tickets: ZendeskTicket[]) {
     return hasEnterpriseTag || hasEnterpriseCustomField;
   }).length;
 
-  const technicalTickets = tickets.filter((ticket) =>
-    ticket.tags.some((tag) =>
-      ["technical", "api", "integration", "development", "bug"].some(
-        (keyword) => tag.toLowerCase().includes(keyword),
-      ),
-    ),
-  ).length;
+  const technicalTickets = tickets.filter((ticket) => {
+    // Find the root cause custom field (ID: 6527031427095)
+    const rootCauseField = ticket.custom_fields?.find(
+      (field) => field.id === 6527031427095,
+    );
+
+    // If no root cause field, not technical
+    if (!rootCauseField || !rootCauseField.value) {
+      return false;
+    }
+
+    const rootCause = String(rootCauseField.value).toLowerCase();
+
+    // Non-technical root causes start with these prefixes
+    const nonTechnicalPrefixes = [
+      "service",
+      "account",
+      "miscellaneous",
+      "styling",
+      "fusion",
+    ];
+
+    // Check if root cause starts with any non-technical prefix
+    const isNonTechnical = nonTechnicalPrefixes.some((prefix) =>
+      rootCause.startsWith(prefix),
+    );
+
+    // Technical if it doesn't start with non-technical prefixes
+    return !isNonTechnical;
+  }).length;
 
   return {
     enterprisePercent: (enterpriseTickets / tickets.length) * 100,
