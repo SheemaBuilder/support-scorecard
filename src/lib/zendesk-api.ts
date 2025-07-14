@@ -673,13 +673,8 @@ export async function fetchAllEngineerMetrics(
         const userTickets = tickets.filter(
           (ticket) => ticket.assignee_id === user.id,
         );
-        const userRatings = ratings.filter(
-          (rating) => rating.assignee_id === user.id,
-        );
-
         console.log(`📊 ${user.name} raw data:`, {
           ticketsCount: userTickets.length,
-          ratingsCount: userRatings.length,
           ticketStatuses: userTickets.reduce((acc, t) => {
             acc[t.status] = (acc[t.status] || 0) + 1;
             return acc;
