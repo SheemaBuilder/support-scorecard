@@ -687,7 +687,7 @@ export async function fetchAllEngineerMetrics(
           })),
         });
 
-        const metrics = calculateEngineerMetrics(user, tickets, ratings);
+        const metrics = calculateEngineerMetrics(user, tickets);
 
         console.log(`📈 ${user.name} calculated metrics:`, {
           closed: metrics.closed,
