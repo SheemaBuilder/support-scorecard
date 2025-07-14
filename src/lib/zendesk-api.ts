@@ -268,6 +268,19 @@ export function calculateEngineerMetrics(
       ticket.status === "pending",
   );
 
+  console.log(`🔍 ${user.name} ticket breakdown:`, {
+    total: userTickets.length,
+    closed: closedTickets.length,
+    open: openTickets.length,
+    statusBreakdown: userTickets.reduce(
+      (acc, t) => {
+        acc[t.status] = (acc[t.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  });
+
   // Calculate response times
   const avgPcc = calculateAverageResponseTime(userTickets);
 
