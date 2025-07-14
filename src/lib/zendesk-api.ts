@@ -385,24 +385,31 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
     return { closedLessThan7Percent: 0, closedEqual1Percent: 0 };
   }
 
-  let closedLessThan7 = 0;
-  let closedEqual1 = 0;
+  let closedIn3Days = 0; // CL_3: 0-72 hours (0-3 days)
+  let closedIn3To14Days = 0; // CL_14: 72-336 hours (3-14 days)
 
   closedTickets.forEach((ticket) => {
     if (ticket.solved_at) {
       const created = new Date(ticket.created_at);
       const solved = new Date(ticket.solved_at);
-      const daysDiff =
-        (solved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+      const hoursDiff =
+        (solved.getTime() - created.getTime()) / (1000 * 60 * 60);
 
-      if (daysDiff <= 7) closedLessThan7++;
-      if (daysDiff <= 1) closedEqual1++;
+      // CL_3: 0-72 hours (0-3 days)
+      if (hoursDiff <= 72) {
+        closedIn3Days++;
+      }
+
+      // CL_14: 72-336 hours (3-14 days)
+      if (hoursDiff > 72 && hoursDiff <= 336) {
+        closedIn3To14Days++;
+      }
     }
   });
 
   return {
-    closedLessThan7Percent: (closedLessThan7 / closedTickets.length) * 100,
-    closedEqual1Percent: (closedEqual1 / closedTickets.length) * 100,
+    closedLessThan7Percent: (closedIn3To14Days / closedTickets.length) * 100, // CL_14 column
+    closedEqual1Percent: (closedIn3Days / closedTickets.length) * 100, // CL_3 column
   };
 }
 
