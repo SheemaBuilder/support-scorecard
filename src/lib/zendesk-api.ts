@@ -291,7 +291,7 @@ export function calculateEngineerMetrics(
     closedEqual1: closureStats.closedEqual1Percent,
     participationRate: 0, // Deferred - will be calculated later
     linkCount: calculateCommunicationScore(userTickets),
-    citationCount: calculateResponseQuality(userTickets, userRatings),
+    citationCount: 0, // Deferred - will be calculated later
     creationCount: calculateTechnicalAccuracy(userTickets),
     enterprisePercent: technicalStats.enterprisePercent,
     technicalPercent: technicalStats.technicalPercent,
