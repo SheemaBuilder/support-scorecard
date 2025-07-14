@@ -631,16 +631,14 @@ export async function fetchAllEngineerMetrics(
     console.log("🔄 Fetching engineer metrics from API endpoints");
     console.log("📅 Date range:", { startDate, endDate });
 
-    const [users, tickets, ratings] = await Promise.all([
+    const [users, tickets] = await Promise.all([
       getUsers(),
       getTickets(startDate, endDate),
-      getSatisfactionRatings(startDate, endDate),
     ]);
 
     console.log("📦 Raw API data:", {
       usersCount: users.length,
       ticketsCount: tickets.length,
-      ratingsCount: ratings.length,
       userSample: users.slice(0, 3).map((u) => ({ id: u.id, name: u.name })),
     });
 
