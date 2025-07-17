@@ -108,31 +108,90 @@ export default function Index() {
 
   // Show error state
   if (error) {
+    const isCloudError =
+      error.includes("cloud environments") ||
+      error.includes("Builder.io") ||
+      error.includes("backend server to fetch real Zendesk data");
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg">
-          <div className="flex items-center space-x-3 text-red-600 mb-4">
-            <AlertCircle className="w-6 h-6" />
-            <h2 className="text-lg font-semibold">Error Loading Data</h2>
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl">
+          <div className="flex items-center space-x-3 text-blue-600 mb-4">
+            <Info className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">
+              {isCloudError ? "Demo Environment" : "Error Loading Data"}
+            </h2>
           </div>
           <div className="text-gray-600 mb-4">
-            <p>{error}</p>
+            {isCloudError ? (
+              <div>
+                <p className="mb-3">
+                  You're viewing this application in a cloud environment where
+                  the backend server isn't available.
+                </p>
+                <p className="mb-3">
+                  This is a <strong>Zendesk Performance Dashboard</strong> that
+                  requires a backend server to fetch real data from Zendesk.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">
+                    To see real data:
+                  </h4>
+                  <ol className="list-decimal pl-5 space-y-1 text-sm text-blue-700">
+                    <li>Clone this repository to your local machine</li>
+                    <li>
+                      Install dependencies:{" "}
+                      <code className="bg-blue-100 px-1 rounded">
+                        npm install
+                      </code>
+                    </li>
+                    <li>
+                      Configure your Zendesk credentials in{" "}
+                      <code className="bg-blue-100 px-1 rounded">.env</code>
+                    </li>
+                    <li>
+                      Start with backend:{" "}
+                      <code className="bg-blue-100 px-1 rounded">
+                        npm run dev:with-backend
+                      </code>
+                    </li>
+                  </ol>
+                </div>
+                <p className="text-sm text-gray-500">
+                  This dashboard shows performance metrics for your support
+                  engineers including CES scores, ticket resolution times, and
+                  quality ratings.
+                </p>
+              </div>
+            ) : (
+              <p>{error}</p>
+            )}
           </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => refetch(selectedPeriod)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Retry</span>
-            </button>
+          {!isCloudError && (
+            <div className="flex space-x-3">
+              <button
+                onClick={() => refetch(selectedPeriod)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Retry</span>
+              </button>
+              <button
+                onClick={clearError}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+          {isCloudError && (
             <button
               onClick={clearError}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              Dismiss
+              Continue to View Layout
             </button>
-          </div>
+          )}
         </div>
       </div>
     );
