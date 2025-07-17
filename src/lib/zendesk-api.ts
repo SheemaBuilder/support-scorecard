@@ -1,5 +1,16 @@
 import { EngineerMetrics } from "./types";
 
+// Check if we're in a cloud environment where localhost isn't available
+const isCloudEnvironment = () => {
+  return (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1" &&
+    !window.location.hostname.startsWith("192.168.") &&
+    !window.location.hostname.startsWith("10.") &&
+    !window.location.hostname.endsWith(".local")
+  );
+};
+
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
   return "/api/zendesk";
