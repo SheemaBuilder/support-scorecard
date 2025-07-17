@@ -116,8 +116,10 @@ export function useZendeskData(
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
+          error: null,
+          engineerData: [],
+          averageMetrics: null,
+          alerts: [],
         }));
         return;
       }
@@ -144,29 +146,14 @@ export function useZendeskData(
       } catch (error) {
         console.error("Error fetching Zendesk data:", error);
 
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to fetch data";
-        const isConnectivityError =
-          errorMessage.includes("<!DOCTYPE") ||
-          errorMessage.includes("Failed to fetch") ||
-          errorMessage.includes("NetworkError") ||
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          errorMessage.includes("Cannot connect to backend server");
-
-        if (isConnectivityError) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error:
-              "Backend server not available. Please start the backend server with 'npm run server' to load Zendesk data.",
-          }));
-        } else {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: errorMessage,
-          }));
-        }
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: null,
+          engineerData: [],
+          averageMetrics: null,
+          alerts: [],
+        }));
       }
     },
     [generateAlerts],
