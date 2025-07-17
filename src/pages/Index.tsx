@@ -49,6 +49,7 @@ export default function Index() {
   const [selectedPeriod, setSelectedPeriod] = useState(dateRanges[0]);
   const [selectedEngineer, setSelectedEngineer] = useState("");
   const [showAlerts, setShowAlerts] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   // Check if Zendesk is configured
   const { isConfigured, config } = useZendeskConfig();
