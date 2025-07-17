@@ -12,7 +12,8 @@ app.use(express.json());
 
 // Zendesk API configuration
 const ZENDESK_CONFIG = {
-  subdomain: process.env.VITE_ZENDESK_SUBDOMAIN || process.env.ZENDESK_SUBDOMAIN,
+  subdomain:
+    process.env.VITE_ZENDESK_SUBDOMAIN || process.env.ZENDESK_SUBDOMAIN,
   email: process.env.VITE_ZENDESK_EMAIL || process.env.ZENDESK_EMAIL,
   apiToken: process.env.VITE_ZENDESK_API_TOKEN || process.env.ZENDESK_TOKEN,
 };
@@ -23,31 +24,33 @@ console.log("Zendesk Config:", {
   email: ZENDESK_CONFIG.email,
   hasToken: !!ZENDESK_CONFIG.apiToken,
   tokenLength: ZENDESK_CONFIG.apiToken?.length,
-  tokenPreview: ZENDESK_CONFIG.apiToken?.substring(0, 10) + "..."
+  tokenPreview: ZENDESK_CONFIG.apiToken?.substring(0, 10) + "...",
 });
 
 // Additional debugging for environment variables
 console.log("Environment Variables Check:", {
   VITE_ZENDESK_SUBDOMAIN: process.env.VITE_ZENDESK_SUBDOMAIN,
   VITE_ZENDESK_EMAIL: process.env.VITE_ZENDESK_EMAIL,
-  VITE_ZENDESK_API_TOKEN: process.env.VITE_ZENDESK_API_TOKEN ? "SET" : "NOT SET",
+  VITE_ZENDESK_API_TOKEN: process.env.VITE_ZENDESK_API_TOKEN
+    ? "SET"
+    : "NOT SET",
 });
 
 const BASE_URL = `https://builderio.zendesk.com/api/v2`;
-console.log("Base url is ", BASE_URL)
+console.log("Base url is ", BASE_URL);
 // Create authentication header
 const getAuthHeader = () => {
   const credentials = Buffer.from(
     `${ZENDESK_CONFIG.email}/token:${ZENDESK_CONFIG.apiToken}`,
   ).toString("base64");
-  
+
   console.log("Auth Debug:", {
     email: ZENDESK_CONFIG.email,
     hasToken: !!ZENDESK_CONFIG.apiToken,
     credentialsLength: credentials.length,
-    authHeader: `Basic ${credentials.substring(0, 20)}...`
+    authHeader: `Basic ${credentials.substring(0, 20)}...`,
   });
-  
+
   return `Basic ${credentials}`;
 };
 
@@ -55,7 +58,7 @@ const getAuthHeader = () => {
 async function proxyZendeskRequest(endpoint) {
   const url = `${BASE_URL}${endpoint}`;
   console.log(`Making request to Zendesk API: ${url}`);
-  
+
   const response = await fetch(url, {
     headers: {
       Authorization: getAuthHeader(),
@@ -71,15 +74,15 @@ async function proxyZendeskRequest(endpoint) {
     } catch (e) {
       errorDetails = " - Could not read error response body";
     }
-    
+
     // Handle rate limiting specifically
     if (response.status === 429) {
       console.log("Rate limit hit, waiting 60 seconds...");
-      await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 60 seconds
+      await new Promise((resolve) => setTimeout(resolve, 60000)); // Wait 60 seconds
       console.log("Retrying request...");
       return proxyZendeskRequest(endpoint); // Retry once
     }
-    
+
     throw new Error(
       `Zendesk API error: ${response.status} ${response.statusText}${errorDetails}`,
     );
@@ -122,12 +125,16 @@ app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
     const params = new URLSearchParams();
 
     const { start_time, end_time } = req.query;
-    
+
     // For now, let's try without date filtering to see if the basic endpoint works
     // If start_time and end_time are provided, we'll log them but not use them initially
     if (start_time && end_time) {
-      console.log(`Date filtering requested: start_time=${start_time}, end_time=${end_time}`);
-      console.log(`Note: Date filtering temporarily disabled to debug API access`);
+      console.log(
+        `Date filtering requested: start_time=${start_time}, end_time=${end_time}`,
+      );
+      console.log(
+        `Note: Date filtering temporarily disabled to debug API access`,
+      );
       // params.append("start_time", start_time);
       // params.append("end_time", end_time);
     }
@@ -158,11 +165,41 @@ app.get("/api/test-auth", (req, res) => {
       subdomain: ZENDESK_CONFIG.subdomain,
       email: ZENDESK_CONFIG.email,
       hasToken: !!ZENDESK_CONFIG.apiToken,
-      tokenLength: ZENDESK_CONFIG.apiToken?.length
+      tokenLength: ZENDESK_CONFIG.apiToken?.length,
     },
     authHeader: authHeader.substring(0, 30) + "...",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
+});
+
+// Test endpoint to check Zendesk API connection
+app.get("/api/test-zendesk", async (req, res) => {
+  try {
+    console.log("Testing Zendesk API connection...");
+
+    // Test with a simple API call to get current user
+    const data = await proxyZendeskRequest("/users/me.json");
+
+    res.json({
+      success: true,
+      message: "Successfully connected to Zendesk API",
+      user: {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Zendesk connection test failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to connect to Zendesk API",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 app.listen(PORT, () => {
