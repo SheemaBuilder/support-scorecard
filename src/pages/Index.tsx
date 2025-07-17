@@ -307,6 +307,22 @@ export default function Index() {
                 </select>
               </div>
 
+              {/* Test Connection Button */}
+              <button
+                onClick={testZendeskConnection}
+                disabled={isTestingConnection}
+                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white hover:bg-green-700 rounded-md disabled:opacity-50"
+                title="Test Zendesk API connection"
+              >
+                <AlertCircle
+                  className={cn(
+                    "w-4 h-4 text-white",
+                    isTestingConnection && "animate-spin",
+                  )}
+                />
+                <span className="text-sm font-medium">Test API</span>
+              </button>
+
               {/* Refresh Button */}
               <button
                 onClick={() => refetch(selectedPeriod)}
