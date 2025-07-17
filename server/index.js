@@ -283,6 +283,42 @@ app.get("/api/test-auth", (req, res) => {
   });
 });
 
+// Debug endpoint for satisfaction ratings
+app.get("/api/debug-ratings", async (req, res) => {
+  try {
+    console.log("Debugging satisfaction ratings...");
+
+    // Get satisfaction ratings
+    const ratingsData = await proxyZendeskRequest(
+      "/satisfaction_ratings.json?per_page=10",
+    );
+
+    // Sample the data structure
+    const sample = ratingsData.satisfaction_ratings[0];
+
+    // Get all unique assignee IDs
+    const assigneeIds = ratingsData.satisfaction_ratings
+      .map((r) => r.assignee_id)
+      .filter((id) => id !== null && id !== undefined);
+    const uniqueAssigneeIds = [...new Set(assigneeIds)];
+
+    res.json({
+      status: "success",
+      totalRatings: ratingsData.satisfaction_ratings.length,
+      sampleRating: sample,
+      uniqueAssigneeIds: uniqueAssigneeIds,
+      engineerIds: ENGINEER_IDS,
+      matches: uniqueAssigneeIds.filter((id) => ENGINEER_IDS.includes(id)),
+    });
+  } catch (error) {
+    console.error("Debug ratings failed:", error);
+    res.status(500).json({
+      status: "error",
+      error: error.message,
+    });
+  }
+});
+
 // Test endpoint to verify Zendesk API connection
 app.get("/api/test-connection", async (req, res) => {
   try {
