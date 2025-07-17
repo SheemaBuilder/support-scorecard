@@ -484,11 +484,18 @@ export async function fetchAllEngineerMetrics(
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
   try {
+    // In cloud environments, immediately throw helpful error
+    if (isCloudEnvironment()) {
+      throw new Error(
+        "This application requires a backend server to fetch real Zendesk data. In cloud environments like Builder.io, the backend server is not available. To see real data, please run this application locally with 'npm run dev:with-backend'.",
+      );
+    }
+
     // Check backend health first
     const isBackendHealthy = await checkBackendHealth();
     if (!isBackendHealthy) {
       throw new Error(
-        "Backend server is not available. Please start the server with 'npm run server'.",
+        "Backend server is not available. Please start the server with 'npm run dev:with-backend'.",
       );
     }
 
