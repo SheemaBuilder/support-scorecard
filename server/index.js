@@ -12,7 +12,8 @@ app.use(express.json());
 
 // Zendesk API configuration
 const ZENDESK_CONFIG = {
-  subdomain: process.env.VITE_ZENDESK_SUBDOMAIN || process.env.ZENDESK_SUBDOMAIN,
+  subdomain:
+    process.env.VITE_ZENDESK_SUBDOMAIN || process.env.ZENDESK_SUBDOMAIN,
   email: process.env.VITE_ZENDESK_EMAIL || process.env.ZENDESK_EMAIL,
   apiToken: process.env.VITE_ZENDESK_API_TOKEN || process.env.ZENDESK_TOKEN,
 };
@@ -23,31 +24,33 @@ console.log("Zendesk Config:", {
   email: ZENDESK_CONFIG.email,
   hasToken: !!ZENDESK_CONFIG.apiToken,
   tokenLength: ZENDESK_CONFIG.apiToken?.length,
-  tokenPreview: ZENDESK_CONFIG.apiToken?.substring(0, 10) + "..."
+  tokenPreview: ZENDESK_CONFIG.apiToken?.substring(0, 10) + "...",
 });
 
 // Additional debugging for environment variables
 console.log("Environment Variables Check:", {
   VITE_ZENDESK_SUBDOMAIN: process.env.VITE_ZENDESK_SUBDOMAIN,
   VITE_ZENDESK_EMAIL: process.env.VITE_ZENDESK_EMAIL,
-  VITE_ZENDESK_API_TOKEN: process.env.VITE_ZENDESK_API_TOKEN ? "SET" : "NOT SET",
+  VITE_ZENDESK_API_TOKEN: process.env.VITE_ZENDESK_API_TOKEN
+    ? "SET"
+    : "NOT SET",
 });
 
 const BASE_URL = `https://builderio.zendesk.com/api/v2`;
-console.log("Base url is ", BASE_URL)
+console.log("Base url is ", BASE_URL);
 // Create authentication header
 const getAuthHeader = () => {
   const credentials = Buffer.from(
     `${ZENDESK_CONFIG.email}/token:${ZENDESK_CONFIG.apiToken}`,
   ).toString("base64");
-  
+
   console.log("Auth Debug:", {
     email: ZENDESK_CONFIG.email,
     hasToken: !!ZENDESK_CONFIG.apiToken,
     credentialsLength: credentials.length,
-    authHeader: `Basic ${credentials.substring(0, 20)}...`
+    authHeader: `Basic ${credentials.substring(0, 20)}...`,
   });
-  
+
   return `Basic ${credentials}`;
 };
 
@@ -55,7 +58,7 @@ const getAuthHeader = () => {
 async function proxyZendeskRequest(endpoint) {
   const url = `${BASE_URL}${endpoint}`;
   console.log(`Making request to Zendesk API: ${url}`);
-  
+
   const response = await fetch(url, {
     headers: {
       Authorization: getAuthHeader(),
@@ -71,15 +74,15 @@ async function proxyZendeskRequest(endpoint) {
     } catch (e) {
       errorDetails = " - Could not read error response body";
     }
-    
+
     // Handle rate limiting specifically
     if (response.status === 429) {
       console.log("Rate limit hit, waiting 60 seconds...");
-      await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 60 seconds
+      await new Promise((resolve) => setTimeout(resolve, 60000)); // Wait 60 seconds
       console.log("Retrying request...");
       return proxyZendeskRequest(endpoint); // Retry once
     }
-    
+
     throw new Error(
       `Zendesk API error: ${response.status} ${response.statusText}${errorDetails}`,
     );
@@ -88,11 +91,41 @@ async function proxyZendeskRequest(endpoint) {
   return response.json();
 }
 
+// Specific engineer IDs to fetch
+const ENGINEER_IDS = [
+  29215234714775, // Jared Beckler
+  29092423638935, // Rahul Joshi
+  29092389569431, // Parth Sharma
+  24100359866391, // Fernando Duran
+  19347232342679, // Alex Bridgeman
+  16211207272855, // Sheema Parwaz
+  5773445002519, // Manish Sharma
+  26396676511767, // Akash Singh
+];
+
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
+    // Fetch all agents first
     const data = await proxyZendeskRequest("/users.json?role=agent");
-    res.json(data);
+
+    // Filter to only include specific engineer IDs
+    const filteredUsers = data.users.filter((user) =>
+      ENGINEER_IDS.includes(user.id),
+    );
+
+    console.log(
+      `Filtered ${filteredUsers.length} engineers from ${data.users.length} total agents`,
+    );
+    console.log(
+      "Found engineers:",
+      filteredUsers.map((u) => `${u.name} (${u.id})`),
+    );
+
+    res.json({
+      ...data,
+      users: filteredUsers,
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: error.message });
@@ -109,7 +142,21 @@ app.get("/api/zendesk/tickets", async (req, res) => {
     }
 
     const data = await proxyZendeskRequest(endpoint);
-    res.json(data);
+
+    // Filter tickets to only include those assigned to our specific engineers
+    const filteredTickets = data.tickets.filter(
+      (ticket) =>
+        ticket.assignee_id && ENGINEER_IDS.includes(ticket.assignee_id),
+    );
+
+    console.log(
+      `Filtered ${filteredTickets.length} tickets from ${data.tickets.length} total tickets`,
+    );
+
+    res.json({
+      ...data,
+      tickets: filteredTickets,
+    });
   } catch (error) {
     console.error("Error fetching tickets:", error);
     res.status(500).json({ error: error.message });
@@ -122,12 +169,16 @@ app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
     const params = new URLSearchParams();
 
     const { start_time, end_time } = req.query;
-    
+
     // For now, let's try without date filtering to see if the basic endpoint works
     // If start_time and end_time are provided, we'll log them but not use them initially
     if (start_time && end_time) {
-      console.log(`Date filtering requested: start_time=${start_time}, end_time=${end_time}`);
-      console.log(`Note: Date filtering temporarily disabled to debug API access`);
+      console.log(
+        `Date filtering requested: start_time=${start_time}, end_time=${end_time}`,
+      );
+      console.log(
+        `Note: Date filtering temporarily disabled to debug API access`,
+      );
       // params.append("start_time", start_time);
       // params.append("end_time", end_time);
     }
@@ -138,7 +189,21 @@ app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
 
     console.log(`Fetching satisfaction ratings from: ${endpoint}`);
     const data = await proxyZendeskRequest(endpoint);
-    res.json(data);
+
+    // Filter satisfaction ratings to only include those for our specific engineers
+    const filteredRatings = data.satisfaction_ratings.filter(
+      (rating) =>
+        rating.assignee_id && ENGINEER_IDS.includes(rating.assignee_id),
+    );
+
+    console.log(
+      `Filtered ${filteredRatings.length} ratings from ${data.satisfaction_ratings.length} total ratings`,
+    );
+
+    res.json({
+      ...data,
+      satisfaction_ratings: filteredRatings,
+    });
   } catch (error) {
     console.error("Error fetching satisfaction ratings:", error);
     res.status(500).json({ error: error.message });
@@ -158,10 +223,10 @@ app.get("/api/test-auth", (req, res) => {
       subdomain: ZENDESK_CONFIG.subdomain,
       email: ZENDESK_CONFIG.email,
       hasToken: !!ZENDESK_CONFIG.apiToken,
-      tokenLength: ZENDESK_CONFIG.apiToken?.length
+      tokenLength: ZENDESK_CONFIG.apiToken?.length,
     },
     authHeader: authHeader.substring(0, 30) + "...",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
