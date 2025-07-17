@@ -124,7 +124,7 @@ app.get("/api/zendesk/users", async (req, res) => {
     nextPage = "/users.json?role=admin&per_page=100";
 
     while (nextPage) {
-      console.log(`Fetching users from: ${nextPage}`);
+      console.log(`Fetching admins from: ${nextPage}`);
       const data = await proxyZendeskRequest(nextPage);
       allUsers = allUsers.concat(data.users);
 
@@ -132,7 +132,7 @@ app.get("/api/zendesk/users", async (req, res) => {
       nextPage = data.next_page
         ? data.next_page.replace(`${BASE_URL}`, "")
         : null;
-      console.log(`Got ${data.users.length} users, next page: ${nextPage}`);
+      console.log(`Got ${data.users.length} admins, next page: ${nextPage}`);
     }
 
     console.log(`Total users fetched: ${allUsers.length}`);
