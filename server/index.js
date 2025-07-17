@@ -150,32 +150,11 @@ app.get("/api/zendesk/users", async (req, res) => {
       filteredUsers.map((u) => `${u.name} (${u.id})`),
     );
 
-    // Also log missing engineers and try to fetch them individually
+    // Log any missing engineers
     const foundIds = filteredUsers.map((u) => u.id);
     const missingIds = ENGINEER_IDS.filter((id) => !foundIds.includes(id));
     if (missingIds.length > 0) {
       console.log("Missing engineer IDs:", missingIds);
-
-      // Try to fetch missing engineers individually
-      for (const id of missingIds) {
-        try {
-          console.log(`Trying to fetch individual user ${id}...`);
-          const userData = await proxyZendeskRequest(`/users/${id}.json`);
-          console.log(
-            `Found user ${id}: ${userData.user.name} (role: ${userData.user.role}, active: ${userData.user.active})`,
-          );
-
-          // Add to filtered users if it's an agent or admin
-          if (
-            userData.user.role === "agent" ||
-            userData.user.role === "admin"
-          ) {
-            filteredUsers.push(userData.user);
-          }
-        } catch (error) {
-          console.log(`Could not fetch user ${id}: ${error.message}`);
-        }
-      }
     }
 
     res.json({
