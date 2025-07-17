@@ -512,7 +512,13 @@ export async function fetchAllEngineerMetrics(
       getSatisfactionRatings(startDate, endDate),
     ]);
 
-    return users.map((user) =>
+    // Filter users to only include engineers from nameToIdMap
+    const allowedNames = Array.from(nameToIdMap.keys());
+    const filteredUsers = users.filter((user) =>
+      allowedNames.includes(user.name),
+    );
+
+    return filteredUsers.map((user) =>
       calculateEngineerMetrics(user, tickets, ratings),
     );
   } catch (error) {
