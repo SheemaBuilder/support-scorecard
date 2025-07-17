@@ -106,6 +106,10 @@ export function useZendeskData(
 
   const fetchData = useCallback(
     async (dateRange?: DateRange) => {
+      console.log("🔄 Starting data fetch...", {
+        dateRange,
+        isCloudEnvironment: isCloudEnvironment(),
+      });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       // In cloud environments, don't attempt API calls - just show empty state
