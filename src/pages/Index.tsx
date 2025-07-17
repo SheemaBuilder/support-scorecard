@@ -83,6 +83,31 @@ export default function Index() {
     await refetch(newPeriod);
   };
 
+  // Test Zendesk connection
+  const testZendeskConnection = async () => {
+    setIsTestingConnection(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch("/api/test-zendesk");
+      const data = await response.json();
+
+      if (data.success) {
+        setTestResult(
+          `✅ Connected! User: ${data.user.name} (${data.user.email})`,
+        );
+      } else {
+        setTestResult(`❌ Connection failed: ${data.error}`);
+      }
+    } catch (error) {
+      setTestResult(
+        `❌ Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   // Show configuration error if not properly set up
   if (!isConfigured) {
     return (
