@@ -7,10 +7,10 @@ import {
 
 // Check if we're in a cloud environment where localhost isn't available
 const isCloudEnvironment = () => {
-  return (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  );
+  const hostname = window.location.hostname;
+  const isCloud = hostname !== "localhost" && hostname !== "127.0.0.1";
+  console.log("🌐 Environment check:", { hostname, isCloud });
+  return isCloud;
 };
 
 interface UseZendeskDataState {
