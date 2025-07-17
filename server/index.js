@@ -103,9 +103,25 @@ const ENGINEER_IDS = [
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
-    // Fetch all agents with pagination to ensure we get all users
+    // Fetch all agents and admins with pagination to ensure we get all users
     let allUsers = [];
+
+    // Fetch agents
     let nextPage = "/users.json?role=agent&per_page=100";
+    while (nextPage) {
+      console.log(`Fetching agents from: ${nextPage}`);
+      const data = await proxyZendeskRequest(nextPage);
+      allUsers = allUsers.concat(data.users);
+
+      // Extract next page URL from the response
+      nextPage = data.next_page
+        ? data.next_page.replace(`${BASE_URL}`, "")
+        : null;
+      console.log(`Got ${data.users.length} agents, next page: ${nextPage}`);
+    }
+
+    // Fetch admins
+    nextPage = "/users.json?role=admin&per_page=100";
 
     while (nextPage) {
       console.log(`Fetching users from: ${nextPage}`);
