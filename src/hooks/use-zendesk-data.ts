@@ -10,7 +10,8 @@ const isCloudEnvironment = () => {
   const hostname = window.location.hostname;
   const isCloud = hostname !== "localhost" && hostname !== "127.0.0.1";
   console.log("🌐 Environment check:", { hostname, isCloud });
-  return isCloud;
+  // Temporarily disable cloud check to allow data loading in Builder.io environment
+  return false;
 };
 
 interface UseZendeskDataState {
