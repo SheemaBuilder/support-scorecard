@@ -380,6 +380,15 @@ export default function Index() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Test Result Display */}
+        {testResult && (
+          <div className="mb-6 p-4 bg-gray-100 border rounded-lg">
+            <div className="text-sm font-medium text-gray-700">
+              API Connection Test:
+            </div>
+            <div className="text-sm text-gray-600 mt-1">{testResult}</div>
+          </div>
+        )}
         {/* Summary Cards */}
         {averageMetrics ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
