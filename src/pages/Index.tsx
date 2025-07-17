@@ -301,6 +301,96 @@ export default function Index() {
         </div>
       </header>
 
+      {/* Debug Section */}
+      <div className="bg-orange-50 border-b border-orange-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="flex items-center space-x-2 text-orange-800 hover:text-orange-900"
+          >
+            <span className="text-red-600">◀</span>
+            <span className="text-sm font-medium">
+              Debug Info (Click to expand)
+            </span>
+          </button>
+
+          {showDebug && (
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="text-orange-800">
+                <span className="font-medium">Engineers loaded:</span>{" "}
+                {engineerData.length}
+              </div>
+              <div className="text-orange-800">
+                <span className="font-medium">Average metrics:</span>{" "}
+                {averageMetrics ? "✅ Loaded" : "❌ Not loaded"}
+              </div>
+              <div className="text-orange-800">
+                <span className="font-medium">Loading:</span>{" "}
+                {isLoading ? "🔄 In progress" : "✅ Complete"}
+              </div>
+              <div className="text-orange-800">
+                <span className="font-medium">Error:</span> {error || "None"}
+              </div>
+              <div className="text-orange-800">
+                <span className="font-medium">Last updated:</span>{" "}
+                {lastUpdated ? lastUpdated.toLocaleString() : "Never"}
+              </div>
+              {engineerData.length > 0 && (
+                <div className="text-orange-800">
+                  <span className="font-medium">Sample engineer:</span>{" "}
+                  {engineerData[0].name} - Closed: {engineerData[0].closed},
+                  CES: {engineerData[0].cesPercent.toFixed(1)}%
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/test-zendesk");
+                      const data = await response.json();
+                      alert(
+                        data.success
+                          ? `✅ Connected! User: ${data.user.name}`
+                          : `❌ Failed: ${data.error}`,
+                      );
+                    } catch (error) {
+                      alert(`❌ Connection failed: ${error}`);
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                >
+                  <span>🔧</span>
+                  <span>Test Zendesk API</span>
+                </button>
+
+                <button
+                  onClick={() => refetch(selectedPeriod)}
+                  className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                >
+                  <span>🔄</span>
+                  <span>Reload Data</span>
+                </button>
+
+                {currentEngineer && (
+                  <button
+                    onClick={() =>
+                      alert(
+                        `Engineer: ${currentEngineer.name}\nCES: ${currentEngineer.cesPercent.toFixed(1)}%\nClosed Tickets: ${currentEngineer.closed}\nSurvey Count: ${currentEngineer.surveyCount}`,
+                      )
+                    }
+                    className="flex items-center space-x-2 px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
+                  >
+                    <span>🔍</span>
+                    <span>Find {currentEngineer.name}'s CES Tickets</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Alerts Panel */}
       {showAlerts && (
         <div className="bg-yellow-50 border-b border-yellow-200">
