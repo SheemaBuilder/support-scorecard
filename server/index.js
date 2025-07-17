@@ -28,11 +28,9 @@ console.log("Zendesk Config:", {
 
 // Additional debugging for environment variables
 console.log("Environment Variables Check:", {
-  VITE_ZENDESK_SUBDOMAIN: process.env.VITE_ZENDESK_SUBDOMAIN,
-  VITE_ZENDESK_EMAIL: process.env.VITE_ZENDESK_EMAIL,
-  VITE_ZENDESK_API_TOKEN: process.env.VITE_ZENDESK_API_TOKEN
-    ? "SET"
-    : "NOT SET",
+  ZENDESK_SUBDOMAIN: process.env.ZENDESK_SUBDOMAIN,
+  ZENDESK_EMAIL: process.env.ZENDESK_EMAIL,
+  ZENDESK_API_TOKEN: process.env.ZENDESK_API_TOKEN ? "SET" : "NOT SET",
 });
 
 const BASE_URL = `https://builderio.zendesk.com/api/v2`;
