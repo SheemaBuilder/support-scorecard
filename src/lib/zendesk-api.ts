@@ -99,9 +99,15 @@ async function apiRequest<T>(
       error instanceof TypeError &&
       error.message.includes("Failed to fetch")
     ) {
-      throw new Error(
-        "Cannot connect to backend server. Make sure it's running on port 3001.",
-      );
+      if (isCloudEnvironment()) {
+        throw new Error(
+          "This application requires a backend server to connect to Zendesk. In cloud environments like Builder.io, the backend server is not available. To see real data, please run this application locally with both frontend and backend servers.",
+        );
+      } else {
+        throw new Error(
+          "Cannot connect to backend server. Make sure it's running on port 3001 with 'npm run dev:with-backend'.",
+        );
+      }
     }
 
     throw error;
