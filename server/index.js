@@ -227,6 +227,22 @@ app.get("/api/zendesk/satisfaction_ratings", async (req, res) => {
     console.log(`Fetching satisfaction ratings from: ${endpoint}`);
     const data = await proxyZendeskRequest(endpoint);
 
+    // Debug: Log sample satisfaction rating to understand structure
+    if (data.satisfaction_ratings.length > 0) {
+      console.log(
+        "Sample satisfaction rating:",
+        JSON.stringify(data.satisfaction_ratings[0], null, 2),
+      );
+      console.log("Engineer IDs we're looking for:", ENGINEER_IDS);
+
+      // Check which assignee_ids exist in the ratings
+      const assigneeIds = data.satisfaction_ratings
+        .map((r) => r.assignee_id)
+        .filter((id) => id !== null && id !== undefined);
+      const uniqueAssigneeIds = [...new Set(assigneeIds)];
+      console.log("Unique assignee IDs in ratings:", uniqueAssigneeIds);
+    }
+
     // Filter satisfaction ratings to only include those for our specific engineers
     const filteredRatings = data.satisfaction_ratings.filter(
       (rating) =>
