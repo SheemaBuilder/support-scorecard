@@ -106,68 +106,33 @@ export default function Index() {
     );
   }
 
-  // Check if we're in cloud environment
-  const isCloudEnv =
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1";
-
   // Show error state
   if (error) {
-    const isCloudError =
-      error.includes("cloud environment") ||
-      error.includes("Backend server required");
-
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg">
-          <div className="flex items-center space-x-3 text-blue-600 mb-4">
-            <Info className="w-6 h-6" />
-            <h2 className="text-lg font-semibold">
-              {isCloudError ? "Demo Mode" : "Error Loading Data"}
-            </h2>
+          <div className="flex items-center space-x-3 text-red-600 mb-4">
+            <AlertCircle className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">Error Loading Data</h2>
           </div>
           <div className="text-gray-600 mb-4">
-            {isCloudError ? (
-              <div>
-                <p className="mb-3">
-                  This is a live demo of the Zendesk Performance Dashboard.
-                </p>
-                <p className="mb-3">To see real data, you would need to:</p>
-                <ul className="list-disc pl-5 space-y-1 text-sm">
-                  <li>Run the backend server locally</li>
-                  <li>Configure Zendesk API credentials</li>
-                  <li>Connect to your Zendesk instance</li>
-                </ul>
-              </div>
-            ) : (
-              <p>{error}</p>
-            )}
+            <p>{error}</p>
           </div>
-          {!isCloudError && (
-            <div className="flex space-x-3">
-              <button
-                onClick={() => refetch(selectedPeriod)}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Retry</span>
-              </button>
-              <button
-                onClick={clearError}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {isCloudError && (
+          <div className="flex space-x-3">
+            <button
+              onClick={() => refetch(selectedPeriod)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+            </button>
             <button
               onClick={clearError}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              Continue to Demo (Empty States)
+              Dismiss
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -178,7 +143,7 @@ export default function Index() {
     if (!engineer || !averageMetrics) {
       return {
         title: "No Data",
-        subtitle: "Loading...",
+        subtitle: "No engineer selected",
         metrics: [],
       };
     }
@@ -363,7 +328,7 @@ export default function Index() {
       </header>
 
       {/* Alerts Panel */}
-      {showAlerts && (
+      {showAlerts && alerts.length > 0 && (
         <div className="bg-yellow-50 border-b border-yellow-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex items-start space-x-3">
@@ -443,7 +408,7 @@ export default function Index() {
                   <div className="text-center">
                     <div className="text-gray-400 mb-2">No Data</div>
                     <div className="text-sm text-gray-500">
-                      Backend required
+                      Loading engineer data...
                     </div>
                   </div>
                 </div>
@@ -467,7 +432,7 @@ export default function Index() {
               )}
             </div>
           </div>
-          {averageMetrics ? (
+          {averageMetrics && engineerData.length > 0 ? (
             <PerformanceTable
               data={engineerData}
               averageData={averageMetrics}
@@ -479,7 +444,7 @@ export default function Index() {
                   No Performance Data Available
                 </div>
                 <div className="text-sm text-gray-500">
-                  Start the backend server to load Zendesk data
+                  {isLoading ? "Loading data..." : "No engineer data found"}
                 </div>
               </div>
             </div>
@@ -510,7 +475,7 @@ export default function Index() {
                 </select>
               ) : (
                 <div className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
-                  Loading engineers...
+                  No engineers found
                 </div>
               )}
             </div>
@@ -525,8 +490,8 @@ export default function Index() {
             ) : (
               <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
                 <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Loading engineer data...</p>
+                  <div className="text-gray-400 mb-2">No Data</div>
+                  <p className="text-gray-500">No engineer data available</p>
                 </div>
               </div>
             )}
@@ -553,8 +518,8 @@ export default function Index() {
             ) : (
               <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
                 <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Loading engineer data...</p>
+                  <div className="text-gray-400 mb-2">No Data</div>
+                  <p className="text-gray-500">No engineer data available</p>
                 </div>
               </div>
             )}
@@ -635,7 +600,7 @@ export default function Index() {
                     <div className="text-center">
                       <div className="text-gray-400 mb-2">No Data</div>
                       <div className="text-sm text-gray-500">
-                        Backend required
+                        No engineer selected
                       </div>
                     </div>
                   </div>
