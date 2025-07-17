@@ -12,10 +12,9 @@ app.use(express.json());
 
 // Zendesk API configuration
 const ZENDESK_CONFIG = {
-  subdomain:
-    process.env.VITE_ZENDESK_SUBDOMAIN || process.env.ZENDESK_SUBDOMAIN,
-  email: process.env.VITE_ZENDESK_EMAIL || process.env.ZENDESK_EMAIL,
-  apiToken: process.env.VITE_ZENDESK_API_TOKEN || process.env.ZENDESK_TOKEN,
+  subdomain: process.env.ZENDESK_SUBDOMAIN,
+  email: process.env.ZENDESK_EMAIL,
+  apiToken: process.env.ZENDESK_API_TOKEN,
 };
 
 // Debug logging
