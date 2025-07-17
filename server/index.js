@@ -103,25 +103,49 @@ const ENGINEER_IDS = [
 // API Routes
 app.get("/api/zendesk/users", async (req, res) => {
   try {
-    // Fetch all agents first
-    const data = await proxyZendeskRequest("/users.json?role=agent");
+    // Fetch all agents with pagination to ensure we get all users
+    let allUsers = [];
+    let nextPage = "/users.json?role=agent&per_page=100";
+
+    while (nextPage) {
+      console.log(`Fetching users from: ${nextPage}`);
+      const data = await proxyZendeskRequest(nextPage);
+      allUsers = allUsers.concat(data.users);
+
+      // Extract next page URL from the response
+      nextPage = data.next_page
+        ? data.next_page.replace(`${BASE_URL}`, "")
+        : null;
+      console.log(`Got ${data.users.length} users, next page: ${nextPage}`);
+    }
+
+    console.log(`Total users fetched: ${allUsers.length}`);
 
     // Filter to only include specific engineer IDs
-    const filteredUsers = data.users.filter((user) =>
+    const filteredUsers = allUsers.filter((user) =>
       ENGINEER_IDS.includes(user.id),
     );
 
     console.log(
-      `Filtered ${filteredUsers.length} engineers from ${data.users.length} total agents`,
+      `Filtered ${filteredUsers.length} engineers from ${allUsers.length} total agents`,
     );
     console.log(
       "Found engineers:",
       filteredUsers.map((u) => `${u.name} (${u.id})`),
     );
 
+    // Also log missing engineers
+    const foundIds = filteredUsers.map((u) => u.id);
+    const missingIds = ENGINEER_IDS.filter((id) => !foundIds.includes(id));
+    if (missingIds.length > 0) {
+      console.log("Missing engineer IDs:", missingIds);
+    }
+
     res.json({
-      ...data,
       users: filteredUsers,
+      count: filteredUsers.length,
+      next_page: null,
+      previous_page: null,
     });
   } catch (error) {
     console.error("Error fetching users:", error);
