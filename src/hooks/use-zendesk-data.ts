@@ -131,13 +131,26 @@ export function useZendeskData(
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
+        console.log("📅 Date range:", { startDate, endDate });
 
+        console.log("🚀 Fetching engineer metrics...");
         const engineerMetrics = await fetchAllEngineerMetrics(
           startDate,
           endDate,
         );
+        console.log(
+          "👥 Engineer metrics received:",
+          engineerMetrics.length,
+          "engineers",
+        );
+
+        console.log("📊 Calculating team averages...");
         const teamAverages = await calculateTeamAverages(engineerMetrics);
+        console.log("📈 Team averages calculated:", teamAverages);
+
+        console.log("🚨 Generating alerts...");
         const alerts = generateAlerts(engineerMetrics, teamAverages);
+        console.log("🔔 Alerts generated:", alerts.length, "alerts");
 
         setState({
           engineerData: engineerMetrics,
@@ -147,8 +160,9 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+        console.log("✅ Data fetch completed successfully!");
       } catch (error) {
-        console.error("Error fetching Zendesk data:", error);
+        console.error("❌ Error fetching Zendesk data:", error);
 
         setState((prev) => ({
           ...prev,
@@ -158,6 +172,7 @@ export function useZendeskData(
           averageMetrics: null,
           alerts: [],
         }));
+        console.log("🔄 Set empty state due to error");
       }
     },
     [generateAlerts],
