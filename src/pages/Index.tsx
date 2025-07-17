@@ -111,68 +111,6 @@ export default function Index() {
     window.location.hostname !== "localhost" &&
     window.location.hostname !== "127.0.0.1";
 
-  // Show error state
-  if (error) {
-    const isCloudError =
-      error.includes("cloud environment") ||
-      error.includes("Backend server required");
-
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg">
-          <div className="flex items-center space-x-3 text-blue-600 mb-4">
-            <Info className="w-6 h-6" />
-            <h2 className="text-lg font-semibold">
-              {isCloudError ? "Demo Mode" : "Error Loading Data"}
-            </h2>
-          </div>
-          <div className="text-gray-600 mb-4">
-            {isCloudError ? (
-              <div>
-                <p className="mb-3">
-                  This is a live demo of the Zendesk Performance Dashboard.
-                </p>
-                <p className="mb-3">To see real data, you would need to:</p>
-                <ul className="list-disc pl-5 space-y-1 text-sm">
-                  <li>Run the backend server locally</li>
-                  <li>Configure Zendesk API credentials</li>
-                  <li>Connect to your Zendesk instance</li>
-                </ul>
-              </div>
-            ) : (
-              <p>{error}</p>
-            )}
-          </div>
-          {!isCloudError && (
-            <div className="flex space-x-3">
-              <button
-                onClick={() => refetch(selectedPeriod)}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Retry</span>
-              </button>
-              <button
-                onClick={clearError}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {isCloudError && (
-            <button
-              onClick={clearError}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Continue to Demo (Empty States)
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // Generate radar chart data based on selected engineer
   const generateRadarData = (engineer: typeof currentEngineer) => {
     if (!engineer || !averageMetrics) {
