@@ -19,24 +19,36 @@ const isCloudEnvironment = () => {
 // Mock data for when backend is not available
 const createMockData = (): EngineerMetrics[] => {
   const engineersFromMap = Array.from(nameToIdMap.keys());
+  console.log("🎭 Creating mock data for engineers:", engineersFromMap);
+  console.log("📊 Total engineers in nameToIdMap:", engineersFromMap.length);
 
-  return engineersFromMap.map((name, index) => ({
-    name,
-    cesPercent: 75 + Math.random() * 20, // 75-95%
-    avgPcc: 2 + Math.random() * 6, // 2-8 hours
-    closed: 15 + Math.floor(Math.random() * 25), // 15-40 tickets
-    open: Math.floor(Math.random() * 8), // 0-8 tickets
-    openGreaterThan14: Math.floor(Math.random() * 3), // 0-3 tickets
-    closedLessThan7: 60 + Math.random() * 30, // 60-90%
-    closedEqual1: 30 + Math.random() * 40, // 30-70%
-    participationRate: 3 + Math.random() * 2, // 3-5 rating
-    linkCount: 2 + Math.random() * 3, // 2-5 links
-    citationCount: 3 + Math.random() * 2, // 3-5 citations
-    creationCount: 3.5 + Math.random() * 1.5, // 3.5-5 rating
-    enterprisePercent: 20 + Math.random() * 40, // 20-60%
-    technicalPercent: 40 + Math.random() * 30, // 40-70%
-    surveyCount: 8 + Math.floor(Math.random() * 15), // 8-23 surveys
-  }));
+  const mockData = engineersFromMap.map((name, index) => {
+    const data = {
+      name,
+      cesPercent: 75 + Math.random() * 20, // 75-95%
+      avgPcc: 2 + Math.random() * 6, // 2-8 hours
+      closed: 15 + Math.floor(Math.random() * 25), // 15-40 tickets
+      open: Math.floor(Math.random() * 8), // 0-8 tickets
+      openGreaterThan14: Math.floor(Math.random() * 3), // 0-3 tickets
+      closedLessThan7: 60 + Math.random() * 30, // 60-90%
+      closedEqual1: 30 + Math.random() * 40, // 30-70%
+      participationRate: 3 + Math.random() * 2, // 3-5 rating
+      linkCount: 2 + Math.random() * 3, // 2-5 links
+      citationCount: 3 + Math.random() * 2, // 3-5 citations
+      creationCount: 3.5 + Math.random() * 1.5, // 3.5-5 rating
+      enterprisePercent: 20 + Math.random() * 40, // 20-60%
+      technicalPercent: 40 + Math.random() * 30, // 40-70%
+      surveyCount: 8 + Math.floor(Math.random() * 15), // 8-23 surveys
+    };
+    console.log(`👤 Generated data for ${name}:`, data);
+    return data;
+  });
+
+  console.log(
+    "✅ Mock data generation complete. Total records:",
+    mockData.length,
+  );
+  return mockData;
 };
 
 // Check if backend is available
