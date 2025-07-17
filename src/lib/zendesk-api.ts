@@ -524,14 +524,8 @@ export async function fetchAllEngineerMetrics(
   } catch (error) {
     console.error("Error fetching engineer metrics:", error);
 
-    // Provide helpful error messages based on environment
-    if (isCloudEnvironment()) {
-      throw new Error(
-        "Backend server not available in cloud environment. This demo requires a running backend server for real Zendesk data.",
-      );
-    } else {
-      throw error;
-    }
+    // Just throw the error without special cloud environment handling
+    throw error;
   }
 }
 
