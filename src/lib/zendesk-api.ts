@@ -2,28 +2,12 @@ import { EngineerMetrics } from "./types";
 
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
-  // In cloud environments (like Builder.io preview), use current origin
-  // In local development, use relative URLs that Vite will proxy to localhost:3001
   return "/api/zendesk";
-};
-
-// Check if we're in a cloud environment where localhost isn't available
-const isCloudEnvironment = () => {
-  return (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  );
 };
 
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    // In cloud environments, health check won't work
-    if (isCloudEnvironment()) {
-      console.warn("Skipping health check in cloud environment");
-      return false;
-    }
-
     const response = await fetch("/api/health");
     if (!response.ok) {
       return false;
@@ -104,15 +88,9 @@ async function apiRequest<T>(
       error instanceof TypeError &&
       error.message.includes("Failed to fetch")
     ) {
-      if (isCloudEnvironment()) {
-        throw new Error(
-          "Cannot connect to backend server in cloud environment. Backend required for real data.",
-        );
-      } else {
-        throw new Error(
-          "Cannot connect to backend server. Make sure it's running on port 3001.",
-        );
-      }
+      throw new Error(
+        "Cannot connect to backend server. Make sure it's running on port 3001.",
+      );
     }
 
     throw error;
@@ -489,19 +467,11 @@ export async function fetchAllEngineerMetrics(
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
   try {
-    // In cloud environments, skip health check since localhost isn't available
-    if (!isCloudEnvironment()) {
-      // Check backend health first in local development
-      const isBackendHealthy = await checkBackendHealth();
-      if (!isBackendHealthy) {
-        throw new Error(
-          "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.",
-        );
-      }
-    } else {
-      // In cloud environment, inform user that backend is required
-      console.warn(
-        "Running in cloud environment - backend server required for real data",
+    // Check backend health first
+    const isBackendHealthy = await checkBackendHealth();
+    if (!isBackendHealthy) {
+      throw new Error(
+        "Backend server is not available. Please start the server with 'npm run server'.",
       );
     }
 
@@ -511,20 +481,18 @@ export async function fetchAllEngineerMetrics(
       getSatisfactionRatings(startDate, endDate),
     ]);
 
+    // Only return data if we have users, otherwise return empty array
+    if (!users || users.length === 0) {
+      console.warn("No engineer data found");
+      return [];
+    }
+
     return users.map((user) =>
       calculateEngineerMetrics(user, tickets, ratings),
     );
   } catch (error) {
     console.error("Error fetching engineer metrics:", error);
-
-    // Provide helpful error messages based on environment
-    if (isCloudEnvironment()) {
-      throw new Error(
-        "Backend server not available in cloud environment. This demo requires a running backend server for real Zendesk data.",
-      );
-    } else {
-      throw error;
-    }
+    throw error;
   }
 }
 
