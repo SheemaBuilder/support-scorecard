@@ -267,6 +267,56 @@ app.get("/api/test-auth", (req, res) => {
   });
 });
 
+// Test endpoint to verify Zendesk API connection
+app.get("/api/test-connection", async (req, res) => {
+  try {
+    console.log("Testing Zendesk API connection...");
+
+    // Test basic API access with account info
+    const accountData = await proxyZendeskRequest("/account.json");
+    console.log("Account data retrieved successfully");
+
+    // Test users endpoint
+    const usersData = await proxyZendeskRequest("/users.json?per_page=5");
+    console.log(`Retrieved ${usersData.users.length} users`);
+
+    // Test tickets endpoint
+    const ticketsData = await proxyZendeskRequest("/tickets.json?per_page=5");
+    console.log(`Retrieved ${ticketsData.tickets.length} tickets`);
+
+    res.json({
+      status: "success",
+      message: "Zendesk API connection is working",
+      tests: {
+        account: {
+          success: true,
+          subdomain: accountData.account?.subdomain,
+          plan: accountData.account?.plan_name,
+        },
+        users: {
+          success: true,
+          count: usersData.users.length,
+          sampleUser: usersData.users[0]?.name,
+        },
+        tickets: {
+          success: true,
+          count: ticketsData.tickets.length,
+          sampleTicket: ticketsData.tickets[0]?.subject,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Zendesk API connection test failed:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Zendesk API connection failed",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Zendesk proxy server running on port ${PORT}`);
 });
