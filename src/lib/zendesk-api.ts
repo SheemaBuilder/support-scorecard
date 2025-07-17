@@ -557,7 +557,20 @@ export async function fetchAllEngineerMetrics(
 export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
 ): Promise<EngineerMetrics> {
+  console.log(
+    "📊 Calculating team averages for",
+    engineerMetrics.length,
+    "engineers",
+  );
+  console.log(
+    "👥 Engineers:",
+    engineerMetrics.map((e) => e.name),
+  );
+
   if (engineerMetrics.length === 0) {
+    console.error(
+      "❌ No engineer metrics available for team average calculation",
+    );
     throw new Error(
       "No engineer metrics available for team average calculation",
     );
