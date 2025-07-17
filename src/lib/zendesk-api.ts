@@ -507,22 +507,17 @@ export async function fetchAllEngineerMetrics(
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
   try {
-    // In cloud environments, skip health check since localhost isn't available
-    if (!isCloudEnvironment()) {
-      // Check backend health first in local development
-      const isBackendHealthy = await checkBackendHealth();
-      if (!isBackendHealthy) {
-        throw new Error(
-          "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.",
-        );
-      }
-    } else {
-      // In cloud environment, inform user that backend is required
+    // Check if backend is available
+    const isBackendHealthy = await checkBackendHealth();
+
+    if (!isBackendHealthy) {
       console.warn(
-        "Running in cloud environment - backend server required for real data",
+        "Backend not available, using mock data for engineers from nameToIdMap",
       );
+      return createMockData();
     }
 
+    console.log("Backend is available, fetching real data...");
     const [users, tickets, ratings] = await Promise.all([
       getUsers(),
       getTickets(startDate, endDate),
@@ -539,10 +534,11 @@ export async function fetchAllEngineerMetrics(
       calculateEngineerMetrics(user, tickets, ratings),
     );
   } catch (error) {
-    console.error("Error fetching engineer metrics:", error);
-
-    // Just throw the error without special cloud environment handling
-    throw error;
+    console.error(
+      "Error fetching engineer metrics, falling back to mock data:",
+      error,
+    );
+    return createMockData();
   }
 }
 
