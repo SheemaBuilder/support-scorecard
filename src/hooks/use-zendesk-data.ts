@@ -5,14 +5,6 @@ import {
   calculateTeamAverages,
 } from "../lib/zendesk-api";
 
-// Check if we're in a cloud environment where localhost isn't available
-const isCloudEnvironment = () => {
-  return (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  );
-};
-
 interface UseZendeskDataState {
   engineerData: EngineerMetrics[];
   averageMetrics: EngineerMetrics | null;
@@ -108,20 +100,6 @@ export function useZendeskData(
     async (dateRange?: DateRange) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
-      if (isCloudEnvironment()) {
-        console.warn(
-          "Cloud environment detected - no backend server available",
-        );
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
-        }));
-        return;
-      }
-
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
@@ -130,6 +108,20 @@ export function useZendeskData(
           startDate,
           endDate,
         );
+
+        // Handle empty data gracefully
+        if (engineerMetrics.length === 0) {
+          setState({
+            engineerData: [],
+            averageMetrics: null,
+            alerts: [],
+            isLoading: false,
+            error: null,
+            lastUpdated: new Date(),
+          });
+          return;
+        }
+
         const teamAverages = await calculateTeamAverages(engineerMetrics);
         const alerts = generateAlerts(engineerMetrics, teamAverages);
 
@@ -146,27 +138,12 @@ export function useZendeskData(
 
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
-        const isConnectivityError =
-          errorMessage.includes("<!DOCTYPE") ||
-          errorMessage.includes("Failed to fetch") ||
-          errorMessage.includes("NetworkError") ||
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          errorMessage.includes("Cannot connect to backend server");
 
-        if (isConnectivityError) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error:
-              "Backend server not available. Please start the backend server with 'npm run server' to load Zendesk data.",
-          }));
-        } else {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: errorMessage,
-          }));
-        }
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+        }));
       }
     },
     [generateAlerts],
