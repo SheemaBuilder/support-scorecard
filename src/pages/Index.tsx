@@ -624,14 +624,14 @@ export default function Index() {
                       }
                     } catch (error) {
                       alert(
-                        `❌ Error fetching Jared's closed tickets: ${error}`,
+                        `❌ Error fetching Alex's closed tickets: ${error}`,
                       );
                     }
                   }}
                   className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                 >
                   <span>🎫</span>
-                  <span>Jared's Closed Tickets</span>
+                  <span>Alex's Closed Tickets</span>
                 </button>
 
                 <button
