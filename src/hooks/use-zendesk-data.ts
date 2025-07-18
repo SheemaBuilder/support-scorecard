@@ -136,145 +136,15 @@ export function useZendeskData(
         );
       }
 
-      // Import mock data directly to avoid rate limiting issues in cloud
-      const mockData = [
-        {
-          name: "Jared Beckler",
-          cesPercent: 89.2,
-          avgPcc: 3.4,
-          closed: 32,
-          open: 4,
-          openGreaterThan14: 1,
-          closedLessThan7: 78.5,
-          closedEqual1: 45.2,
-          participationRate: 4.2,
-          linkCount: 3.8,
-          citationCount: 4.1,
-          creationCount: 4.3,
-          enterprisePercent: 42.0,
-          technicalPercent: 58.5,
-          surveyCount: 18,
-        },
-        {
-          name: "Rahul Joshi",
-          cesPercent: 85.7,
-          avgPcc: 2.8,
-          closed: 28,
-          open: 6,
-          openGreaterThan14: 2,
-          closedLessThan7: 82.1,
-          closedEqual1: 52.3,
-          participationRate: 4.0,
-          linkCount: 4.2,
-          citationCount: 3.9,
-          creationCount: 4.1,
-          enterprisePercent: 38.5,
-          technicalPercent: 65.2,
-          surveyCount: 16,
-        },
-        {
-          name: "Parth Sharma",
-          cesPercent: 91.3,
-          avgPcc: 2.1,
-          closed: 35,
-          open: 3,
-          openGreaterThan14: 0,
-          closedLessThan7: 88.9,
-          closedEqual1: 62.1,
-          participationRate: 4.5,
-          linkCount: 4.6,
-          citationCount: 4.4,
-          creationCount: 4.7,
-          enterprisePercent: 45.8,
-          technicalPercent: 72.3,
-          surveyCount: 21,
-        },
-        {
-          name: "Fernando Duran",
-          cesPercent: 83.1,
-          avgPcc: 4.2,
-          closed: 24,
-          open: 7,
-          openGreaterThan14: 1,
-          closedLessThan7: 75.6,
-          closedEqual1: 38.9,
-          participationRate: 3.8,
-          linkCount: 3.5,
-          citationCount: 3.7,
-          creationCount: 3.9,
-          enterprisePercent: 35.2,
-          technicalPercent: 52.8,
-          surveyCount: 14,
-        },
-        {
-          name: "Alex Bridgeman",
-          cesPercent: 87.4,
-          avgPcc: 3.1,
-          closed: 30,
-          open: 5,
-          openGreaterThan14: 1,
-          closedLessThan7: 80.3,
-          closedEqual1: 48.7,
-          participationRate: 4.1,
-          linkCount: 4.0,
-          citationCount: 4.0,
-          creationCount: 4.2,
-          enterprisePercent: 41.7,
-          technicalPercent: 61.9,
-          surveyCount: 17,
-        },
-        {
-          name: "Sheema Parwaz",
-          cesPercent: 93.6,
-          avgPcc: 1.9,
-          closed: 38,
-          open: 2,
-          openGreaterThan14: 0,
-          closedLessThan7: 92.1,
-          closedEqual1: 68.4,
-          participationRate: 4.7,
-          linkCount: 4.8,
-          citationCount: 4.6,
-          creationCount: 4.8,
-          enterprisePercent: 48.3,
-          technicalPercent: 75.6,
-          surveyCount: 23,
-        },
-        {
-          name: "Manish Sharma",
-          cesPercent: 86.8,
-          avgPcc: 2.7,
-          closed: 29,
-          open: 5,
-          openGreaterThan14: 1,
-          closedLessThan7: 81.7,
-          closedEqual1: 51.2,
-          participationRate: 4.1,
-          linkCount: 4.1,
-          citationCount: 4.0,
-          creationCount: 4.3,
-          enterprisePercent: 40.1,
-          technicalPercent: 63.4,
-          surveyCount: 19,
-        },
-        {
-          name: "Akash Singh",
-          cesPercent: 84.2,
-          avgPcc: 3.6,
-          closed: 26,
-          open: 6,
-          openGreaterThan14: 2,
-          closedLessThan7: 76.8,
-          closedEqual1: 42.5,
-          participationRate: 3.9,
-          linkCount: 3.7,
-          citationCount: 3.8,
-          creationCount: 4.0,
-          enterprisePercent: 36.9,
-          technicalPercent: 55.7,
-          surveyCount: 15,
-        },
-      ];
+      // Emergency timeout to prevent endless loading
+      const emergencyTimeout = setTimeout(() => {
+        console.log("🚨 Emergency timeout triggered - stopping loading state");
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: "Request timed out. Click 'Pull Data' to try again.",
+        }));
+      }, 30000); // 30 second emergency timeout
 
       try {
         const startDate = dateRange?.start;
@@ -323,6 +193,9 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+        // Clear emergency timeout on success
+        clearTimeout(emergencyTimeout);
+
         // Reset failure counter on success
         consecutiveFailures = 0;
         lastFailureTime = null;
@@ -344,6 +217,9 @@ export function useZendeskData(
             `🚫 Rate limit failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}`,
           );
         }
+
+        // Clear emergency timeout on error
+        clearTimeout(emergencyTimeout);
 
         setState((prev) => ({
           ...prev,
