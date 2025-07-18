@@ -229,7 +229,7 @@ async function apiRequest<T>(
   try {
     // Add timeout to prevent hanging on rate limits
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     const response = await fetch(url.toString(), {
       signal: controller.signal,
