@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
