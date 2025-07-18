@@ -276,6 +276,11 @@ async function apiRequest<T>(
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
 
+    // Handle specific error types
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timeout after 30 seconds: ${url.toString()}`);
+    }
+
     // Provide more helpful error messages for common issues
     if (
       error instanceof TypeError &&
