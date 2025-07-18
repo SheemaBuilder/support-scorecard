@@ -87,7 +87,7 @@ const getLastWorkingDayOfMonth = (year: number, month: number): Date => {
   return lastDay;
 };
 
-// Default date ranges - calculated using working days (excluding weekends)
+// Default date ranges - calculated using calendar days (to match Zendesk reports)
 const getDateRanges = (): DateRange[] => {
   const today = new Date();
   const endOfToday = new Date(
@@ -100,11 +100,15 @@ const getDateRanges = (): DateRange[] => {
     999,
   );
 
-  // Calculate start date for last 30 working days
-  const thirtyWorkingDaysAgo = getWorkingDaysBack(30);
+  // Calculate start date for last 30 calendar days (to match Zendesk)
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-  // Calculate start date for last 7 working days
-  const sevenWorkingDaysAgo = getWorkingDaysBack(7);
+  // Calculate start date for last 7 calendar days
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
 
   // This month: first working day of current month to today
   const thisMonthStart = getFirstWorkingDayOfMonth(
@@ -124,15 +128,15 @@ const getDateRanges = (): DateRange[] => {
 
   return [
     {
-      label: "Last 30 Working Days",
+      label: "Last 30 Days",
       value: "last-30-days",
-      start: thirtyWorkingDaysAgo,
+      start: thirtyDaysAgo,
       end: endOfToday,
     },
     {
-      label: "Last 7 Working Days",
+      label: "Last 7 Days",
       value: "last-7-days",
-      start: sevenWorkingDaysAgo,
+      start: sevenDaysAgo,
       end: endOfToday,
     },
     {
