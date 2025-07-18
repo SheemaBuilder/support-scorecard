@@ -243,9 +243,7 @@ async function apiRequest<T>(
     // Handle different response types
     let responseText: string;
     try {
-      // Clone the response before reading to avoid stream issues
-      const clonedResponse = response.clone();
-      responseText = await clonedResponse.text();
+      responseText = await response.text();
     } catch (streamError) {
       console.error("Failed to read response stream:", streamError);
       throw new Error("Failed to read response from server");
