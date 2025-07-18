@@ -328,31 +328,7 @@ export async function getUsers(): Promise<ZendeskUser[]> {
             updated_at: new Date().toISOString(),
           };
           users.push(placeholderUser);
-          console.log(
-            `📝 Created placeholder for rate-limited: ${remainingName}`,
-          );
-        }
-        break;
-      }
-
-      // Create a placeholder user if the ID doesn't exist or request failed
-      const placeholderUser: ZendeskUser = {
-        id: id,
-        name: name,
-        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
-        role: "agent",
-        active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      users.push(placeholderUser);
-      console.log(`📝 Created placeholder for: ${name}`);
-    }
-  }
-
-  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
-  return users;
-}
+          
 
 export async function getTickets(
   startDate?: Date,
