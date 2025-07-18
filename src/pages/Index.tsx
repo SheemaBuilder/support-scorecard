@@ -433,7 +433,7 @@ export default function Index() {
               </div>
               <div className="text-orange-800">
                 <span className="font-medium">Loading:</span>{" "}
-                {isLoading ? "🔄 In progress" : "✅ Complete"}
+                {isLoading ? "🔄 In progress" : "�� Complete"}
               </div>
               <div className="text-orange-800">
                 <span className="font-medium">Error:</span> {error || "None"}
@@ -601,23 +601,9 @@ export default function Index() {
                   }}
                   className="flex items-center space-x-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                 >
-                  <span>🎫</span>
+                  <span>���</span>
                   <span>Debug Ticket 20225</span>
                 </button>
-
-                {currentEngineer && (
-                  <button
-                    onClick={() =>
-                      alert(
-                        `Engineer: ${currentEngineer.name}\nCES: ${currentEngineer.cesPercent.toFixed(1)}%\nClosed Tickets: ${currentEngineer.closed}\nSurvey Count: ${currentEngineer.surveyCount}`,
-                      )
-                    }
-                    className="flex items-center space-x-2 px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
-                  >
-                    <span>🔍</span>
-                    <span>Find {currentEngineer.name}'s CES Tickets</span>
-                  </button>
-                )}
               </div>
             </div>
           )}
