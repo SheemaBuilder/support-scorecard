@@ -5,12 +5,28 @@ import {
   calculateTeamAverages,
 } from "../lib/zendesk-api";
 
-// Check if we're in a cloud environment where localhost isn't available
-const isCloudEnvironment = () => {
-  const hostname = window.location.hostname;
-  const isCloud = hostname !== "localhost" && hostname !== "127.0.0.1";
-  console.log("🌐 Environment check:", { hostname, isCloud });
-  // FORCE REAL DATA ONLY - Never use mock data regardless of environment
+// Rate limiting state management
+let lastFailureTime: number | null = null;
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+const CIRCUIT_BREAKER_DURATION = 120000; // 2 minutes
+
+// Check if we should use circuit breaker
+const shouldUseCircuitBreaker = () => {
+  const now = Date.now();
+  if (lastFailureTime && consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+    if (now - lastFailureTime < CIRCUIT_BREAKER_DURATION) {
+      console.log(
+        `🚫 Circuit breaker active: ${Math.round((CIRCUIT_BREAKER_DURATION - (now - lastFailureTime)) / 1000)}s remaining`,
+      );
+      return true;
+    } else {
+      // Reset circuit breaker
+      lastFailureTime = null;
+      consecutiveFailures = 0;
+      console.log("✅ Circuit breaker reset");
+    }
+  }
   return false;
 };
 
@@ -113,224 +129,152 @@ export function useZendeskData(
       });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, use mock data directly due to rate limiting issues
-      if (isCloudEnvironment()) {
-        console.warn(
-          "🌐 Cloud environment detected - using mock data due to Zendesk rate limiting constraints",
+      // Check circuit breaker first
+      if (shouldUseCircuitBreaker()) {
+        throw new Error(
+          "Rate limit protection active. Please wait 2 minutes before trying again.",
         );
-
-        // Import mock data directly to avoid rate limiting issues in cloud
-        const mockData = [
-          {
-            name: "Jared Beckler",
-            cesPercent: 89.2,
-            avgPcc: 3.4,
-            closed: 32,
-            open: 4,
-            openGreaterThan14: 1,
-            closedLessThan7: 78.5,
-            closedEqual1: 45.2,
-            participationRate: 4.2,
-            linkCount: 3.8,
-            citationCount: 4.1,
-            creationCount: 4.3,
-            enterprisePercent: 42.0,
-            technicalPercent: 58.5,
-            surveyCount: 18,
-          },
-          {
-            name: "Rahul Joshi",
-            cesPercent: 85.7,
-            avgPcc: 2.8,
-            closed: 28,
-            open: 6,
-            openGreaterThan14: 2,
-            closedLessThan7: 82.1,
-            closedEqual1: 52.3,
-            participationRate: 4.0,
-            linkCount: 4.2,
-            citationCount: 3.9,
-            creationCount: 4.1,
-            enterprisePercent: 38.5,
-            technicalPercent: 65.2,
-            surveyCount: 16,
-          },
-          {
-            name: "Parth Sharma",
-            cesPercent: 91.3,
-            avgPcc: 2.1,
-            closed: 35,
-            open: 3,
-            openGreaterThan14: 0,
-            closedLessThan7: 88.9,
-            closedEqual1: 62.1,
-            participationRate: 4.5,
-            linkCount: 4.6,
-            citationCount: 4.4,
-            creationCount: 4.7,
-            enterprisePercent: 45.8,
-            technicalPercent: 72.3,
-            surveyCount: 21,
-          },
-          {
-            name: "Fernando Duran",
-            cesPercent: 83.1,
-            avgPcc: 4.2,
-            closed: 24,
-            open: 7,
-            openGreaterThan14: 1,
-            closedLessThan7: 75.6,
-            closedEqual1: 38.9,
-            participationRate: 3.8,
-            linkCount: 3.5,
-            citationCount: 3.7,
-            creationCount: 3.9,
-            enterprisePercent: 35.2,
-            technicalPercent: 52.8,
-            surveyCount: 14,
-          },
-          {
-            name: "Alex Bridgeman",
-            cesPercent: 87.4,
-            avgPcc: 3.1,
-            closed: 30,
-            open: 5,
-            openGreaterThan14: 1,
-            closedLessThan7: 80.3,
-            closedEqual1: 48.7,
-            participationRate: 4.1,
-            linkCount: 4.0,
-            citationCount: 4.0,
-            creationCount: 4.2,
-            enterprisePercent: 41.7,
-            technicalPercent: 61.9,
-            surveyCount: 17,
-          },
-          {
-            name: "Sheema Parwaz",
-            cesPercent: 93.6,
-            avgPcc: 1.9,
-            closed: 38,
-            open: 2,
-            openGreaterThan14: 0,
-            closedLessThan7: 92.1,
-            closedEqual1: 68.4,
-            participationRate: 4.7,
-            linkCount: 4.8,
-            citationCount: 4.6,
-            creationCount: 4.8,
-            enterprisePercent: 48.3,
-            technicalPercent: 75.6,
-            surveyCount: 23,
-          },
-          {
-            name: "Manish Sharma",
-            cesPercent: 86.8,
-            avgPcc: 2.7,
-            closed: 29,
-            open: 5,
-            openGreaterThan14: 1,
-            closedLessThan7: 81.7,
-            closedEqual1: 51.2,
-            participationRate: 4.1,
-            linkCount: 4.1,
-            citationCount: 4.0,
-            creationCount: 4.3,
-            enterprisePercent: 40.1,
-            technicalPercent: 63.4,
-            surveyCount: 19,
-          },
-          {
-            name: "Akash Singh",
-            cesPercent: 84.2,
-            avgPcc: 3.6,
-            closed: 26,
-            open: 6,
-            openGreaterThan14: 2,
-            closedLessThan7: 76.8,
-            closedEqual1: 42.5,
-            participationRate: 3.9,
-            linkCount: 3.7,
-            citationCount: 3.8,
-            creationCount: 4.0,
-            enterprisePercent: 36.9,
-            technicalPercent: 55.7,
-            surveyCount: 15,
-          },
-        ];
-
-        console.log("📊 Using mock data to avoid rate limiting");
-        const teamAverages = mockData.reduce(
-          (acc, engineer) => ({
-            cesPercent: acc.cesPercent + engineer.cesPercent,
-            avgPcc: acc.avgPcc + engineer.avgPcc,
-            closed: acc.closed + engineer.closed,
-            open: acc.open + engineer.open,
-            openGreaterThan14:
-              acc.openGreaterThan14 + engineer.openGreaterThan14,
-            closedLessThan7: acc.closedLessThan7 + engineer.closedLessThan7,
-            closedEqual1: acc.closedEqual1 + engineer.closedEqual1,
-            participationRate:
-              acc.participationRate + engineer.participationRate,
-            linkCount: acc.linkCount + engineer.linkCount,
-            citationCount: acc.citationCount + engineer.citationCount,
-            creationCount: acc.creationCount + engineer.creationCount,
-            enterprisePercent:
-              acc.enterprisePercent + engineer.enterprisePercent,
-            technicalPercent: acc.technicalPercent + engineer.technicalPercent,
-            surveyCount: acc.surveyCount + engineer.surveyCount,
-          }),
-          {
-            cesPercent: 0,
-            avgPcc: 0,
-            closed: 0,
-            open: 0,
-            openGreaterThan14: 0,
-            closedLessThan7: 0,
-            closedEqual1: 0,
-            participationRate: 0,
-            linkCount: 0,
-            citationCount: 0,
-            creationCount: 0,
-            enterprisePercent: 0,
-            technicalPercent: 0,
-            surveyCount: 0,
-          },
-        );
-
-        const count = mockData.length;
-        const averageMetrics = {
-          name: "Team Average",
-          cesPercent: teamAverages.cesPercent / count,
-          avgPcc: teamAverages.avgPcc / count,
-          closed: Math.round(teamAverages.closed / count),
-          open: teamAverages.open / count,
-          openGreaterThan14: teamAverages.openGreaterThan14 / count,
-          closedLessThan7: teamAverages.closedLessThan7 / count,
-          closedEqual1: teamAverages.closedEqual1 / count,
-          participationRate: teamAverages.participationRate / count,
-          linkCount: teamAverages.linkCount / count,
-          citationCount: teamAverages.citationCount / count,
-          creationCount: teamAverages.creationCount / count,
-          enterprisePercent: teamAverages.enterprisePercent / count,
-          technicalPercent: teamAverages.technicalPercent / count,
-          surveyCount: teamAverages.surveyCount / count,
-        };
-
-        const alerts = generateAlerts(mockData, averageMetrics);
-
-        setState({
-          engineerData: mockData,
-          averageMetrics,
-          alerts,
-          isLoading: false,
-          error: null,
-          lastUpdated: new Date(),
-        });
-
-        console.log("✅ Mock data loaded successfully to avoid rate limiting");
-        return;
       }
+
+      // Import mock data directly to avoid rate limiting issues in cloud
+      const mockData = [
+        {
+          name: "Jared Beckler",
+          cesPercent: 89.2,
+          avgPcc: 3.4,
+          closed: 32,
+          open: 4,
+          openGreaterThan14: 1,
+          closedLessThan7: 78.5,
+          closedEqual1: 45.2,
+          participationRate: 4.2,
+          linkCount: 3.8,
+          citationCount: 4.1,
+          creationCount: 4.3,
+          enterprisePercent: 42.0,
+          technicalPercent: 58.5,
+          surveyCount: 18,
+        },
+        {
+          name: "Rahul Joshi",
+          cesPercent: 85.7,
+          avgPcc: 2.8,
+          closed: 28,
+          open: 6,
+          openGreaterThan14: 2,
+          closedLessThan7: 82.1,
+          closedEqual1: 52.3,
+          participationRate: 4.0,
+          linkCount: 4.2,
+          citationCount: 3.9,
+          creationCount: 4.1,
+          enterprisePercent: 38.5,
+          technicalPercent: 65.2,
+          surveyCount: 16,
+        },
+        {
+          name: "Parth Sharma",
+          cesPercent: 91.3,
+          avgPcc: 2.1,
+          closed: 35,
+          open: 3,
+          openGreaterThan14: 0,
+          closedLessThan7: 88.9,
+          closedEqual1: 62.1,
+          participationRate: 4.5,
+          linkCount: 4.6,
+          citationCount: 4.4,
+          creationCount: 4.7,
+          enterprisePercent: 45.8,
+          technicalPercent: 72.3,
+          surveyCount: 21,
+        },
+        {
+          name: "Fernando Duran",
+          cesPercent: 83.1,
+          avgPcc: 4.2,
+          closed: 24,
+          open: 7,
+          openGreaterThan14: 1,
+          closedLessThan7: 75.6,
+          closedEqual1: 38.9,
+          participationRate: 3.8,
+          linkCount: 3.5,
+          citationCount: 3.7,
+          creationCount: 3.9,
+          enterprisePercent: 35.2,
+          technicalPercent: 52.8,
+          surveyCount: 14,
+        },
+        {
+          name: "Alex Bridgeman",
+          cesPercent: 87.4,
+          avgPcc: 3.1,
+          closed: 30,
+          open: 5,
+          openGreaterThan14: 1,
+          closedLessThan7: 80.3,
+          closedEqual1: 48.7,
+          participationRate: 4.1,
+          linkCount: 4.0,
+          citationCount: 4.0,
+          creationCount: 4.2,
+          enterprisePercent: 41.7,
+          technicalPercent: 61.9,
+          surveyCount: 17,
+        },
+        {
+          name: "Sheema Parwaz",
+          cesPercent: 93.6,
+          avgPcc: 1.9,
+          closed: 38,
+          open: 2,
+          openGreaterThan14: 0,
+          closedLessThan7: 92.1,
+          closedEqual1: 68.4,
+          participationRate: 4.7,
+          linkCount: 4.8,
+          citationCount: 4.6,
+          creationCount: 4.8,
+          enterprisePercent: 48.3,
+          technicalPercent: 75.6,
+          surveyCount: 23,
+        },
+        {
+          name: "Manish Sharma",
+          cesPercent: 86.8,
+          avgPcc: 2.7,
+          closed: 29,
+          open: 5,
+          openGreaterThan14: 1,
+          closedLessThan7: 81.7,
+          closedEqual1: 51.2,
+          participationRate: 4.1,
+          linkCount: 4.1,
+          citationCount: 4.0,
+          creationCount: 4.3,
+          enterprisePercent: 40.1,
+          technicalPercent: 63.4,
+          surveyCount: 19,
+        },
+        {
+          name: "Akash Singh",
+          cesPercent: 84.2,
+          avgPcc: 3.6,
+          closed: 26,
+          open: 6,
+          openGreaterThan14: 2,
+          closedLessThan7: 76.8,
+          closedEqual1: 42.5,
+          participationRate: 3.9,
+          linkCount: 3.7,
+          citationCount: 3.8,
+          creationCount: 4.0,
+          enterprisePercent: 36.9,
+          technicalPercent: 55.7,
+          surveyCount: 15,
+        },
+      ];
 
       try {
         const startDate = dateRange?.start;
@@ -339,18 +283,18 @@ export function useZendeskData(
 
         console.log("🚀 Fetching engineer metrics...");
 
-        // Add timeout to prevent endless loading due to rate limiting
+        // Add shorter timeout to prevent endless loading
         const timeoutPromise = new Promise(
           (_, reject) =>
             setTimeout(
               () =>
                 reject(
                   new Error(
-                    "Request timeout - Zendesk API may be rate limited",
+                    "Request timeout - API may be rate limited. Try again in 2 minutes.",
                   ),
                 ),
-              180000,
-            ), // 3 minute timeout
+              60000,
+            ), // 1 minute timeout
         );
 
         const engineerMetrics = (await Promise.race([
@@ -379,11 +323,27 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+        // Reset failure counter on success
+        consecutiveFailures = 0;
+        lastFailureTime = null;
         console.log("✅ Data fetch completed successfully!");
       } catch (error) {
         console.error("❌ Error fetching Zendesk data:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
+
+        // Track consecutive failures for circuit breaker
+        if (
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("429")
+        ) {
+          consecutiveFailures++;
+          lastFailureTime = Date.now();
+          console.log(
+            `🚫 Rate limit failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}`,
+          );
+        }
 
         setState((prev) => ({
           ...prev,
