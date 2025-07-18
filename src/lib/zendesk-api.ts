@@ -358,8 +358,32 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  const response = await apiRequest<ZendeskUsersResponse>("/users");
-  return response.users;
+  // Fetch only the specific engineers from nameToIdMap instead of all users
+  const engineerIds = Array.from(nameToIdMap.values());
+  console.log(
+    "🎯 Fetching only specific engineers:",
+    Array.from(nameToIdMap.keys()),
+  );
+  console.log("📋 Engineer IDs:", engineerIds);
+
+  // Fetch each engineer individually to avoid rate limits
+  const users: ZendeskUser[] = [];
+
+  for (const [name, id] of nameToIdMap.entries()) {
+    try {
+      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
+      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
+      users.push(response.user);
+      console.log(`✅ Successfully fetched: ${response.user.name}`);
+    } catch (error) {
+      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
+    }
+  }
+
+  console.log(
+    `📊 Total engineers fetched: ${users.length}/${nameToIdMap.size}`,
+  );
+  return users;
 }
 
 export async function getTickets(
