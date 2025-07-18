@@ -17,33 +17,58 @@ import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
 
-// Default date ranges
-const dateRanges: DateRange[] = [
-  {
-    label: "Last 30 Days",
-    value: "last-30-days",
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    end: new Date(),
-  },
-  {
-    label: "Last 7 Days",
-    value: "last-7-days",
-    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    end: new Date(),
-  },
-  {
-    label: "This Month",
-    value: "this-month",
-    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-    end: new Date(),
-  },
-  {
-    label: "Last Month",
-    value: "last-month",
-    start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-    end: new Date(new Date().getFullYear(), new Date().getMonth(), 0),
-  },
-];
+// Default date ranges - calculated dynamically to ensure proper current day handling
+const getDateRanges = (): DateRange[] => {
+  const today = new Date();
+  const endOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+  // Calculate start date for last 30 days (30 days ago from today)
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+  // Calculate start date for last 7 days (7 days ago from today)
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  return [
+    {
+      label: "Last 30 Days",
+      value: "last-30-days",
+      start: thirtyDaysAgo,
+      end: endOfToday,
+    },
+    {
+      label: "Last 7 Days",
+      value: "last-7-days",
+      start: sevenDaysAgo,
+      end: endOfToday,
+    },
+    {
+      label: "This Month",
+      value: "this-month",
+      start: new Date(today.getFullYear(), today.getMonth(), 1),
+      end: endOfToday,
+    },
+    {
+      label: "Last Month",
+      value: "last-month",
+      start: new Date(today.getFullYear(), today.getMonth() - 1, 1),
+      end: new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999),
+    },
+  ];
+};
+
+const dateRanges = getDateRanges();
 
 export default function Index() {
   const [selectedPeriod, setSelectedPeriod] = useState(dateRanges[0]);
