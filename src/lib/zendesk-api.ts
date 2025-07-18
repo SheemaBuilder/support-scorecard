@@ -130,14 +130,24 @@ async function apiRequest<T>(
       );
     }
 
-    // Provide more helpful error messages for common issues
-    if (
-      error instanceof TypeError &&
-      error.message.includes("Failed to fetch")
-    ) {
-      throw new Error(
-        "Network connection issue. Please wait 30 seconds and try 'Pull Data' again.",
-      );
+    // Handle specific error types
+    if (error instanceof Error) {
+      // Check for rate limit errors from backend
+      if (error.message.includes("Rate limit protection active")) {
+        // Extract wait time if possible
+        const waitMatch = error.message.match(/(\d+) seconds/);
+        const waitTime = waitMatch ? waitMatch[1] : "2-3 minutes";
+        throw new Error(
+          `Rate limit active. Please wait ${waitTime} seconds before trying again.`,
+        );
+      }
+
+      // Handle fetch failures
+      if (error.message.includes("Failed to fetch")) {
+        throw new Error(
+          "Network connection issue. Please wait 30 seconds and try 'Pull Data' again.",
+        );
+      }
     }
 
     throw error;
