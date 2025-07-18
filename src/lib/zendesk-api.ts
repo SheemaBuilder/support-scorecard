@@ -1,5 +1,5 @@
 import { EngineerMetrics } from "./types";
-import { nameToIdMap } from "./nameToIdsMap.js";
+import { nameToIdMap } from "./engineerMap.js";
 
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
