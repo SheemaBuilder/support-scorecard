@@ -123,9 +123,9 @@ export function useZendeskData(
 
   const fetchData = useCallback(
     async (dateRange?: DateRange) => {
+      console.log("🔄 fetchData called with dateRange:", dateRange);
       console.log("🔄 Starting data fetch...", {
         dateRange,
-        isCloudEnvironment: isCloudEnvironment(),
       });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
