@@ -113,20 +113,12 @@ export function useZendeskData(
       });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
+      // In cloud environments, don't attempt API calls - the API will handle fallback to mock data
       if (isCloudEnvironment()) {
         console.warn(
-          "Cloud environment detected - no backend server available",
+          "Cloud environment detected - backend may not be available, but API will handle fallback",
         );
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: null,
-          engineerData: [],
-          averageMetrics: null,
-          alerts: [],
-        }));
-        return;
+        // Continue with API calls - fetchAllEngineerMetrics will handle the fallback to mock data
       }
 
       try {
