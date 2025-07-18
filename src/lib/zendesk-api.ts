@@ -90,20 +90,37 @@ async function apiRequest<T>(
 
     console.log(`Response status: ${response.status}`);
 
-    // Read response body once based on content type
-    const contentType = response.headers.get("content-type");
+    // Handle response body reading with complete safety
     let responseData: any;
+    let isBodyRead = false;
 
+    // First, safely determine if we can read the body
     try {
-      if (contentType && contentType.includes("application/json")) {
+      const contentType = response.headers.get("content-type") || "";
+
+      // Try to read the response body
+      if (contentType.includes("application/json")) {
         responseData = await response.json();
       } else {
         responseData = await response.text();
       }
+      isBodyRead = true;
     } catch (parseError) {
-      console.error("Failed to parse response:", parseError);
-      // Create a fallback response for error handling
-      responseData = { error: "Failed to parse response" };
+      console.error("Failed to read response body:", parseError);
+      isBodyRead = false;
+
+      // Create fallback based on response status
+      if (response.status >= 400) {
+        responseData = {
+          error: `HTTP ${response.status} ${response.statusText}`,
+          details: parseError.message,
+        };
+      } else {
+        responseData = {
+          error: "Failed to parse response",
+          details: parseError.message,
+        };
+      }
     }
 
     if (!response.ok) {
@@ -239,7 +256,7 @@ interface ZendeskSatisfactionRatingsResponse {
 export async function getUsers(): Promise<ZendeskUser[]> {
   console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
   const engineerEntries = Array.from(nameToIdMap.entries());
-  console.log("📋 Engineer entries:", engineerEntries);
+  console.log("���� Engineer entries:", engineerEntries);
   console.log(
     `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
   );
