@@ -577,7 +577,7 @@ export default function Index() {
                           (eng) => eng.name === "Alex Bridgeman",
                         );
                         console.log(
-                          "🔍 Debug - Alex from performance table:",
+                          "��� Debug - Alex from performance table:",
                           alexFromTable?.closed,
                         );
 
@@ -591,28 +591,28 @@ export default function Index() {
                         );
 
                         const ticketInfo =
-                          `🎯 Jared Beckler's Closed Tickets Analysis\n\n` +
+                          `🎯 Alex Bridgeman's Closed Tickets Analysis\n\n` +
                           `🔍 Debug Info:\n` +
                           `Total API tickets: ${allTickets.length}\n` +
                           `Date Range: ${selectedPeriod.label}\n` +
-                          `Table shows: ${jaredFromTable?.closed || "N/A"} closed\n\n` +
-                          `📊 Jared's Tickets:\n` +
-                          `Total Assigned: ${jaredTickets.length}\n` +
-                          `Closed/Solved: ${jaredClosedTickets.length}\n\n` +
+                          `Table shows: ${alexFromTable?.closed || "N/A"} closed\n\n` +
+                          `📊 Alex's Tickets:\n` +
+                          `Total Assigned: ${alexTickets.length}\n` +
+                          `Closed/Solved: ${alexClosedTickets.length}\n\n` +
                           `📋 Status Breakdown:\n` +
                           Object.entries(statusBreakdown)
                             .map(([status, count]) => `• ${status}: ${count}`)
                             .join("\n") +
                           `\n\n📋 Recent Closed Tickets:\n` +
-                          jaredClosedTickets
+                          alexClosedTickets
                             .slice(0, 5)
                             .map(
                               (ticket) =>
                                 `• #${ticket.id}: ${ticket.status} (${new Date(ticket.updated_at).toLocaleDateString()})`,
                             )
                             .join("\n") +
-                          (jaredClosedTickets.length > 5
-                            ? `\n... and ${jaredClosedTickets.length - 5} more`
+                          (alexClosedTickets.length > 5
+                            ? `\n... and ${alexClosedTickets.length - 5} more`
                             : "") +
                           `\n\n💡 Check browser console for detailed debug info`;
 
