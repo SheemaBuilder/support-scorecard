@@ -96,29 +96,24 @@ async function apiRequest<T>(
       let errorText: string = `HTTP ${response.status} ${response.statusText}`;
 
       try {
-        // Try to read as JSON first
-        const clonedResponse = response.clone();
-        const errorData = await response.json();
+        // Read as text first to avoid stream consumption issues
+        const responseText = await response.text();
+        console.log("📄 Raw error response:", responseText);
 
-        if (errorData && typeof errorData === "object") {
-          // Extract error message from JSON
-          errorText =
-            errorData.error || errorData.message || JSON.stringify(errorData);
-        } else if (typeof errorData === "string") {
-          errorText = errorData;
+        if (responseText) {
+          try {
+            // Try to parse as JSON
+            const errorData = JSON.parse(responseText);
+            errorText = errorData.error || errorData.message || responseText;
+            console.log("📄 Parsed error JSON:", errorData);
+          } catch (jsonParseError) {
+            // If not valid JSON, use the raw text
+            errorText = responseText;
+            console.log("📄 Using raw text as error");
+          }
         }
-
-        console.log("📄 Parsed error JSON:", errorData);
-      } catch (jsonError) {
-        // If JSON parsing fails, try to read as text
-        try {
-          const clonedResponse = response.clone();
-          errorText = (await clonedResponse.text()) || errorText;
-          console.log("📄 Error response as text:", errorText);
-        } catch (textError) {
-          console.warn("⚠️ Could not read error response:", textError);
-          // Keep the default HTTP status message
-        }
+      } catch (readError) {
+        console.warn("⚠️ Could not read error response:", readError);
       }
 
       console.error(`API error response:`, errorText);
