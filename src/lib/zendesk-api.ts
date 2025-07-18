@@ -1,18 +1,9 @@
 import { EngineerMetrics } from "./types";
 import { nameToIdMap } from "./engineerMap.js";
 
-// Backend proxy URL
+// Backend proxy URL - always use relative URLs for Vite proxy
 const getApiBaseUrl = () => {
-  // In cloud environments, try to connect to the backend proxy on localhost:3001
-  if (isCloudEnvironment()) {
-    console.log(
-      "🌐 Cloud environment detected - using localhost:3001 for backend proxy",
-    );
-    return "http://localhost:3001/api/zendesk";
-  }
-
-  // In local development, use relative URLs that Vite will proxy to localhost:3001
-  console.log("🏠 Local environment - using Vite proxy");
+  console.log("🔄 Using relative URLs for API requests");
   return "/api/zendesk";
 };
 
@@ -707,7 +698,7 @@ export async function fetchAllEngineerMetrics(
   }
 
   console.log(
-    "��� Generated metrics for:",
+    "📈 Generated metrics for:",
     engineerMetrics.map((e) => e.name),
   );
   return engineerMetrics;
