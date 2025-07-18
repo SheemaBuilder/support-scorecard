@@ -271,7 +271,7 @@ export async function getUsers(): Promise<ZendeskUser[]> {
     }
   }
 
-  console.log(`���� Total engineers: ${users.length}/${nameToIdMap.size}`);
+  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
   return users;
 }
 
@@ -345,6 +345,8 @@ export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
   satisfactionRatings: ZendeskSatisfactionRating[],
+  startDate?: Date,
+  endDate?: Date,
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
@@ -363,10 +365,38 @@ export function calculateEngineerMetrics(
     });
   }
 
-  // Calculate metrics
-  const closedTickets = userTickets.filter(
+  // Calculate metrics with proper date filtering for solved tickets
+  let closedTickets = userTickets.filter(
     (ticket) => ticket.status === "closed" || ticket.status === "solved",
   );
+
+  // Apply date filtering based on when tickets were actually solved
+  if (startDate && endDate) {
+    console.log(
+      `🔍 Filtering ${user.name}'s closed tickets by solved date: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+    );
+
+    const originalCount = closedTickets.length;
+    closedTickets = closedTickets.filter((ticket) => {
+      // For solved tickets, use solved_at date; for closed tickets without solved_at, use updated_at
+      const solvedDate = ticket.solved_at
+        ? new Date(ticket.solved_at)
+        : new Date(ticket.updated_at);
+      const isInRange = solvedDate >= startDate && solvedDate <= endDate;
+
+      if (!isInRange && ticket.id === 20225) {
+        console.log(
+          `❌ Ticket 20225 excluded - solved: ${ticket.solved_at}, updated: ${ticket.updated_at}, range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+        );
+      }
+
+      return isInRange;
+    });
+
+    console.log(
+      `📊 ${user.name}: ${originalCount} total closed → ${closedTickets.length} in date range`,
+    );
+  }
 
   // Debug closed tickets for users with ticket 20225
   if (ticket20225) {
