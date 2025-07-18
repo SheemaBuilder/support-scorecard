@@ -1,11 +1,10 @@
-// Actual users from Builder.io Zendesk instance (based on API response)
 export const nameToIdMap = new Map([
-  ["Steve Sewell", 360288776893],
-  ["Misko Hevery", 360288776894],
-  ["Logan Affleck", 360288776895],
-  ["Korey Kassir", 360288776896],
-  ["AJ Ancheta", 360288776897],
-  ["Hachim Hamidi", 360288776898],
-  ["Armela Gjoka", 360288776899],
-  ["Madison Dickson", 360288776900],
+  ["Jared Beckler", 29215234714775],
+  ["Rahul Joshi", 29092423638935],
+  ["Parth Sharma", 29092389569431],
+  ["Fernando Duran", 24100359866391],
+  ["Alex Bridgeman", 19347232342679],
+  ["Sheema Parwaz", 16211207272855],
+  ["Manish Sharma", 5773445002519],
+  ["Akash Singh", 26396676511767],
 ]);
