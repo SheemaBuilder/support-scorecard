@@ -89,10 +89,8 @@ async function apiRequest<T>(
     clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
-    console.log(`Response headers:`, response.headers);
 
-    // Clone response to prevent stream consumption issues
-    const responseClone = response.clone();
+    // Read response body once based on content type
     const contentType = response.headers.get("content-type");
     let responseData: any;
 
@@ -103,24 +101,9 @@ async function apiRequest<T>(
         responseData = await response.text();
       }
     } catch (parseError) {
-      // Try the cloned response if original fails
-      console.warn(
-        "Failed to read original response, trying clone:",
-        parseError,
-      );
-      try {
-        if (contentType && contentType.includes("application/json")) {
-          responseData = await responseClone.json();
-        } else {
-          responseData = await responseClone.text();
-        }
-      } catch (cloneError) {
-        console.error(
-          "Failed to read both original and cloned response:",
-          cloneError,
-        );
-        throw new Error("Failed to read response from server");
-      }
+      console.error("Failed to parse response:", parseError);
+      // Create a fallback response for error handling
+      responseData = { error: "Failed to parse response" };
     }
 
     if (!response.ok) {
