@@ -22,19 +22,8 @@ import { MetricCard } from "../components/MetricCard";
 import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "../components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Button } from "../components/ui/button";
@@ -107,19 +96,12 @@ const getDateRanges = (): DateRange[] => {
   const sevenWorkingDaysAgo = getWorkingDaysBack(7);
 
   // This month: first working day of current month to today
-  const thisMonthStart = getFirstWorkingDayOfMonth(
-    today.getFullYear(),
-    today.getMonth(),
-  );
+  const thisMonthStart = getFirstWorkingDayOfMonth(today.getFullYear(), today.getMonth());
 
   // Last month: first to last working day of previous month
-  const lastMonthYear =
-    today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+  const lastMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
   const lastMonthMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-  const lastMonthStart = getFirstWorkingDayOfMonth(
-    lastMonthYear,
-    lastMonthMonth,
-  );
+  const lastMonthStart = getFirstWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
   const lastMonthEnd = getLastWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
 
   return [
@@ -534,7 +516,29 @@ export default function Index() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Tabs defaultValue="scorecard" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsTrigger value="scorecard" className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4" />
+              <span>Score Card</span>
+            </TabsTrigger>
+            <TabsTrigger value="ces" className="flex items-center space-x-2">
+              <Star className="w-4 h-4" />
+              <span>CES Deep Dive</span>
+            </TabsTrigger>
+            <TabsTrigger value="qa" className="flex items-center space-x-2">
+              <Shield className="w-4 h-4" />
+              <span>Quality Assurance</span>
+            </TabsTrigger>
+            <TabsTrigger value="summary" className="flex items-center space-x-2">
+              <FileText className="w-4 h-4" />
+              <span>Monthly Summary</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Score Card Tab */}
+          <TabsContent value="scorecard">
         {/* Summary Cards */}
         {averageMetrics ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
