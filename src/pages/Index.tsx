@@ -563,19 +563,28 @@ export default function Index() {
                           ? "✅ In current date range"
                           : "❌ Outside current date range";
 
+                        // Fix the solved display logic
+                        const isSolved =
+                          data.ticket.status === "solved" ||
+                          data.ticket.status === "closed";
+                        const solvedDisplay = isSolved
+                          ? `Yes (Status: ${data.ticket.status})${data.ticket.solved_at ? ` at ${data.ticket.solved_at}` : " - timestamp missing"}`
+                          : "No";
+
                         alert(
                           `🎫 Ticket 20225 Analysis:\n\n` +
                             `ID: ${data.ticket.id}\n` +
                             `Subject: ${data.ticket.subject}\n` +
                             `Status: ${data.ticket.status}\n` +
                             `Created: ${data.ticket.created_at}\n` +
-                            `Solved: ${data.ticket.solved_at || "Not solved"}\n` +
+                            `Solved: ${solvedDisplay}\n` +
                             `Assignee ID: ${data.ticket.assignee_id || "Unassigned"}\n\n` +
                             `📊 Analysis:\n` +
                             `${assigneeInfo}\n` +
                             `${dateInfo}\n` +
                             `Range: ${currentRange.start.toISOString()} to ${currentRange.end.toISOString()}\n` +
-                            `Ticket Date: ${ticketDate.toISOString()}`,
+                            `Ticket Date: ${ticketDate.toISOString()}\n\n` +
+                            `💡 Note: Status '${data.ticket.status}' ${isSolved ? "SHOULD" : "should NOT"} count as closed ticket`,
                         );
                       } else {
                         alert(`❌ Failed to fetch ticket 20225: ${data.error}`);
