@@ -77,7 +77,7 @@ async function apiRequest<T>(
 
   console.log(`Making API request to: ${url.toString()}`);
 
-  try {
+    try {
     // Add timeout to prevent hanging on rate limits - increased for rate limit handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for rate limits
@@ -100,8 +100,7 @@ async function apiRequest<T>(
 
         if (contentType && contentType.includes("application/json")) {
           errorData = await response.json();
-          errorText =
-            errorData.error || errorData.message || JSON.stringify(errorData);
+          errorText = errorData.error || errorData.message || JSON.stringify(errorData);
         } else {
           errorData = await response.text();
           errorText = errorData;
@@ -132,7 +131,7 @@ async function apiRequest<T>(
       if (contentType && contentType.includes("application/json")) {
         return await response.json();
       } else {
-        return (await response.text()) as T;
+        return await response.text() as T;
       }
     } catch (parseError) {
       console.error("Failed to parse successful response:", parseError);
@@ -239,15 +238,48 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
-  const engineerEntries = Array.from(nameToIdMap.entries());
-  console.log("📋 Engineer entries:", engineerEntries);
-  console.log(
-    `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
-  );
+  console.log("🎯 Fetching engineers using BULK API to avoid rate limits");
 
-  const users: ZendeskUser[] = [];
-  let processed = 0;
+  // Create placeholders for all engineers first (fallback data)
+  const engineerEntries = Array.from(nameToIdMap.entries());
+  const placeholderUsers: ZendeskUser[] = engineerEntries.map(([name, id]) => ({
+    id: id,
+    name: name,
+    email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
+    role: "agent",
+    active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
+
+  try {
+    // Try to fetch all users in bulk (single API call)
+    console.log("📦 Attempting bulk user fetch...");
+    const allUsersResponse = await apiRequest<ZendeskUsersResponse>("/users");
+    console.log(`📦 Bulk fetch successful: ${allUsersResponse.users.length} total users`);
+
+    // Filter to only the engineers we need
+    const engineerIds = new Set(Array.from(nameToIdMap.values()));
+    const foundEngineers = allUsersResponse.users.filter(user => engineerIds.has(user.id));
+
+    console.log(`👥 Found ${foundEngineers.length} real engineers from API`);
+
+    // Merge real data with placeholders
+    const foundIds = new Set(foundEngineers.map(u => u.id));
+    const finalUsers = [
+      ...foundEngineers,
+      ...placeholderUsers.filter(u => !foundIds.has(u.id))
+    ];
+
+    console.log(`📊 Final result: ${finalUsers.length} engineers (${foundEngineers.length} real, ${finalUsers.length - foundEngineers.length} placeholders)`);
+    return finalUsers;
+
+  } catch (error) {
+    console.warn("❌ Bulk user fetch failed, using placeholder data:", error);
+    console.log(`📊 Using ${placeholderUsers.length} placeholder engineers`);
+    return placeholderUsers;
+  }
+}
 
   for (const [name, id] of engineerEntries) {
     processed++;
