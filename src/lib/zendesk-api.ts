@@ -358,32 +358,36 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  // Fetch only the specific engineers from nameToIdMap instead of all users
-  const engineerIds = Array.from(nameToIdMap.values());
   console.log(
-    "🎯 Fetching only specific engineers:",
-    Array.from(nameToIdMap.keys()),
+    "🎯 Fetching all users and filtering for engineers from nameToIdMap",
   );
-  console.log("📋 Engineer IDs:", engineerIds);
+  const allowedNames = Array.from(nameToIdMap.keys());
+  console.log("📋 Looking for engineers:", allowedNames);
 
-  // Fetch each engineer individually to avoid rate limits
-  const users: ZendeskUser[] = [];
+  const response = await apiRequest<ZendeskUsersResponse>("/users");
+  console.log(`📊 Total users fetched from Zendesk: ${response.users.length}`);
 
-  for (const [name, id] of nameToIdMap.entries()) {
-    try {
-      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
-      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
-      users.push(response.user);
-      console.log(`✅ Successfully fetched: ${response.user.name}`);
-    } catch (error) {
-      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
-    }
+  // Filter to only include engineers from nameToIdMap
+  const filteredUsers = response.users.filter((user) =>
+    allowedNames.includes(user.name),
+  );
+
+  console.log(
+    `👥 Engineers found:`,
+    filteredUsers.map((u) => u.name),
+  );
+  console.log(
+    `📈 Total engineers matched: ${filteredUsers.length}/${allowedNames.length}`,
+  );
+
+  if (filteredUsers.length === 0) {
+    console.warn(
+      "⚠️ No engineers found matching nameToIdMap. Available users:",
+      response.users.slice(0, 10).map((u) => u.name),
+    );
   }
 
-  console.log(
-    `📊 Total engineers fetched: ${users.length}/${nameToIdMap.size}`,
-  );
-  return users;
+  return filteredUsers;
 }
 
 export async function getTickets(
