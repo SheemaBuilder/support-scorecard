@@ -93,32 +93,32 @@ async function apiRequest<T>(
 
     if (!response.ok) {
       // For error responses, try to read the error details
-      let errorText: string;
+      let errorText: string = `HTTP ${response.status} ${response.statusText}`;
+
       try {
-        const contentType = response.headers.get("content-type");
-        console.log("Error response content-type:", contentType);
+        // Try to read as JSON first
+        const clonedResponse = response.clone();
+        const errorData = await response.json();
 
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          console.log("Error response JSON:", errorData);
-
-          // Extract the error message from various possible structures
-          if (typeof errorData === "string") {
-            errorText = errorData;
-          } else if (errorData.error) {
-            errorText = errorData.error;
-          } else if (errorData.message) {
-            errorText = errorData.message;
-          } else {
-            errorText = JSON.stringify(errorData);
-          }
-        } else {
-          errorText = await response.text();
-          console.log("Error response text:", errorText);
+        if (errorData && typeof errorData === "object") {
+          // Extract error message from JSON
+          errorText =
+            errorData.error || errorData.message || JSON.stringify(errorData);
+        } else if (typeof errorData === "string") {
+          errorText = errorData;
         }
-      } catch (streamError) {
-        console.warn("Could not read error response:", streamError);
-        errorText = `Failed to read error response`;
+
+        console.log("📄 Parsed error JSON:", errorData);
+      } catch (jsonError) {
+        // If JSON parsing fails, try to read as text
+        try {
+          const clonedResponse = response.clone();
+          errorText = (await clonedResponse.text()) || errorText;
+          console.log("📄 Error response as text:", errorText);
+        } catch (textError) {
+          console.warn("⚠️ Could not read error response:", textError);
+          // Keep the default HTTP status message
+        }
       }
 
       console.error(`API error response:`, errorText);
@@ -264,7 +264,7 @@ export async function getUsers(): Promise<ZendeskUser[]> {
 
     // Add a longer delay every few requests
     if (processed % 3 === 0) {
-      console.log("🛑 Taking a longer break to avoid rate limits...");
+      console.log("��� Taking a longer break to avoid rate limits...");
       await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second break every 3 requests
     }
     try {
