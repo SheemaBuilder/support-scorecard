@@ -655,45 +655,47 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
-  console.log("🚀 Starting fetchAllEngineerMetrics...");
+  console.log("🚀 Starting fetchAllEngineerMetrics - REAL DATA ONLY...");
 
-  try {
-    // Check if backend is available
-    console.log("🔍 Checking backend availability...");
-    const isBackendHealthy = await checkBackendHealth();
+  console.log("✅ Fetching real Zendesk data...");
+  const [users, tickets, ratings] = await Promise.all([
+    getUsers(),
+    getTickets(startDate, endDate),
+    getSatisfactionRatings(startDate, endDate),
+  ]);
 
-    if (!isBackendHealthy) {
-      console.warn(
-        "⚠️ Backend not available, using mock data for engineers from nameToIdMap",
-      );
-      return createMockData();
-    }
+  console.log("📊 Raw data received:");
+  console.log("- Users:", users.length);
+  console.log("- Tickets:", tickets.length);
+  console.log("- Ratings:", ratings.length);
 
-    console.log("✅ Backend is available, fetching real data...");
-    const [users, tickets, ratings] = await Promise.all([
-      getUsers(),
-      getTickets(startDate, endDate),
-      getSatisfactionRatings(startDate, endDate),
-    ]);
+  // Filter users to only include engineers from nameToIdMap
+  const allowedNames = Array.from(nameToIdMap.keys());
+  console.log("🎯 Allowed engineer names:", allowedNames);
 
-    // Filter users to only include engineers from nameToIdMap
-    const allowedNames = Array.from(nameToIdMap.keys());
-    const filteredUsers = users.filter((user) =>
-      allowedNames.includes(user.name),
-    );
+  const filteredUsers = users.filter((user) =>
+    allowedNames.includes(user.name),
+  );
 
-    console.log("🎯 Filtered to allowed engineers:", filteredUsers.length);
-    return filteredUsers.map((user) =>
-      calculateEngineerMetrics(user, tickets, ratings),
-    );
-  } catch (error) {
-    console.error(
-      "❌ Error in fetchAllEngineerMetrics, falling back to mock data:",
-      error,
-    );
-    console.log("🎭 Generating mock data as fallback...");
-    return createMockData();
+  console.log(
+    "👥 Found engineers in Zendesk:",
+    filteredUsers.map((u) => u.name),
+  );
+  console.log("🎯 Total filtered engineers:", filteredUsers.length);
+
+  if (filteredUsers.length === 0) {
+    throw new Error("No engineers found in Zendesk data matching nameToIdMap");
   }
+
+  const engineerMetrics = filteredUsers.map((user) =>
+    calculateEngineerMetrics(user, tickets, ratings),
+  );
+
+  console.log(
+    "📈 Generated metrics for:",
+    engineerMetrics.map((e) => e.name),
+  );
+  return engineerMetrics;
 }
 
 export async function calculateTeamAverages(
