@@ -89,34 +89,26 @@ async function apiRequest<T>(
     clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
-    console.log(`Response headers:`, response.headers);
-
-    // Read response body once and handle both success and error cases
-    const contentType = response.headers.get("content-type");
-    let responseData: any;
-
-    try {
-      if (contentType && contentType.includes("application/json")) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
-    } catch (parseError) {
-      console.error("Failed to read response:", parseError);
-      throw new Error("Failed to read response from server");
-    }
 
     if (!response.ok) {
-      // For error responses, extract error message from parsed data
+      // For error responses, try to read the error details safely
       let errorText: string = `HTTP ${response.status} ${response.statusText}`;
 
-      if (typeof responseData === "string") {
-        errorText = responseData;
-      } else if (responseData && typeof responseData === "object") {
-        errorText =
-          responseData.error ||
-          responseData.message ||
-          JSON.stringify(responseData);
+      try {
+        const contentType = response.headers.get("content-type");
+        let errorData: any;
+
+        if (contentType && contentType.includes("application/json")) {
+          errorData = await response.json();
+          errorText =
+            errorData.error || errorData.message || JSON.stringify(errorData);
+        } else {
+          errorData = await response.text();
+          errorText = errorData;
+        }
+      } catch (readError) {
+        console.warn("Could not read error response body:", readError);
+        // Use the default error text if we can't read the body
       }
 
       console.error(`API error response:`, errorText);
@@ -134,8 +126,18 @@ async function apiRequest<T>(
       );
     }
 
-    // Return successful response data
-    return responseData as T;
+    // For successful responses, read the body safely
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      } else {
+        return (await response.text()) as T;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse successful response:", parseError);
+      throw new Error("Failed to parse response from server");
+    }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
 
