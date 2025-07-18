@@ -1,9 +1,9 @@
 import { EngineerMetrics } from "./types";
+import { nameToIdMap } from "./engineerMap.js";
 
-// Backend proxy URL - use relative URLs that Vite will proxy
+// Backend proxy URL - always use relative URLs for Vite proxy
 const getApiBaseUrl = () => {
-  // In cloud environments (like Builder.io preview), use current origin
-  // In local development, use relative URLs that Vite will proxy to localhost:3001
+  console.log("🔄 Using relative URLs for API requests");
   return "/api/zendesk";
 };
 
@@ -15,25 +15,43 @@ const isCloudEnvironment = () => {
   );
 };
 
+// NOTE: All mock data functionality has been removed - only real-time Zendesk data is used
+
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    // In cloud environments, health check won't work
-    if (isCloudEnvironment()) {
-      console.warn("Skipping health check in cloud environment");
-      return false;
-    }
+    console.log("🏥 Checking backend health...");
+    // Create timeout signal for fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch("/api/health");
+    const response = await fetch("/api/health", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
+      console.warn(
+        "❌ Backend health check failed - response not ok:",
+        response.status,
+      );
       return false;
     }
 
     const responseText = await response.text();
     const data = JSON.parse(responseText);
-    return data.status === "OK";
+    const isHealthy = data.status === "OK";
+    console.log(
+      isHealthy ? "✅ Backend is healthy" : "❌ Backend is not healthy",
+    );
+    return isHealthy;
   } catch (error) {
-    console.warn("Backend health check failed:", error);
+    console.warn("❌ Backend health check failed with error:", error);
     return false;
   }
 }
@@ -60,57 +78,97 @@ async function apiRequest<T>(
   console.log(`Making API request to: ${url.toString()}`);
 
   try {
-    const response = await fetch(url.toString());
+    // Add timeout to prevent hanging on rate limits - increased for rate limit handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for rate limits
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, response.headers);
 
-    // Handle different response types
-    let responseText: string;
-    try {
-      responseText = await response.text();
-    } catch (streamError) {
-      console.error("Failed to read response stream:", streamError);
-      throw new Error("Failed to read response from server");
-    }
-
     if (!response.ok) {
-      console.error(`API error response:`, responseText);
+      // For error responses, try to read the error details
+      let errorText: string = `HTTP ${response.status} ${response.statusText}`;
+
+      try {
+        // Read as text first to avoid stream consumption issues
+        const responseText = await response.text();
+        console.log("📄 Raw error response:", responseText);
+
+        if (responseText) {
+          try {
+            // Try to parse as JSON
+            const errorData = JSON.parse(responseText);
+            errorText = errorData.error || errorData.message || responseText;
+            console.log("📄 Parsed error JSON:", errorData);
+          } catch (jsonParseError) {
+            // If not valid JSON, use the raw text
+            errorText = responseText;
+            console.log("📄 Using raw text as error");
+          }
+        }
+      } catch (readError) {
+        console.warn("⚠️ Could not read error response:", readError);
+      }
+
+      console.error(`API error response:`, errorText);
+
+      // Handle specific backend errors
+      if (errorText.includes("Rate limit protection active")) {
+        throw new Error(errorText);
+      }
+
       throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${responseText}`,
+        `API error: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
+    // For successful responses, read as JSON directly
     const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.error(`Expected JSON but got:`, responseText);
-      throw new Error(
-        `Expected JSON response but got: ${contentType}. Response: ${responseText.substring(0, 200)}...`,
-      );
-    }
-
-    // Parse the text as JSON since we already read it
     try {
-      return JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error(`Failed to parse JSON:`, responseText.substring(0, 200));
-      throw new Error(`Invalid JSON response: ${jsonError}`);
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      } else {
+        // For non-JSON responses, read as text
+        const responseText = await response.text();
+        console.warn("Non-JSON response received:", contentType);
+        return responseText as T;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse response:", parseError);
+      throw new Error("Failed to parse response from server");
     }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
 
-    // Provide more helpful error messages for common issues
-    if (
-      error instanceof TypeError &&
-      error.message.includes("Failed to fetch")
-    ) {
-      if (isCloudEnvironment()) {
+    // Handle specific error types
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Request timeout after 2 minutes (likely due to rate limits): ${url.toString()}`,
+      );
+    }
+
+    // Handle specific error types
+    if (error instanceof Error) {
+      // Check for rate limit errors from backend
+      if (error.message.includes("Rate limit protection active")) {
+        // Extract wait time if possible
+        const waitMatch = error.message.match(/(\d+) seconds/);
+        const waitTime = waitMatch ? waitMatch[1] : "2-3 minutes";
         throw new Error(
-          "Cannot connect to backend server in cloud environment. Backend required for real data.",
+          `Rate limit active. Please wait ${waitTime} seconds before trying again.`,
         );
-      } else {
+      }
+
+      // Handle fetch failures
+      if (error.message.includes("Failed to fetch")) {
         throw new Error(
-          "Cannot connect to backend server. Make sure it's running on port 3001.",
+          "Network connection issue. Please wait 30 seconds and try 'Pull Data' again.",
         );
       }
     }
@@ -183,8 +241,62 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  const response = await apiRequest<ZendeskUsersResponse>("/users");
-  return response.users;
+  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
+  const engineerEntries = Array.from(nameToIdMap.entries());
+  console.log("📋 Engineer entries:", engineerEntries);
+  console.log(
+    `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
+  );
+
+  const users: ZendeskUser[] = [];
+  let processed = 0;
+
+  for (const [name, id] of engineerEntries) {
+    processed++;
+    console.log(
+      `[${processed}/${engineerEntries.length}] Processing engineer: ${name}`,
+    );
+
+    // Add a longer delay every few requests
+    if (processed % 3 === 0) {
+      console.log("��� Taking a longer break to avoid rate limits...");
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second break every 3 requests
+    }
+    try {
+      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
+      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
+      users.push(response.user);
+      console.log(
+        `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
+      );
+
+      // Add longer delay between requests to avoid rate limits
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
+    } catch (error) {
+      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
+
+      // Handle AbortError specifically
+      if (error instanceof Error && error.name === "AbortError") {
+        console.warn(`⏰ Request timeout for ${name}, creating placeholder`);
+      }
+
+      // Create a placeholder user if the ID doesn't exist or request failed
+      const placeholderUser: ZendeskUser = {
+        id: id,
+        name: name,
+        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
+        role: "agent",
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      users.push(placeholderUser);
+      console.log(`📝 Created placeholder for: ${name}`);
+    }
+  }
+
+  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
+  return users;
 }
 
 export async function getTickets(
@@ -196,10 +308,39 @@ export async function getTickets(
   if (startDate && endDate) {
     params.append("start_date", startDate.toISOString());
     params.append("end_date", endDate.toISOString());
+    console.log(
+      `🔍 Date filter - Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`,
+    );
   }
 
   const response = await apiRequest<ZendeskTicketsResponse>("/tickets", params);
+
+  // Debug ticket 20225 specifically
+  const ticket20225 = response.tickets.find((t) => t.id === 20225);
+  if (ticket20225) {
+    console.log(`🎫 Found ticket 20225 in API response:`, {
+      id: ticket20225.id,
+      status: ticket20225.status,
+      created_at: ticket20225.created_at,
+      assignee_id: ticket20225.assignee_id,
+      subject: ticket20225.subject.substring(0, 50) + "...",
+    });
+  } else {
+    console.log(
+      `❌ Ticket 20225 NOT found in API response (total tickets: ${response.tickets.length})`,
+    );
+  }
+
   return response.tickets;
+}
+
+export async function getTicketById(ticketId: number): Promise<ZendeskTicket> {
+  console.log(`🎫 Fetching ticket by ID: ${ticketId}`);
+  const response = await apiRequest<{ ticket: ZendeskTicket }>(
+    `/tickets/${ticketId}`,
+  );
+  console.log(`✅ Successfully fetched ticket ${ticketId}:`, response.ticket);
+  return response.ticket;
 }
 
 export async function getSatisfactionRatings(
@@ -228,6 +369,8 @@ export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
   satisfactionRatings: ZendeskSatisfactionRating[],
+  startDate?: Date,
+  endDate?: Date,
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
@@ -236,10 +379,58 @@ export function calculateEngineerMetrics(
     (rating) => rating.assignee_id === user.id,
   );
 
-  // Calculate metrics
-  const closedTickets = userTickets.filter(
+  // Debug ticket 20225 for this user
+  const ticket20225 = userTickets.find((t) => t.id === 20225);
+  if (ticket20225) {
+    console.log(`🎯 Ticket 20225 assigned to ${user.name} (ID: ${user.id}):`, {
+      status: ticket20225.status,
+      created_at: ticket20225.created_at,
+      solved_at: ticket20225.solved_at,
+    });
+  }
+
+  // Calculate metrics with proper date filtering for solved tickets
+  let closedTickets = userTickets.filter(
     (ticket) => ticket.status === "closed" || ticket.status === "solved",
   );
+
+  // Apply date filtering based on when tickets were actually solved
+  if (startDate && endDate) {
+    console.log(
+      `🔍 Filtering ${user.name}'s closed tickets by solved date: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+    );
+
+    const originalCount = closedTickets.length;
+    closedTickets = closedTickets.filter((ticket) => {
+      // For solved tickets, use solved_at date; for closed tickets without solved_at, use updated_at
+      const solvedDate = ticket.solved_at
+        ? new Date(ticket.solved_at)
+        : new Date(ticket.updated_at);
+      const isInRange = solvedDate >= startDate && solvedDate <= endDate;
+
+      if (!isInRange && ticket.id === 20225) {
+        console.log(
+          `❌ Ticket 20225 excluded - solved: ${ticket.solved_at}, updated: ${ticket.updated_at}, range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+        );
+      }
+
+      return isInRange;
+    });
+
+    console.log(
+      `📊 ${user.name}: ${originalCount} total closed → ${closedTickets.length} in date range`,
+    );
+  }
+
+  // Debug closed tickets for users with ticket 20225
+  if (ticket20225) {
+    console.log(
+      `📊 ${user.name} total tickets: ${userTickets.length}, closed: ${closedTickets.length}`,
+    );
+    console.log(
+      `🔍 Ticket 20225 counted as closed: ${closedTickets.some((t) => t.id === 20225)}`,
+    );
+  }
 
   const openTickets = userTickets.filter(
     (ticket) =>
@@ -488,50 +679,73 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
+  console.log("🚀 Starting fetchAllEngineerMetrics...");
+
   try {
-    // In cloud environments, skip health check since localhost isn't available
-    if (!isCloudEnvironment()) {
-      // Check backend health first in local development
-      const isBackendHealthy = await checkBackendHealth();
-      if (!isBackendHealthy) {
-        throw new Error(
-          "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.",
-        );
-      }
-    } else {
-      // In cloud environment, inform user that backend is required
-      console.warn(
-        "Running in cloud environment - backend server required for real data",
-      );
-    }
+    console.log("✅ Attempting to fetch real Zendesk data...");
+    // Make requests sequentially to avoid rate limits
+    console.log("🧑‍💻 Fetching users...");
+    const users = await getUsers(); // This now fetches only engineers from nameToIdMap
+    console.log("🎫 Fetching tickets...");
+    const tickets = await getTickets(startDate, endDate);
+    console.log("⭐ Fetching satisfaction ratings...");
+    const ratings = await getSatisfactionRatings(startDate, endDate);
 
-    const [users, tickets, ratings] = await Promise.all([
-      getUsers(),
-      getTickets(startDate, endDate),
-      getSatisfactionRatings(startDate, endDate),
-    ]);
+    console.log("📊 Raw data received:");
+    console.log("- Engineers:", users.length);
+    console.log("- Tickets:", tickets.length);
+    console.log("- Ratings:", ratings.length);
 
-    return users.map((user) =>
-      calculateEngineerMetrics(user, tickets, ratings),
+    console.log(
+      "👥 Engineers fetched:",
+      users.map((u) => u.name),
     );
-  } catch (error) {
-    console.error("Error fetching engineer metrics:", error);
 
-    // Provide helpful error messages based on environment
-    if (isCloudEnvironment()) {
-      throw new Error(
-        "Backend server not available in cloud environment. This demo requires a running backend server for real Zendesk data.",
+    if (users.length === 0) {
+      console.error(
+        "❌ No engineers found from API - this should not happen with real data",
       );
-    } else {
-      throw error;
+      throw new Error("No engineers found in API response");
     }
+
+    const engineerMetrics = users.map((user) =>
+      calculateEngineerMetrics(user, tickets, ratings, startDate, endDate),
+    );
+
+    console.log(
+      "📈 Generated metrics for:",
+      engineerMetrics.map((e) => e.name),
+    );
+    return engineerMetrics;
+  } catch (error) {
+    console.error("❌ Failed to fetch real data:", error);
+    throw error; // Don't fall back to mock data - always use real data
   }
+
+  console.log(
+    "📈 Generated metrics for:",
+    engineerMetrics.map((e) => e.name),
+  );
+  return engineerMetrics;
 }
 
 export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
 ): Promise<EngineerMetrics> {
+  console.log(
+    "📊 Calculating team averages for",
+    engineerMetrics.length,
+    "engineers",
+  );
+  console.log(
+    "👥 Engineers:",
+    engineerMetrics.map((e) => e.name),
+  );
+
   if (engineerMetrics.length === 0) {
+    console.error(
+      "❌ No engineer metrics available for team average calculation",
+    );
     throw new Error(
       "No engineer metrics available for team average calculation",
     );

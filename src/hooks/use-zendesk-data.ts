@@ -5,12 +5,29 @@ import {
   calculateTeamAverages,
 } from "../lib/zendesk-api";
 
-// Check if we're in a cloud environment where localhost isn't available
-const isCloudEnvironment = () => {
-  return (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  );
+// Rate limiting state management
+let lastFailureTime: number | null = null;
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+const CIRCUIT_BREAKER_DURATION = 120000; // 2 minutes
+
+// Check if we should use circuit breaker
+const shouldUseCircuitBreaker = () => {
+  const now = Date.now();
+  if (lastFailureTime && consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+    if (now - lastFailureTime < CIRCUIT_BREAKER_DURATION) {
+      console.log(
+        `🚫 Circuit breaker active: ${Math.round((CIRCUIT_BREAKER_DURATION - (now - lastFailureTime)) / 1000)}s remaining`,
+      );
+      return true;
+    } else {
+      // Reset circuit breaker
+      lastFailureTime = null;
+      consecutiveFailures = 0;
+      console.log("✅ Circuit breaker reset");
+    }
+  }
+  return false;
 };
 
 interface UseZendeskDataState {
@@ -106,32 +123,67 @@ export function useZendeskData(
 
   const fetchData = useCallback(
     async (dateRange?: DateRange) => {
+      console.log("🔄 fetchData called with dateRange:", dateRange);
+      console.log("🔄 Starting data fetch...", {
+        dateRange,
+      });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
-      if (isCloudEnvironment()) {
-        console.warn(
-          "Cloud environment detected - no backend server available",
+      // Check circuit breaker first
+      if (shouldUseCircuitBreaker()) {
+        throw new Error(
+          "Rate limit protection active. Please wait 2 minutes before trying again.",
         );
+      }
+
+      // Emergency timeout to prevent endless loading
+      const emergencyTimeout = setTimeout(() => {
+        console.log("🚨 Emergency timeout triggered - stopping loading state");
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
+          error: "Request timed out. Click 'Pull Data' to try again.",
         }));
-        return;
-      }
+      }, 30000); // 30 second emergency timeout
 
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
+        console.log("📅 Date range:", { startDate, endDate });
 
-        const engineerMetrics = await fetchAllEngineerMetrics(
-          startDate,
-          endDate,
+        console.log("🚀 Fetching engineer metrics...");
+
+        // Add shorter timeout to prevent endless loading
+        const timeoutPromise = new Promise(
+          (_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Request timeout - API may be rate limited. Try again in 2 minutes.",
+                  ),
+                ),
+              60000,
+            ), // 1 minute timeout
         );
+
+        const engineerMetrics = (await Promise.race([
+          fetchAllEngineerMetrics(startDate, endDate),
+          timeoutPromise,
+        ])) as any;
+        console.log(
+          "👥 Engineer metrics received:",
+          engineerMetrics.length,
+          "engineers",
+        );
+
+        console.log("📊 Calculating team averages...");
         const teamAverages = await calculateTeamAverages(engineerMetrics);
+        console.log("📈 Team averages calculated:", teamAverages);
+
+        console.log("🚨 Generating alerts...");
         const alerts = generateAlerts(engineerMetrics, teamAverages);
+        console.log("🔔 Alerts generated:", alerts.length, "alerts");
 
         setState({
           engineerData: engineerMetrics,
@@ -141,32 +193,44 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
-      } catch (error) {
-        console.error("Error fetching Zendesk data:", error);
+        // Clear emergency timeout on success
+        clearTimeout(emergencyTimeout);
 
+        // Reset failure counter on success
+        consecutiveFailures = 0;
+        lastFailureTime = null;
+        console.log("✅ Data fetch completed successfully!");
+      } catch (error) {
+        console.error("❌ Error fetching Zendesk data:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
-        const isConnectivityError =
-          errorMessage.includes("<!DOCTYPE") ||
-          errorMessage.includes("Failed to fetch") ||
-          errorMessage.includes("NetworkError") ||
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          errorMessage.includes("Cannot connect to backend server");
 
-        if (isConnectivityError) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error:
-              "Backend server not available. Please start the backend server with 'npm run server' to load Zendesk data.",
-          }));
-        } else {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: errorMessage,
-          }));
+        // Track consecutive failures for circuit breaker
+        if (
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("Rate limit active") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("429")
+        ) {
+          consecutiveFailures++;
+          lastFailureTime = Date.now();
+          console.log(
+            `🚫 Rate limit failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}`,
+          );
         }
+
+        // Clear emergency timeout on error
+        clearTimeout(emergencyTimeout);
+
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+          engineerData: [],
+          averageMetrics: null,
+          alerts: [],
+        }));
+        console.log("🔄 Set error state:", errorMessage);
       }
     },
     [generateAlerts],
@@ -178,6 +242,10 @@ export function useZendeskData(
 
   // Initial data fetch
   useEffect(() => {
+    console.log(
+      "🚀 useZendeskData useEffect triggered with initialDateRange:",
+      initialDateRange,
+    );
     fetchData(initialDateRange);
   }, [fetchData, initialDateRange]);
 
