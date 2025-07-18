@@ -535,18 +535,21 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
+  console.log("🚀 Starting fetchAllEngineerMetrics...");
+
   try {
     // Check if backend is available
+    console.log("🔍 Checking backend availability...");
     const isBackendHealthy = await checkBackendHealth();
 
     if (!isBackendHealthy) {
       console.warn(
-        "Backend not available, using mock data for engineers from nameToIdMap",
+        "⚠️ Backend not available, using mock data for engineers from nameToIdMap",
       );
       return createMockData();
     }
 
-    console.log("Backend is available, fetching real data...");
+    console.log("✅ Backend is available, fetching real data...");
     const [users, tickets, ratings] = await Promise.all([
       getUsers(),
       getTickets(startDate, endDate),
@@ -559,14 +562,16 @@ export async function fetchAllEngineerMetrics(
       allowedNames.includes(user.name),
     );
 
+    console.log("🎯 Filtered to allowed engineers:", filteredUsers.length);
     return filteredUsers.map((user) =>
       calculateEngineerMetrics(user, tickets, ratings),
     );
   } catch (error) {
     console.error(
-      "Error fetching engineer metrics, falling back to mock data:",
+      "❌ Error in fetchAllEngineerMetrics, falling back to mock data:",
       error,
     );
+    console.log("🎭 Generating mock data as fallback...");
     return createMockData();
   }
 }
