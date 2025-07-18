@@ -227,9 +227,9 @@ async function apiRequest<T>(
   console.log(`Making API request to: ${url.toString()}`);
 
   try {
-    // Add timeout to prevent hanging on rate limits
+    // Add timeout to prevent hanging on rate limits - increased for rate limit handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for rate limits
 
     const response = await fetch(url.toString(), {
       signal: controller.signal,
@@ -276,7 +276,9 @@ async function apiRequest<T>(
 
     // Handle specific error types
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request timeout after 30 seconds: ${url.toString()}`);
+      throw new Error(
+        `Request timeout after 2 minutes (likely due to rate limits): ${url.toString()}`,
+      );
     }
 
     // Provide more helpful error messages for common issues
