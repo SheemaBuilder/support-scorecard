@@ -374,9 +374,18 @@ export async function getUsers(): Promise<ZendeskUser[]> {
       console.log(
         `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
       );
+
+      // Add small delay between requests to avoid overwhelming API
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
       console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
-      // Create a placeholder user if the ID doesn't exist
+
+      // Handle AbortError specifically
+      if (error instanceof Error && error.name === "AbortError") {
+        console.warn(`⏰ Request timeout for ${name}, creating placeholder`);
+      }
+
+      // Create a placeholder user if the ID doesn't exist or request failed
       const placeholderUser: ZendeskUser = {
         id: id,
         name: name,
