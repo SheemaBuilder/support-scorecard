@@ -368,10 +368,24 @@ export async function getUsers(): Promise<ZendeskUser[]> {
   console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
   const engineerEntries = Array.from(nameToIdMap.entries());
   console.log("📋 Engineer entries:", engineerEntries);
+  console.log(
+    `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
+  );
 
   const users: ZendeskUser[] = [];
+  let processed = 0;
 
   for (const [name, id] of engineerEntries) {
+    processed++;
+    console.log(
+      `[${processed}/${engineerEntries.length}] Processing engineer: ${name}`,
+    );
+
+    // Add a longer delay every few requests
+    if (processed % 3 === 0) {
+      console.log("🛑 Taking a longer break to avoid rate limits...");
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second break every 3 requests
+    }
     try {
       console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
       const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
