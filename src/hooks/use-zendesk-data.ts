@@ -338,10 +338,25 @@ export function useZendeskData(
         console.log("📅 Date range:", { startDate, endDate });
 
         console.log("🚀 Fetching engineer metrics...");
-        const engineerMetrics = await fetchAllEngineerMetrics(
-          startDate,
-          endDate,
+
+        // Add timeout to prevent endless loading due to rate limiting
+        const timeoutPromise = new Promise(
+          (_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Request timeout - Zendesk API may be rate limited",
+                  ),
+                ),
+              180000,
+            ), // 3 minute timeout
         );
+
+        const engineerMetrics = (await Promise.race([
+          fetchAllEngineerMetrics(startDate, endDate),
+          timeoutPromise,
+        ])) as any;
         console.log(
           "👥 Engineer metrics received:",
           engineerMetrics.length,
