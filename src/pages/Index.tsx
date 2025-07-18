@@ -564,25 +564,25 @@ export default function Index() {
                         );
 
                         console.log(
-                          "🔍 Debug - Jared's total tickets:",
-                          jaredTickets.length,
+                          "🔍 Debug - Alex's total tickets:",
+                          alexTickets.length,
                         );
                         console.log(
-                          "🔍 Debug - Jared's closed tickets:",
-                          jaredClosedTickets.length,
+                          "🔍 Debug - Alex's closed tickets:",
+                          alexClosedTickets.length,
                         );
 
                         // Get the current engineer data from state to compare
-                        const jaredFromTable = engineerData.find(
-                          (eng) => eng.name === "Jared Beckler",
+                        const alexFromTable = engineerData.find(
+                          (eng) => eng.name === "Alex Bridgeman",
                         );
                         console.log(
-                          "🔍 Debug - Jared from performance table:",
-                          jaredFromTable?.closed,
+                          "🔍 Debug - Alex from performance table:",
+                          alexFromTable?.closed,
                         );
 
                         // Get status breakdown
-                        const statusBreakdown = jaredTickets.reduce(
+                        const statusBreakdown = alexTickets.reduce(
                           (acc, ticket) => {
                             acc[ticket.status] = (acc[ticket.status] || 0) + 1;
                             return acc;
