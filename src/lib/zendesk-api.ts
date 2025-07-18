@@ -360,36 +360,39 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  console.log(
-    "🎯 Fetching all users and filtering for engineers from nameToIdMap",
-  );
-  const allowedNames = Array.from(nameToIdMap.keys());
-  console.log("📋 Looking for engineers:", allowedNames);
+  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
+  const engineerEntries = Array.from(nameToIdMap.entries());
+  console.log("📋 Engineer entries:", engineerEntries);
 
-  const response = await apiRequest<ZendeskUsersResponse>("/users");
-  console.log(`📊 Total users fetched from Zendesk: ${response.users.length}`);
+  const users: ZendeskUser[] = [];
 
-  // Filter to only include engineers from nameToIdMap
-  const filteredUsers = response.users.filter((user) =>
-    allowedNames.includes(user.name),
-  );
-
-  console.log(
-    `👥 Engineers found:`,
-    filteredUsers.map((u) => u.name),
-  );
-  console.log(
-    `📈 Total engineers matched: ${filteredUsers.length}/${allowedNames.length}`,
-  );
-
-  if (filteredUsers.length === 0) {
-    console.warn(
-      "⚠️ No engineers found matching nameToIdMap. Available users:",
-      response.users.slice(0, 10).map((u) => u.name),
-    );
+  for (const [name, id] of engineerEntries) {
+    try {
+      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
+      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
+      users.push(response.user);
+      console.log(
+        `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
+      );
+    } catch (error) {
+      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
+      // Create a placeholder user if the ID doesn't exist
+      const placeholderUser: ZendeskUser = {
+        id: id,
+        name: name,
+        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
+        role: "agent",
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      users.push(placeholderUser);
+      console.log(`📝 Created placeholder for: ${name}`);
+    }
   }
 
-  return filteredUsers;
+  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
+  return users;
 }
 
 export async function getTickets(
