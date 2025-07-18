@@ -17,7 +17,55 @@ import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
 
-// Default date ranges - calculated dynamically to ensure proper current day handling
+// Helper function to check if a date is a weekend (Saturday or Sunday)
+const isWeekend = (date: Date): boolean => {
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+};
+
+// Helper function to calculate working days backwards from today
+const getWorkingDaysBack = (workingDaysCount: number): Date => {
+  const today = new Date();
+  let daysFound = 0;
+  let currentDate = new Date(today);
+
+  // Start from yesterday and go backwards
+  currentDate.setDate(currentDate.getDate() - 1);
+
+  while (daysFound < workingDaysCount) {
+    if (!isWeekend(currentDate)) {
+      daysFound++;
+    }
+    if (daysFound < workingDaysCount) {
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+  }
+
+  currentDate.setHours(0, 0, 0, 0);
+  return currentDate;
+};
+
+// Helper function to get first working day of a month
+const getFirstWorkingDayOfMonth = (year: number, month: number): Date => {
+  const firstDay = new Date(year, month, 1);
+  while (isWeekend(firstDay)) {
+    firstDay.setDate(firstDay.getDate() + 1);
+  }
+  firstDay.setHours(0, 0, 0, 0);
+  return firstDay;
+};
+
+// Helper function to get last working day of a month
+const getLastWorkingDayOfMonth = (year: number, month: number): Date => {
+  const lastDay = new Date(year, month + 1, 0); // Last day of the month
+  while (isWeekend(lastDay)) {
+    lastDay.setDate(lastDay.getDate() - 1);
+  }
+  lastDay.setHours(23, 59, 59, 999);
+  return lastDay;
+};
+
+// Default date ranges - calculated using working days (excluding weekends)
 const getDateRanges = (): DateRange[] => {
   const today = new Date();
   const endOfToday = new Date(
@@ -30,40 +78,52 @@ const getDateRanges = (): DateRange[] => {
     999,
   );
 
-  // Calculate start date for last 30 days (30 days ago from today)
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(today.getDate() - 30);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  // Calculate start date for last 30 working days
+  const thirtyWorkingDaysAgo = getWorkingDaysBack(30);
 
-  // Calculate start date for last 7 days (7 days ago from today)
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  // Calculate start date for last 7 working days
+  const sevenWorkingDaysAgo = getWorkingDaysBack(7);
+
+  // This month: first working day of current month to today
+  const thisMonthStart = getFirstWorkingDayOfMonth(
+    today.getFullYear(),
+    today.getMonth(),
+  );
+
+  // Last month: first to last working day of previous month
+  const lastMonthYear =
+    today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+  const lastMonthMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+  const lastMonthStart = getFirstWorkingDayOfMonth(
+    lastMonthYear,
+    lastMonthMonth,
+  );
+  const lastMonthEnd = getLastWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
 
   return [
     {
-      label: "Last 30 Days",
+      label: "Last 30 Working Days",
       value: "last-30-days",
-      start: thirtyDaysAgo,
+      start: thirtyWorkingDaysAgo,
       end: endOfToday,
     },
     {
-      label: "Last 7 Days",
+      label: "Last 7 Working Days",
       value: "last-7-days",
-      start: sevenDaysAgo,
+      start: sevenWorkingDaysAgo,
       end: endOfToday,
     },
     {
-      label: "This Month",
+      label: "This Month (Working Days)",
       value: "this-month",
-      start: new Date(today.getFullYear(), today.getMonth(), 1),
+      start: thisMonthStart,
       end: endOfToday,
     },
     {
-      label: "Last Month",
+      label: "Last Month (Working Days)",
       value: "last-month",
-      start: new Date(today.getFullYear(), today.getMonth() - 1, 1),
-      end: new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999),
+      start: lastMonthStart,
+      end: lastMonthEnd,
     },
   ];
 };
