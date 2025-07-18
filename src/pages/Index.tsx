@@ -458,7 +458,7 @@ export default function Index() {
                       const data = await response.json();
                       alert(
                         data.success
-                          ? `��� Connected! User: ${data.user.name}`
+                          ? `✅ Connected! User: ${data.user.name}`
                           : `❌ Failed: ${data.error}`,
                       );
                     } catch (error) {
@@ -534,8 +534,48 @@ export default function Index() {
                       );
                       const data = await response.json();
                       if (response.ok) {
+                        // Check if assignee is in our engineer list
+                        const engineerMap = new Map([
+                          ["Jared Beckler", 29215234714775],
+                          ["Rahul Joshi", 29092423638935],
+                          ["Parth Sharma", 29092389569431],
+                          ["Fernando Duran", 24100359866391],
+                          ["Alex Bridgeman", 19347232342679],
+                          ["Sheema Parwaz", 16211207272855],
+                          ["Manish Sharma", 5773445002519],
+                          ["Akash Singh", 26396676511767],
+                        ]);
+
+                        const assigneeInList = Array.from(
+                          engineerMap.values(),
+                        ).includes(data.ticket.assignee_id);
+                        const assigneeInfo = assigneeInList
+                          ? "✅ In tracked engineers"
+                          : "❌ NOT in tracked engineers";
+
+                        // Check date range
+                        const ticketDate = new Date(data.ticket.created_at);
+                        const currentRange = selectedPeriod;
+                        const inDateRange =
+                          ticketDate >= currentRange.start &&
+                          ticketDate <= currentRange.end;
+                        const dateInfo = inDateRange
+                          ? "✅ In current date range"
+                          : "❌ Outside current date range";
+
                         alert(
-                          `✅ Ticket 20225 Found!\nID: ${data.ticket.id}\nSubject: ${data.ticket.subject}\nStatus: ${data.ticket.status}\nCreated: ${data.ticket.created_at}\nSolved: ${data.ticket.solved_at || "Not solved"}\nAssignee ID: ${data.ticket.assignee_id || "Unassigned"}`,
+                          `🎫 Ticket 20225 Analysis:\n\n` +
+                            `ID: ${data.ticket.id}\n` +
+                            `Subject: ${data.ticket.subject}\n` +
+                            `Status: ${data.ticket.status}\n` +
+                            `Created: ${data.ticket.created_at}\n` +
+                            `Solved: ${data.ticket.solved_at || "Not solved"}\n` +
+                            `Assignee ID: ${data.ticket.assignee_id || "Unassigned"}\n\n` +
+                            `📊 Analysis:\n` +
+                            `${assigneeInfo}\n` +
+                            `${dateInfo}\n` +
+                            `Range: ${currentRange.start.toISOString()} to ${currentRange.end.toISOString()}\n` +
+                            `Ticket Date: ${ticketDate.toISOString()}`,
                         );
                       } else {
                         alert(`❌ Failed to fetch ticket 20225: ${data.error}`);
@@ -547,7 +587,7 @@ export default function Index() {
                   className="flex items-center space-x-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                 >
                   <span>🎫</span>
-                  <span>Test Ticket 20225</span>
+                  <span>Debug Ticket 20225</span>
                 </button>
 
                 {currentEngineer && (
