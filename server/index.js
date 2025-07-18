@@ -10,6 +10,14 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Rate limiting and circuit breaker state
+let rateLimitState = {
+  lastFailureTime: null,
+  consecutiveFailures: 0,
+  backoffDelay: 30000, // Start with 30 seconds
+  maxBackoffDelay: 300000, // Max 5 minutes
+};
+
 // Zendesk API configuration
 const ZENDESK_CONFIG = {
   subdomain:
@@ -54,41 +62,109 @@ const getAuthHeader = () => {
   return `Basic ${credentials}`;
 };
 
+// Check if we should apply circuit breaker
+function shouldApplyCircuitBreaker() {
+  const now = Date.now();
+  if (
+    rateLimitState.lastFailureTime &&
+    rateLimitState.consecutiveFailures >= 3
+  ) {
+    const timeSinceLastFailure = now - rateLimitState.lastFailureTime;
+    if (timeSinceLastFailure < rateLimitState.backoffDelay) {
+      const waitTime = Math.round(
+        (rateLimitState.backoffDelay - timeSinceLastFailure) / 1000,
+      );
+      console.log(`🚫 Circuit breaker active: ${waitTime}s remaining`);
+      return waitTime;
+    } else {
+      // Reset circuit breaker
+      console.log("✅ Circuit breaker reset");
+      rateLimitState.consecutiveFailures = 0;
+      rateLimitState.lastFailureTime = null;
+      rateLimitState.backoffDelay = 30000;
+    }
+  }
+  return false;
+}
+
 // Generic proxy function for Zendesk API
 async function proxyZendeskRequest(endpoint) {
-  const url = `${BASE_URL}${endpoint}`;
-  console.log(`Making request to Zendesk API: ${url}`);
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: getAuthHeader(),
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    let errorDetails = "";
-    try {
-      const errorBody = await response.text();
-      errorDetails = ` - Response: ${errorBody}`;
-    } catch (e) {
-      errorDetails = " - Could not read error response body";
-    }
-
-    // Handle rate limiting specifically
-    if (response.status === 429) {
-      console.log("Rate limit hit, waiting 30 seconds...");
-      await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds for proper rate limit recovery
-      console.log("Retrying request after rate limit...");
-      return proxyZendeskRequest(endpoint); // Retry once
-    }
-
+  // Check circuit breaker
+  const circuitBreakerWait = shouldApplyCircuitBreaker();
+  if (circuitBreakerWait) {
     throw new Error(
-      `Zendesk API error: ${response.status} ${response.statusText}${errorDetails}`,
+      `Rate limit protection active. Please wait ${circuitBreakerWait} seconds before trying again.`,
     );
   }
 
-  return response.json();
+  const url = `${BASE_URL}${endpoint}`;
+  console.log(`Making request to Zendesk API: ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: getAuthHeader(),
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      let errorDetails = "";
+      try {
+        const errorBody = await response.text();
+        errorDetails = ` - Response: ${errorBody}`;
+      } catch (e) {
+        errorDetails = " - Could not read error response body";
+      }
+
+      // Handle rate limiting specifically
+      if (response.status === 429) {
+        rateLimitState.consecutiveFailures++;
+        rateLimitState.lastFailureTime = Date.now();
+
+        // Exponential backoff
+        rateLimitState.backoffDelay = Math.min(
+          rateLimitState.backoffDelay * 2,
+          rateLimitState.maxBackoffDelay,
+        );
+
+        console.log(
+          `⚠️ Rate limit hit (failure ${rateLimitState.consecutiveFailures}). Next backoff: ${rateLimitState.backoffDelay / 1000}s`,
+        );
+
+        throw new Error(
+          "API rate limit exceeded. Please wait before retrying.",
+        );
+      }
+
+      throw new Error(
+        `Zendesk API error: ${response.status} ${response.statusText}${errorDetails}`,
+      );
+    }
+
+    // Reset failure count on success
+    if (rateLimitState.consecutiveFailures > 0) {
+      console.log("✅ API request successful - resetting failure count");
+      rateLimitState.consecutiveFailures = 0;
+      rateLimitState.lastFailureTime = null;
+      rateLimitState.backoffDelay = 30000;
+    }
+
+    return response.json();
+  } catch (error) {
+    // Track network errors as well
+    if (
+      error.message.includes("network") ||
+      error.message.includes("timeout")
+    ) {
+      rateLimitState.consecutiveFailures++;
+      rateLimitState.lastFailureTime = Date.now();
+      console.log(
+        `🌐 Network error (failure ${rateLimitState.consecutiveFailures}): ${error.message}`,
+      );
+    }
+    throw error;
+  }
 }
 
 // API Routes
