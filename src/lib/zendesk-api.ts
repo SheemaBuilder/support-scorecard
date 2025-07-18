@@ -691,35 +691,26 @@ export async function fetchAllEngineerMetrics(
 
   console.log("✅ Fetching real Zendesk data...");
   const [users, tickets, ratings] = await Promise.all([
-    getUsers(),
+    getUsers(), // This now fetches only engineers from nameToIdMap
     getTickets(startDate, endDate),
     getSatisfactionRatings(startDate, endDate),
   ]);
 
   console.log("📊 Raw data received:");
-  console.log("- Users:", users.length);
+  console.log("- Engineers:", users.length);
   console.log("- Tickets:", tickets.length);
   console.log("- Ratings:", ratings.length);
 
-  // Filter users to only include engineers from nameToIdMap
-  const allowedNames = Array.from(nameToIdMap.keys());
-  console.log("🎯 Allowed engineer names:", allowedNames);
-
-  const filteredUsers = users.filter((user) =>
-    allowedNames.includes(user.name),
-  );
-
   console.log(
-    "👥 Found engineers in Zendesk:",
-    filteredUsers.map((u) => u.name),
+    "👥 Engineers fetched:",
+    users.map((u) => u.name),
   );
-  console.log("🎯 Total filtered engineers:", filteredUsers.length);
 
-  if (filteredUsers.length === 0) {
-    throw new Error("No engineers found in Zendesk data matching nameToIdMap");
+  if (users.length === 0) {
+    throw new Error("No engineers found from nameToIdMap");
   }
 
-  const engineerMetrics = filteredUsers.map((user) =>
+  const engineerMetrics = users.map((user) =>
     calculateEngineerMetrics(user, tickets, ratings),
   );
 
