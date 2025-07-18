@@ -685,7 +685,7 @@ export async function fetchAllEngineerMetrics(
     }
 
     const engineerMetrics = users.map((user) =>
-      calculateEngineerMetrics(user, tickets, ratings),
+      calculateEngineerMetrics(user, tickets, ratings, startDate, endDate),
     );
 
     console.log(
