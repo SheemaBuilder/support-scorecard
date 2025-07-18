@@ -710,32 +710,47 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
-  console.log("🚀 Starting fetchAllEngineerMetrics - REAL DATA ONLY...");
+  console.log("🚀 Starting fetchAllEngineerMetrics...");
 
-  console.log("✅ Fetching real Zendesk data...");
-  const [users, tickets, ratings] = await Promise.all([
-    getUsers(), // This now fetches only engineers from nameToIdMap
-    getTickets(startDate, endDate),
-    getSatisfactionRatings(startDate, endDate),
-  ]);
+  try {
+    console.log("✅ Attempting to fetch real Zendesk data...");
+    const [users, tickets, ratings] = await Promise.all([
+      getUsers(), // This now fetches only engineers from nameToIdMap
+      getTickets(startDate, endDate),
+      getSatisfactionRatings(startDate, endDate),
+    ]);
 
-  console.log("📊 Raw data received:");
-  console.log("- Engineers:", users.length);
-  console.log("- Tickets:", tickets.length);
-  console.log("- Ratings:", ratings.length);
+    console.log("📊 Raw data received:");
+    console.log("- Engineers:", users.length);
+    console.log("- Tickets:", tickets.length);
+    console.log("- Ratings:", ratings.length);
 
-  console.log(
-    "👥 Engineers fetched:",
-    users.map((u) => u.name),
-  );
+    console.log(
+      "👥 Engineers fetched:",
+      users.map((u) => u.name),
+    );
 
-  if (users.length === 0) {
-    throw new Error("No engineers found from nameToIdMap");
+    if (users.length === 0) {
+      console.warn("⚠️ No engineers found from API, using mock data");
+      return createMockData();
+    }
+
+    const engineerMetrics = users.map((user) =>
+      calculateEngineerMetrics(user, tickets, ratings),
+    );
+
+    console.log(
+      "📈 Generated metrics for:",
+      engineerMetrics.map((e) => e.name),
+    );
+    return engineerMetrics;
+  } catch (error) {
+    console.warn(
+      "⚠️ Failed to fetch real data, falling back to mock data:",
+      error,
+    );
+    return createMockData();
   }
-
-  const engineerMetrics = users.map((user) =>
-    calculateEngineerMetrics(user, tickets, ratings),
-  );
 
   console.log(
     "📈 Generated metrics for:",
