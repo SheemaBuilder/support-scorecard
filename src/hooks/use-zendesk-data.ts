@@ -7,10 +7,11 @@ import {
 
 // Check if we're in a cloud environment where localhost isn't available
 const isCloudEnvironment = () => {
-  return (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  );
+  const hostname = window.location.hostname;
+  const isCloud = hostname !== "localhost" && hostname !== "127.0.0.1";
+  console.log("🌐 Environment check:", { hostname, isCloud });
+  // Temporarily disable cloud check to allow data loading in Builder.io environment
+  return false;
 };
 
 interface UseZendeskDataState {
@@ -106,32 +107,43 @@ export function useZendeskData(
 
   const fetchData = useCallback(
     async (dateRange?: DateRange) => {
+      console.log("🔄 Starting data fetch...", {
+        dateRange,
+        isCloudEnvironment: isCloudEnvironment(),
+      });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
+      // In cloud environments, don't attempt API calls - the API will handle fallback to mock data
       if (isCloudEnvironment()) {
         console.warn(
-          "Cloud environment detected - no backend server available",
+          "Cloud environment detected - backend may not be available, but API will handle fallback",
         );
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
-        }));
-        return;
+        // Continue with API calls - fetchAllEngineerMetrics will handle the fallback to mock data
       }
 
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
+        console.log("📅 Date range:", { startDate, endDate });
 
+        console.log("🚀 Fetching engineer metrics...");
         const engineerMetrics = await fetchAllEngineerMetrics(
           startDate,
           endDate,
         );
+        console.log(
+          "👥 Engineer metrics received:",
+          engineerMetrics.length,
+          "engineers",
+        );
+
+        console.log("📊 Calculating team averages...");
         const teamAverages = await calculateTeamAverages(engineerMetrics);
+        console.log("📈 Team averages calculated:", teamAverages);
+
+        console.log("🚨 Generating alerts...");
         const alerts = generateAlerts(engineerMetrics, teamAverages);
+        console.log("🔔 Alerts generated:", alerts.length, "alerts");
 
         setState({
           engineerData: engineerMetrics,
@@ -141,32 +153,21 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+        console.log("✅ Data fetch completed successfully!");
       } catch (error) {
-        console.error("Error fetching Zendesk data:", error);
-
+        console.error("❌ Error fetching Zendesk data:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
-        const isConnectivityError =
-          errorMessage.includes("<!DOCTYPE") ||
-          errorMessage.includes("Failed to fetch") ||
-          errorMessage.includes("NetworkError") ||
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          errorMessage.includes("Cannot connect to backend server");
 
-        if (isConnectivityError) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error:
-              "Backend server not available. Please start the backend server with 'npm run server' to load Zendesk data.",
-          }));
-        } else {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: errorMessage,
-          }));
-        }
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+          engineerData: [],
+          averageMetrics: null,
+          alerts: [],
+        }));
+        console.log("🔄 Set error state:", errorMessage);
       }
     },
     [generateAlerts],

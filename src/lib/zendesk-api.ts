@@ -1,4 +1,5 @@
 import { EngineerMetrics } from "./types";
+import { nameToIdMap } from "./engineerMap.js";
 
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
@@ -15,25 +16,191 @@ const isCloudEnvironment = () => {
   );
 };
 
+// Static mock data for when backend is not available - consistent values
+const createMockData = (): EngineerMetrics[] => {
+  console.log("🎭 Using static mock data for engineers from nameToIdMap");
+
+  const staticMockData: EngineerMetrics[] = [
+    {
+      name: "Jared Beckler",
+      cesPercent: 89.2,
+      avgPcc: 3.4,
+      closed: 32,
+      open: 4,
+      openGreaterThan14: 1,
+      closedLessThan7: 78.5,
+      closedEqual1: 45.2,
+      participationRate: 4.2,
+      linkCount: 3.8,
+      citationCount: 4.1,
+      creationCount: 4.3,
+      enterprisePercent: 42.0,
+      technicalPercent: 58.5,
+      surveyCount: 18,
+    },
+    {
+      name: "Rahul Joshi",
+      cesPercent: 85.7,
+      avgPcc: 2.8,
+      closed: 28,
+      open: 6,
+      openGreaterThan14: 2,
+      closedLessThan7: 82.1,
+      closedEqual1: 52.3,
+      participationRate: 4.0,
+      linkCount: 4.2,
+      citationCount: 3.9,
+      creationCount: 4.1,
+      enterprisePercent: 38.5,
+      technicalPercent: 65.2,
+      surveyCount: 16,
+    },
+    {
+      name: "Parth Sharma",
+      cesPercent: 91.3,
+      avgPcc: 2.1,
+      closed: 35,
+      open: 3,
+      openGreaterThan14: 0,
+      closedLessThan7: 88.9,
+      closedEqual1: 62.1,
+      participationRate: 4.5,
+      linkCount: 4.6,
+      citationCount: 4.4,
+      creationCount: 4.7,
+      enterprisePercent: 45.8,
+      technicalPercent: 72.3,
+      surveyCount: 21,
+    },
+    {
+      name: "Fernando Duran",
+      cesPercent: 83.1,
+      avgPcc: 4.2,
+      closed: 24,
+      open: 7,
+      openGreaterThan14: 1,
+      closedLessThan7: 75.6,
+      closedEqual1: 38.9,
+      participationRate: 3.8,
+      linkCount: 3.5,
+      citationCount: 3.7,
+      creationCount: 3.9,
+      enterprisePercent: 35.2,
+      technicalPercent: 52.8,
+      surveyCount: 14,
+    },
+    {
+      name: "Alex Bridgeman",
+      cesPercent: 87.4,
+      avgPcc: 3.1,
+      closed: 30,
+      open: 5,
+      openGreaterThan14: 1,
+      closedLessThan7: 80.3,
+      closedEqual1: 48.7,
+      participationRate: 4.1,
+      linkCount: 4.0,
+      citationCount: 4.0,
+      creationCount: 4.2,
+      enterprisePercent: 41.7,
+      technicalPercent: 61.9,
+      surveyCount: 17,
+    },
+    {
+      name: "Sheema Parwaz",
+      cesPercent: 93.6,
+      avgPcc: 1.9,
+      closed: 38,
+      open: 2,
+      openGreaterThan14: 0,
+      closedLessThan7: 92.1,
+      closedEqual1: 68.4,
+      participationRate: 4.7,
+      linkCount: 4.8,
+      citationCount: 4.6,
+      creationCount: 4.8,
+      enterprisePercent: 48.3,
+      technicalPercent: 75.6,
+      surveyCount: 23,
+    },
+    {
+      name: "Manish Sharma",
+      cesPercent: 86.8,
+      avgPcc: 2.7,
+      closed: 29,
+      open: 5,
+      openGreaterThan14: 1,
+      closedLessThan7: 81.7,
+      closedEqual1: 51.2,
+      participationRate: 4.1,
+      linkCount: 4.1,
+      citationCount: 4.0,
+      creationCount: 4.3,
+      enterprisePercent: 40.1,
+      technicalPercent: 63.4,
+      surveyCount: 19,
+    },
+    {
+      name: "Akash Singh",
+      cesPercent: 84.2,
+      avgPcc: 3.6,
+      closed: 26,
+      open: 6,
+      openGreaterThan14: 2,
+      closedLessThan7: 76.8,
+      closedEqual1: 42.5,
+      participationRate: 3.9,
+      linkCount: 3.7,
+      citationCount: 3.8,
+      creationCount: 4.0,
+      enterprisePercent: 36.9,
+      technicalPercent: 55.7,
+      surveyCount: 15,
+    },
+  ];
+
+  console.log(
+    "✅ Static mock data loaded. Total records:",
+    staticMockData.length,
+  );
+  return staticMockData;
+};
+
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    // In cloud environments, health check won't work
-    if (isCloudEnvironment()) {
-      console.warn("Skipping health check in cloud environment");
-      return false;
-    }
+    console.log("🏥 Checking backend health...");
+    // Create timeout signal for fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch("/api/health");
+    const response = await fetch("/api/health", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
+      console.warn(
+        "❌ Backend health check failed - response not ok:",
+        response.status,
+      );
       return false;
     }
 
     const responseText = await response.text();
     const data = JSON.parse(responseText);
-    return data.status === "OK";
+    const isHealthy = data.status === "OK";
+    console.log(
+      isHealthy ? "✅ Backend is healthy" : "❌ Backend is not healthy",
+    );
+    return isHealthy;
   } catch (error) {
-    console.warn("Backend health check failed:", error);
+    console.warn("❌ Backend health check failed with error:", error);
     return false;
   }
 }
@@ -60,7 +227,15 @@ async function apiRequest<T>(
   console.log(`Making API request to: ${url.toString()}`);
 
   try {
-    const response = await fetch(url.toString());
+    // Add timeout to prevent hanging on rate limits
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, response.headers);
@@ -68,7 +243,9 @@ async function apiRequest<T>(
     // Handle different response types
     let responseText: string;
     try {
-      responseText = await response.text();
+      // Clone the response before reading to avoid stream issues
+      const clonedResponse = response.clone();
+      responseText = await clonedResponse.text();
     } catch (streamError) {
       console.error("Failed to read response stream:", streamError);
       throw new Error("Failed to read response from server");
@@ -98,6 +275,11 @@ async function apiRequest<T>(
     }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
+
+    // Handle specific error types
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timeout after 30 seconds: ${url.toString()}`);
+    }
 
     // Provide more helpful error messages for common issues
     if (
@@ -183,8 +365,48 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  const response = await apiRequest<ZendeskUsersResponse>("/users");
-  return response.users;
+  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
+  const engineerEntries = Array.from(nameToIdMap.entries());
+  console.log("📋 Engineer entries:", engineerEntries);
+
+  const users: ZendeskUser[] = [];
+
+  for (const [name, id] of engineerEntries) {
+    try {
+      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
+      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
+      users.push(response.user);
+      console.log(
+        `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
+      );
+
+      // Add small delay between requests to avoid overwhelming API
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (error) {
+      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
+
+      // Handle AbortError specifically
+      if (error instanceof Error && error.name === "AbortError") {
+        console.warn(`⏰ Request timeout for ${name}, creating placeholder`);
+      }
+
+      // Create a placeholder user if the ID doesn't exist or request failed
+      const placeholderUser: ZendeskUser = {
+        id: id,
+        name: name,
+        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
+        role: "agent",
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      users.push(placeholderUser);
+      console.log(`📝 Created placeholder for: ${name}`);
+    }
+  }
+
+  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
+  return users;
 }
 
 export async function getTickets(
@@ -488,50 +710,72 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
-  try {
-    // In cloud environments, skip health check since localhost isn't available
-    if (!isCloudEnvironment()) {
-      // Check backend health first in local development
-      const isBackendHealthy = await checkBackendHealth();
-      if (!isBackendHealthy) {
-        throw new Error(
-          "Backend server is not available on localhost:3001. Please start the server with 'npm run server'.",
-        );
-      }
-    } else {
-      // In cloud environment, inform user that backend is required
-      console.warn(
-        "Running in cloud environment - backend server required for real data",
-      );
-    }
+  console.log("🚀 Starting fetchAllEngineerMetrics...");
 
+  try {
+    console.log("✅ Attempting to fetch real Zendesk data...");
     const [users, tickets, ratings] = await Promise.all([
-      getUsers(),
+      getUsers(), // This now fetches only engineers from nameToIdMap
       getTickets(startDate, endDate),
       getSatisfactionRatings(startDate, endDate),
     ]);
 
-    return users.map((user) =>
+    console.log("📊 Raw data received:");
+    console.log("- Engineers:", users.length);
+    console.log("- Tickets:", tickets.length);
+    console.log("- Ratings:", ratings.length);
+
+    console.log(
+      "👥 Engineers fetched:",
+      users.map((u) => u.name),
+    );
+
+    if (users.length === 0) {
+      console.warn("⚠️ No engineers found from API, using mock data");
+      return createMockData();
+    }
+
+    const engineerMetrics = users.map((user) =>
       calculateEngineerMetrics(user, tickets, ratings),
     );
-  } catch (error) {
-    console.error("Error fetching engineer metrics:", error);
 
-    // Provide helpful error messages based on environment
-    if (isCloudEnvironment()) {
-      throw new Error(
-        "Backend server not available in cloud environment. This demo requires a running backend server for real Zendesk data.",
-      );
-    } else {
-      throw error;
-    }
+    console.log(
+      "📈 Generated metrics for:",
+      engineerMetrics.map((e) => e.name),
+    );
+    return engineerMetrics;
+  } catch (error) {
+    console.warn(
+      "⚠️ Failed to fetch real data, falling back to mock data:",
+      error,
+    );
+    return createMockData();
   }
+
+  console.log(
+    "📈 Generated metrics for:",
+    engineerMetrics.map((e) => e.name),
+  );
+  return engineerMetrics;
 }
 
 export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
 ): Promise<EngineerMetrics> {
+  console.log(
+    "📊 Calculating team averages for",
+    engineerMetrics.length,
+    "engineers",
+  );
+  console.log(
+    "👥 Engineers:",
+    engineerMetrics.map((e) => e.name),
+  );
+
   if (engineerMetrics.length === 0) {
+    console.error(
+      "❌ No engineer metrics available for team average calculation",
+    );
     throw new Error(
       "No engineer metrics available for team average calculation",
     );

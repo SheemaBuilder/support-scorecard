@@ -1,4 +1,5 @@
-// Updated: 2025-07-18 05:28 - Correct engineers list
+// FIXED ENGINEERS LIST - DO NOT MODIFY
+// This file contains the permanent list of engineers to track
 export const nameToIdMap = new Map([
   ["Jared Beckler", 29215234714775],
   ["Rahul Joshi", 29092423638935],
