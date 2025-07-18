@@ -528,7 +528,7 @@ export default function Index() {
 
                 <button
                   onClick={async () => {
-                    const jaredId = 29215234714775;
+                    const alexId = 19347232342679;
                     try {
                       // Fetch tickets using current date range
                       const params = new URLSearchParams({
@@ -551,13 +551,13 @@ export default function Index() {
                           allTickets.slice(0, 3),
                         );
 
-                        // Filter tickets for Jared
-                        const jaredTickets = allTickets.filter(
-                          (ticket) => ticket.assignee_id === jaredId,
+                        // Filter tickets for Alex
+                        const alexTickets = allTickets.filter(
+                          (ticket) => ticket.assignee_id === alexId,
                         );
 
                         // Filter closed/solved tickets
-                        const jaredClosedTickets = jaredTickets.filter(
+                        const alexClosedTickets = alexTickets.filter(
                           (ticket) =>
                             ticket.status === "closed" ||
                             ticket.status === "solved",
