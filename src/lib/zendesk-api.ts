@@ -54,16 +54,33 @@ const createMockData = (): EngineerMetrics[] => {
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    const response = await fetch("/api/health");
+    console.log("🏥 Checking backend health...");
+    const response = await fetch("/api/health", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(5000),
+    });
+
     if (!response.ok) {
+      console.warn(
+        "❌ Backend health check failed - response not ok:",
+        response.status,
+      );
       return false;
     }
 
     const responseText = await response.text();
     const data = JSON.parse(responseText);
-    return data.status === "OK";
+    const isHealthy = data.status === "OK";
+    console.log(
+      isHealthy ? "✅ Backend is healthy" : "❌ Backend is not healthy",
+    );
+    return isHealthy;
   } catch (error) {
-    console.warn("Backend health check failed:", error);
+    console.warn("❌ Backend health check failed with error:", error);
     return false;
   }
 }
