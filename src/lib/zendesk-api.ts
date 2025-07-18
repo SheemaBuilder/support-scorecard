@@ -55,14 +55,19 @@ const createMockData = (): EngineerMetrics[] => {
 async function checkBackendHealth(): Promise<boolean> {
   try {
     console.log("🏥 Checking backend health...");
+    // Create timeout signal for fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch("/api/health", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(5000),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.warn(
