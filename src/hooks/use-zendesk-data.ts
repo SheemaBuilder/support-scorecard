@@ -164,16 +164,18 @@ export function useZendeskData(
         console.log("✅ Data fetch completed successfully!");
       } catch (error) {
         console.error("❌ Error fetching Zendesk data:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to fetch data";
 
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: null,
+          error: errorMessage,
           engineerData: [],
           averageMetrics: null,
           alerts: [],
         }));
-        console.log("🔄 Set empty state due to error");
+        console.log("🔄 Set error state:", errorMessage);
       }
     },
     [generateAlerts],
