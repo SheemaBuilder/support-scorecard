@@ -206,8 +206,7 @@ export default function Index() {
             <div>✓ VITE_ZENDESK_SUBDOMAIN: {config.subdomain || "Missing"}</div>
             <div>✓ VITE_ZENDESK_EMAIL: {config.email || "Missing"}</div>
             <div>
-              ��� VITE_ZENDESK_API_TOKEN:{" "}
-              {config.hasApiToken ? "Set" : "Missing"}
+              ✓ VITE_ZENDESK_API_TOKEN: {config.hasApiToken ? "Set" : "Missing"}
             </div>
           </div>
         </div>
@@ -538,11 +537,63 @@ export default function Index() {
                       const ratingsData = await ratingsResponse.json();
 
                       if (ratingsResponse.ok) {
+                        const allRatings =
+                          ratingsData.satisfaction_ratings || [];
+                        console.log(
+                          "🔍 Debug - All satisfaction ratings:",
+                          allRatings.length,
+                        );
+                        console.log(
+                          "🔍 Debug - First few ratings:",
+                          allRatings.slice(0, 3),
+                        );
+
+                        // Check what assignee IDs we have
+                        const uniqueAssigneeIds = [
+                          ...new Set(allRatings.map((r) => r.assignee_id)),
+                        ];
+                        console.log(
+                          "🔍 Debug - Unique assignee IDs:",
+                          uniqueAssigneeIds,
+                        );
+                        console.log(
+                          "🔍 Debug - Looking for Jared ID:",
+                          jaredId,
+                        );
+
                         // Filter ratings for Jared
-                        const jaredRatings =
-                          ratingsData.satisfaction_ratings?.filter(
-                            (rating) => rating.assignee_id === jaredId,
-                          ) || [];
+                        const jaredRatings = allRatings.filter(
+                          (rating) => rating.assignee_id === jaredId,
+                        );
+
+                        console.log(
+                          "🔍 Debug - Jared's ratings found:",
+                          jaredRatings.length,
+                        );
+                        console.log(
+                          "🔍 Debug - Jared's ratings:",
+                          jaredRatings,
+                        );
+
+                        // Also check if any ratings have Jared's ID as a different field
+                        const jaredRatingsAlt = allRatings.filter(
+                          (rating) =>
+                            rating.requester_id === jaredId ||
+                            rating.user_id === jaredId,
+                        );
+                        console.log(
+                          "🔍 Debug - Alternative field matches:",
+                          jaredRatingsAlt.length,
+                        );
+
+                        // Get the current engineer data from state to compare
+                        const jaredFromTable = engineerData.find(
+                          (eng) => eng.name === "Jared Beckler",
+                        );
+                        console.log(
+                          "🔍 Debug - Jared from performance table:",
+                          jaredFromTable?.surveyCount,
+                        );
 
                         // Get score breakdown
                         const goodRatings = jaredRatings.filter(
@@ -569,7 +620,12 @@ export default function Index() {
 
                         const surveyInfo =
                           `🎯 Jared Beckler's Survey Analysis\n\n` +
-                          `📊 Total Surveys: ${jaredRatings.length}\n` +
+                          `🔍 Debug Info:\n` +
+                          `Total API ratings: ${allRatings.length}\n` +
+                          `Unique assignee IDs: ${uniqueAssigneeIds.length}\n` +
+                          `Table shows: ${jaredFromTable?.surveyCount || "N/A"} surveys\n\n` +
+                          `📊 Filtered Results:\n` +
+                          `Total Surveys: ${jaredRatings.length}\n` +
                           `✅ Good Ratings: ${goodRatings}\n` +
                           `❌ Bad Ratings: ${badRatings}\n` +
                           `📥 Received: ${receivedRatings}\n` +
@@ -577,15 +633,16 @@ export default function Index() {
                           `🎯 CES Score: ${cesPercent}%\n\n` +
                           `📋 Recent Survey Details:\n` +
                           jaredRatings
-                            .slice(0, 5)
+                            .slice(0, 3)
                             .map(
                               (rating) =>
-                                `• Ticket ${rating.ticket_id}: ${rating.score} (${new Date(rating.created_at).toLocaleDateString()})`,
+                                `• Ticket ${rating.ticket_id}: ${rating.score} (assignee: ${rating.assignee_id})`,
                             )
                             .join("\n") +
-                          (jaredRatings.length > 5
-                            ? `\n... and ${jaredRatings.length - 5} more`
-                            : "");
+                          (jaredRatings.length > 3
+                            ? `\n... and ${jaredRatings.length - 3} more`
+                            : "") +
+                          `\n\n💡 Check browser console for detailed debug info`;
 
                         alert(surveyInfo);
                       } else {
