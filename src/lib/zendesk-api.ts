@@ -91,36 +91,34 @@ async function apiRequest<T>(
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, response.headers);
 
-    // Handle different response types
-    let responseText: string;
-    try {
-      responseText = await response.text();
-    } catch (streamError) {
-      console.error("Failed to read response stream:", streamError);
-      throw new Error("Failed to read response from server");
-    }
-
     if (!response.ok) {
-      console.error(`API error response:`, responseText);
+      // For error responses, read as text to get error details
+      let errorText: string;
+      try {
+        errorText = await response.text();
+      } catch (streamError) {
+        errorText = "Unable to read error response";
+      }
+      console.error(`API error response:`, errorText);
       throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${responseText}`,
+        `API error: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
+    // For successful responses, read as JSON directly
     const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.error(`Expected JSON but got:`, responseText);
-      throw new Error(
-        `Expected JSON response but got: ${contentType}. Response: ${responseText.substring(0, 200)}...`,
-      );
-    }
-
-    // Parse the text as JSON since we already read it
     try {
-      return JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error(`Failed to parse JSON:`, responseText.substring(0, 200));
-      throw new Error(`Invalid JSON response: ${jsonError}`);
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      } else {
+        // For non-JSON responses, read as text
+        const responseText = await response.text();
+        console.warn("Non-JSON response received:", contentType);
+        return responseText as T;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse response:", parseError);
+      throw new Error("Failed to parse response from server");
     }
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
