@@ -810,11 +810,8 @@ export async function fetchAllEngineerMetrics(
     );
     return engineerMetrics;
   } catch (error) {
-    console.warn(
-      "⚠️ Failed to fetch real data, falling back to mock data:",
-      error,
-    );
-    return createMockData();
+    console.error("❌ Failed to fetch real data:", error);
+    throw error; // Don't fall back to mock data - always use real data
   }
 
   console.log(
