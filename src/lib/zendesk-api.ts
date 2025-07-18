@@ -422,6 +422,15 @@ export async function getTickets(
   return response.tickets;
 }
 
+export async function getTicketById(ticketId: number): Promise<ZendeskTicket> {
+  console.log(`🎫 Fetching ticket by ID: ${ticketId}`);
+  const response = await apiRequest<{ ticket: ZendeskTicket }>(
+    `/tickets/${ticketId}`,
+  );
+  console.log(`✅ Successfully fetched ticket ${ticketId}:`, response.ticket);
+  return response.ticket;
+}
+
 export async function getSatisfactionRatings(
   startDate?: Date,
   endDate?: Date,
