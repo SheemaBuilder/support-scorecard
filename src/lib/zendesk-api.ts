@@ -380,8 +380,8 @@ export async function getUsers(): Promise<ZendeskUser[]> {
         `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
       );
 
-      // Add small delay between requests to avoid overwhelming API
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Add longer delay between requests to avoid rate limits
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
     } catch (error) {
       console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
 
