@@ -3,7 +3,24 @@ import { nameToIdMap } from "./engineerMap.js";
 
 // Backend proxy URL - use relative URLs that Vite will proxy
 const getApiBaseUrl = () => {
-  // In cloud environments (like Builder.io preview), use current origin
+  // In cloud environments, we need to connect to the backend proxy
+  if (isCloudEnvironment()) {
+    // Try to connect to the backend proxy on port 3001
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+
+    // Extract the base hostname and try port 3001
+    if (hostname.includes("projects.builder.codes")) {
+      // For Builder.io cloud environment, try to connect to backend proxy
+      const baseHostname = hostname.split("-")[0];
+      return `${protocol}//${baseHostname}-3001.projects.builder.codes/api/zendesk`;
+    }
+
+    // Fallback to current origin with /api/zendesk
+    return "/api/zendesk";
+  }
+
   // In local development, use relative URLs that Vite will proxy to localhost:3001
   return "/api/zendesk";
 };
