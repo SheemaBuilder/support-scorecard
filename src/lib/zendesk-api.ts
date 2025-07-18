@@ -96,15 +96,29 @@ async function apiRequest<T>(
       let errorText: string;
       try {
         const contentType = response.headers.get("content-type");
+        console.log("Error response content-type:", contentType);
+
         if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json();
-          errorText = errorData.error || JSON.stringify(errorData);
+          console.log("Error response JSON:", errorData);
+
+          // Extract the error message from various possible structures
+          if (typeof errorData === "string") {
+            errorText = errorData;
+          } else if (errorData.error) {
+            errorText = errorData.error;
+          } else if (errorData.message) {
+            errorText = errorData.message;
+          } else {
+            errorText = JSON.stringify(errorData);
+          }
         } else {
           errorText = await response.text();
+          console.log("Error response text:", errorText);
         }
       } catch (streamError) {
         console.warn("Could not read error response:", streamError);
-        errorText = `HTTP ${response.status} ${response.statusText}`;
+        errorText = `Failed to read error response`;
       }
 
       console.error(`API error response:`, errorText);
