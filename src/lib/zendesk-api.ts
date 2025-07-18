@@ -77,7 +77,7 @@ async function apiRequest<T>(
 
   console.log(`Making API request to: ${url.toString()}`);
 
-    try {
+  try {
     // Add timeout to prevent hanging on rate limits - increased for rate limit handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for rate limits
@@ -89,25 +89,34 @@ async function apiRequest<T>(
     clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
+    console.log(`Response headers:`, response.headers);
+
+    // Read response body once and handle both success and error cases
+    const contentType = response.headers.get("content-type");
+    let responseData: any;
+
+    try {
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+    } catch (parseError) {
+      console.error("Failed to read response:", parseError);
+      throw new Error("Failed to read response from server");
+    }
 
     if (!response.ok) {
-      // For error responses, try to read the error details safely
+      // For error responses, extract error message from parsed data
       let errorText: string = `HTTP ${response.status} ${response.statusText}`;
 
-      try {
-        const contentType = response.headers.get("content-type");
-        let errorData: any;
-
-        if (contentType && contentType.includes("application/json")) {
-          errorData = await response.json();
-          errorText = errorData.error || errorData.message || JSON.stringify(errorData);
-        } else {
-          errorData = await response.text();
-          errorText = errorData;
-        }
-      } catch (readError) {
-        console.warn("Could not read error response body:", readError);
-        // Use the default error text if we can't read the body
+      if (typeof responseData === "string") {
+        errorText = responseData;
+      } else if (responseData && typeof responseData === "object") {
+        errorText =
+          responseData.error ||
+          responseData.message ||
+          JSON.stringify(responseData);
       }
 
       console.error(`API error response:`, errorText);
@@ -125,18 +134,8 @@ async function apiRequest<T>(
       );
     }
 
-    // For successful responses, read the body safely
-    try {
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        return await response.json();
-      } else {
-        return await response.text() as T;
-      }
-    } catch (parseError) {
-      console.error("Failed to parse successful response:", parseError);
-      throw new Error("Failed to parse response from server");
-    }
+    // Return successful response data
+    return responseData as T;
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
 
@@ -238,48 +237,15 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  console.log("🎯 Fetching engineers using BULK API to avoid rate limits");
-
-  // Create placeholders for all engineers first (fallback data)
+  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
   const engineerEntries = Array.from(nameToIdMap.entries());
-  const placeholderUsers: ZendeskUser[] = engineerEntries.map(([name, id]) => ({
-    id: id,
-    name: name,
-    email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
-    role: "agent",
-    active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
+  console.log("📋 Engineer entries:", engineerEntries);
+  console.log(
+    `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
+  );
 
-  try {
-    // Try to fetch all users in bulk (single API call)
-    console.log("📦 Attempting bulk user fetch...");
-    const allUsersResponse = await apiRequest<ZendeskUsersResponse>("/users");
-    console.log(`📦 Bulk fetch successful: ${allUsersResponse.users.length} total users`);
-
-    // Filter to only the engineers we need
-    const engineerIds = new Set(Array.from(nameToIdMap.values()));
-    const foundEngineers = allUsersResponse.users.filter(user => engineerIds.has(user.id));
-
-    console.log(`👥 Found ${foundEngineers.length} real engineers from API`);
-
-    // Merge real data with placeholders
-    const foundIds = new Set(foundEngineers.map(u => u.id));
-    const finalUsers = [
-      ...foundEngineers,
-      ...placeholderUsers.filter(u => !foundIds.has(u.id))
-    ];
-
-    console.log(`📊 Final result: ${finalUsers.length} engineers (${foundEngineers.length} real, ${finalUsers.length - foundEngineers.length} placeholders)`);
-    return finalUsers;
-
-  } catch (error) {
-    console.warn("❌ Bulk user fetch failed, using placeholder data:", error);
-    console.log(`📊 Using ${placeholderUsers.length} placeholder engineers`);
-    return placeholderUsers;
-  }
-}
+  const users: ZendeskUser[] = [];
+  let processed = 0;
 
   for (const [name, id] of engineerEntries) {
     processed++;
@@ -328,7 +294,31 @@ export async function getUsers(): Promise<ZendeskUser[]> {
             updated_at: new Date().toISOString(),
           };
           users.push(placeholderUser);
-          
+          console.log(
+            `📝 Created placeholder for rate-limited: ${remainingName}`,
+          );
+        }
+        break;
+      }
+
+      // Create a placeholder user if the ID doesn't exist or request failed
+      const placeholderUser: ZendeskUser = {
+        id: id,
+        name: name,
+        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
+        role: "agent",
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      users.push(placeholderUser);
+      console.log(`📝 Created placeholder for: ${name}`);
+    }
+  }
+
+  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
+  return users;
+}
 
 export async function getTickets(
   startDate?: Date,
