@@ -589,8 +589,7 @@ export default function Index() {
                             `📊 Analysis:\n` +
                             `${assigneeInfo}\n` +
                             `${dateInfo}\n` +
-                            `Range: ${currentRange.start.toISOString()} to ${currentRange.end.toISOString()}\n` +
-                            `Ticket Date: ${ticketDate.toISOString()}\n\n` +
+                            `Range: ${currentRange.start.toISOString()} to ${currentRange.end.toISOString()}\n\n` +
                             `💡 Note: Status '${data.ticket.status}' ${isSolved ? "SHOULD" : "should NOT"} count as closed ticket`,
                         );
                       } else {
