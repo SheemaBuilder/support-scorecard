@@ -92,14 +92,28 @@ async function apiRequest<T>(
     console.log(`Response headers:`, response.headers);
 
     if (!response.ok) {
-      // For error responses, read as text to get error details
+      // For error responses, try to read the error details
       let errorText: string;
       try {
-        errorText = await response.text();
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorText = errorData.error || JSON.stringify(errorData);
+        } else {
+          errorText = await response.text();
+        }
       } catch (streamError) {
-        errorText = "Unable to read error response";
+        console.warn("Could not read error response:", streamError);
+        errorText = `HTTP ${response.status} ${response.statusText}`;
       }
+
       console.error(`API error response:`, errorText);
+
+      // Handle specific backend errors
+      if (errorText.includes("Rate limit protection active")) {
+        throw new Error(errorText);
+      }
+
       throw new Error(
         `API error: ${response.status} ${response.statusText} - ${errorText}`,
       );
