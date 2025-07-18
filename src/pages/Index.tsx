@@ -458,7 +458,7 @@ export default function Index() {
                       const data = await response.json();
                       alert(
                         data.success
-                          ? `✅ Connected! User: ${data.user.name}`
+                          ? `��� Connected! User: ${data.user.name}`
                           : `❌ Failed: ${data.error}`,
                       );
                     } catch (error) {
@@ -477,6 +477,53 @@ export default function Index() {
                 >
                   <span>🔄</span>
                   <span>Reload Data</span>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    const totalClosed = engineerData.reduce(
+                      (sum, eng) => sum + eng.closed,
+                      0,
+                    );
+                    const dateInfo =
+                      `📅 Current Period: ${selectedPeriod.label}\n` +
+                      `Start: ${selectedPeriod.start.toISOString()}\n` +
+                      `End: ${selectedPeriod.end.toISOString()}\n\n` +
+                      `📊 Data Summary:\n` +
+                      `Engineers: ${engineerData.length}\n` +
+                      `Total Closed Tickets: ${totalClosed}\n` +
+                      `Team Avg CES: ${averageMetrics?.cesPercent.toFixed(1) || "N/A"}%\n\n` +
+                      `💡 Try fetching tickets directly using these dates...`;
+
+                    try {
+                      // Test actual API call with current date range
+                      const params = new URLSearchParams({
+                        start_date: selectedPeriod.start.toISOString(),
+                        end_date: selectedPeriod.end.toISOString(),
+                      });
+                      const response = await fetch(
+                        `/api/zendesk/tickets?${params}`,
+                      );
+                      const data = await response.json();
+
+                      if (response.ok) {
+                        alert(
+                          dateInfo +
+                            `\n\n✅ API Test: Found ${data.tickets?.length || 0} tickets in this period`,
+                        );
+                      } else {
+                        alert(
+                          dateInfo + `\n\n❌ API Test Failed: ${data.error}`,
+                        );
+                      }
+                    } catch (error) {
+                      alert(dateInfo + `\n\n❌ API Test Error: ${error}`);
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                >
+                  <span>📊</span>
+                  <span>Debug Date Range</span>
                 </button>
 
                 <button
