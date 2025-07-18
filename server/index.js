@@ -135,19 +135,11 @@ app.get("/api/zendesk/tickets", async (req, res) => {
     const { start_date, end_date } = req.query;
     console.log("📅 Date parameters received:", { start_date, end_date });
 
-    if (start_date && end_date) {
-      // Use updated_at instead of created_at to catch tickets solved in this period
-      // This is crucial for closed ticket metrics - we want tickets SOLVED in the period
-      const startFormatted = encodeURIComponent(start_date);
-      const endFormatted = encodeURIComponent(end_date);
-      endpoint += `&updated%3E${startFormatted}&updated%3C${endFormatted}`;
-      console.log("🔍 Date-filtered by updated_at (when solved):", endpoint);
-      console.log(
-        "💡 Using updated_at instead of created_at to count tickets solved in this period",
-      );
-    } else {
-      console.log("📊 Fetching all tickets (no date filter)");
-    }
+    // Remove server-side date filtering to avoid including old tickets with recent updates
+    // Frontend will filter based on actual solved_at dates for closed tickets
+    console.log(
+      "📊 Fetching all tickets for proper solved date filtering on frontend",
+    );
 
     const data = await proxyZendeskRequest(endpoint);
     res.json(data);
