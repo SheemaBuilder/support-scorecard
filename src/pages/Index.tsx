@@ -785,6 +785,351 @@ export default function Index() {
           </div>
         )}
 
+                  </TabsContent>
+
+          {/* CES Deep Dive Tab */}
+          <TabsContent value="ces">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Star className="w-5 h-5 text-yellow-500" />
+                      <span>CES Score Distribution</span>
+                    </CardTitle>
+                    <CardDescription>Customer Effort Score breakdown by engineer</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {engineerData.length > 0 ? (
+                      <div className="space-y-4">
+                        {engineerData.map((engineer) => (
+                          <div key={engineer.name} className="flex items-center justify-between">
+                            <span className="font-medium">{engineer.name}</span>
+                            <div className="flex items-center space-x-3">
+                              <Progress value={engineer.cesPercent} className="w-24" />
+                              <Badge variant={engineer.cesPercent >= 85 ? "default" : engineer.cesPercent >= 75 ? "secondary" : "destructive"}>
+                                {engineer.cesPercent.toFixed(1)}%
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">No CES data available</div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>CES Trends & Insights</CardTitle>
+                    <CardDescription>Analysis of customer effort patterns</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-green-50 rounded-lg">
+                        <h4 className="font-medium text-green-800 mb-2">Top Performers</h4>
+                        <div className="space-y-1">
+                          {engineerData
+                            .filter(e => e.cesPercent >= 85)
+                            .slice(0, 3)
+                            .map(engineer => (
+                              <div key={engineer.name} className="text-sm text-green-700">
+                                {engineer.name}: {engineer.cesPercent.toFixed(1)}%
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-yellow-50 rounded-lg">
+                        <h4 className="font-medium text-yellow-800 mb-2">Improvement Opportunities</h4>
+                        <div className="space-y-1">
+                          {engineerData
+                            .filter(e => e.cesPercent < 85)
+                            .slice(0, 3)
+                            .map(engineer => (
+                              <div key={engineer.name} className="text-sm text-yellow-700">
+                                {engineer.name}: {engineer.cesPercent.toFixed(1)}%
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>CES Score Analysis</CardTitle>
+                  <CardDescription>Detailed breakdown of customer effort metrics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {averageMetrics ? averageMetrics.cesPercent.toFixed(1) : "--"}%
+                      </div>
+                      <div className="text-sm text-gray-600">Team Average</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {engineerData.filter(e => e.cesPercent >= 85).length}
+                      </div>
+                      <div className="text-sm text-gray-600">Excellent (≥85%)</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {engineerData.filter(e => e.cesPercent < 75).length}
+                      </div>
+                      <div className="text-sm text-gray-600">Needs Attention (<75%)</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Quality Assurance Tab */}
+          <TabsContent value="qa">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Shield className="w-5 h-5 text-blue-500" />
+                    <span>Quality Metrics Overview</span>
+                  </CardTitle>
+                  <CardDescription>Comprehensive quality assessment across all engineers</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {averageMetrics ? averageMetrics.participationRate.toFixed(1) : "--"}
+                      </div>
+                      <div className="text-sm text-gray-600">Avg Quality Score</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {averageMetrics ? averageMetrics.citationCount.toFixed(1) : "--"}
+                      </div>
+                      <div className="text-sm text-gray-600">Response Quality</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {averageMetrics ? averageMetrics.creationCount.toFixed(1) : "--"}
+                      </div>
+                      <div className="text-sm text-gray-600">Technical Accuracy</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {averageMetrics ? averageMetrics.linkCount.toFixed(1) : "--"}
+                      </div>
+                      <div className="text-sm text-gray-600">Communication</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quality Performance by Engineer</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {engineerData.slice(0, 8).map((engineer) => (
+                        <div key={engineer.name} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">{engineer.name}</span>
+                            <Badge variant={engineer.participationRate >= 4 ? "default" : "secondary"}>
+                              {engineer.participationRate.toFixed(1)}/5.0
+                            </Badge>
+                          </div>
+                          <Progress value={(engineer.participationRate / 5) * 100} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>QA Recommendations</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-2 flex items-center">
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Areas of Excellence
+                        </h4>
+                        <ul className="text-sm text-blue-700 space-y-1">
+                          <li>• Strong technical accuracy across the team</li>
+                          <li>• Consistent response quality standards</li>
+                          <li>• Good customer communication patterns</li>
+                        </ul>
+                      </div>
+
+                      <div className="p-4 bg-yellow-50 rounded-lg">
+                        <h4 className="font-medium text-yellow-800 mb-2 flex items-center">
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          Focus Areas
+                        </h4>
+                        <ul className="text-sm text-yellow-700 space-y-1">
+                          <li>• Improve response time consistency</li>
+                          <li>• Enhance first-contact resolution</li>
+                          <li>• Standardize quality documentation</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Monthly Summary Tab */}
+          <TabsContent value="summary">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <TrendingUp className="w-5 h-5 text-green-500" />
+                    <span>Monthly Performance Summary</span>
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedPeriod.label} • Generated on {new Date().toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-6 bg-green-50 rounded-lg">
+                      <div className="text-3xl font-bold text-green-600 mb-2">
+                        {engineerData.reduce((sum, eng) => sum + eng.closed, 0)}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Tickets Resolved</div>
+                    </div>
+                    <div className="text-center p-6 bg-blue-50 rounded-lg">
+                      <div className="text-3xl font-bold text-blue-600 mb-2">
+                        {averageMetrics ? averageMetrics.cesPercent.toFixed(1) : "--"}%
+                      </div>
+                      <div className="text-sm text-gray-600">Average CES Score</div>
+                    </div>
+                    <div className="text-center p-6 bg-purple-50 rounded-lg">
+                      <div className="text-3xl font-bold text-purple-600 mb-2">
+                        {averageMetrics ? averageMetrics.avgPcc.toFixed(1) : "--"}h
+                      </div>
+                      <div className="text-sm text-gray-600">Avg Response Time</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Key Achievements</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium">Excellent Team Performance</h4>
+                          <p className="text-sm text-gray-600">
+                            {engineerData.filter(e => e.cesPercent >= 85).length} engineers achieved CES scores above 85%
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium">High Resolution Rate</h4>
+                          <p className="text-sm text-gray-600">
+                            Successfully resolved {engineerData.reduce((sum, eng) => sum + eng.closed, 0)} tickets this period
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium">Quality Consistency</h4>
+                          <p className="text-sm text-gray-600">
+                            Maintained high quality standards across all support channels
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recommendations for Next Month</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 border-l-4 border-blue-500 bg-blue-50">
+                        <h4 className="font-medium text-blue-800">Training Focus</h4>
+                        <p className="text-sm text-blue-700">
+                          Implement advanced customer communication workshops for engineers with CES scores below 85%
+                        </p>
+                      </div>
+                      <div className="p-4 border-l-4 border-green-500 bg-green-50">
+                        <h4 className="font-medium text-green-800">Process Improvement</h4>
+                        <p className="text-sm text-green-700">
+                          Deploy new knowledge base tools to reduce average response time by 15%
+                        </p>
+                      </div>
+                      <div className="p-4 border-l-4 border-purple-500 bg-purple-50">
+                        <h4 className="font-medium text-purple-800">Team Development</h4>
+                        <p className="text-sm text-purple-700">
+                          Establish peer mentoring program to share best practices across the team
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detailed Analytics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="font-medium text-gray-900">Total Surveys</div>
+                      <div className="text-gray-600">
+                        {engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">Avg Technical %</div>
+                      <div className="text-gray-600">
+                        {averageMetrics ? averageMetrics.technicalPercent.toFixed(1) : "--"}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">Enterprise %</div>
+                      <div className="text-gray-600">
+                        {averageMetrics ? averageMetrics.enterprisePercent.toFixed(1) : "--"}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">Open Tickets</div>
+                      <div className="text-gray-600">
+                        {engineerData.reduce((sum, eng) => sum + eng.open, 0)}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+
         {/* Footer */}
         <footer className="border-t border-gray-200 pt-8 mt-12">
           <div className="flex items-center justify-between text-sm text-gray-500">
