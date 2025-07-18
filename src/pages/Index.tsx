@@ -9,6 +9,12 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
+  BarChart3,
+  Shield,
+  FileText,
+  Star,
+  TrendingUp,
+  CheckCircle,
 } from "lucide-react";
 import { PerformanceTable } from "../components/PerformanceTable";
 import { RadarChart } from "../components/RadarChart";
@@ -16,6 +22,22 @@ import { MetricCard } from "../components/MetricCard";
 import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "../components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Progress } from "../components/ui/progress";
+import { Button } from "../components/ui/button";
 
 // Helper function to check if a date is a weekend (Saturday or Sunday)
 const isWeekend = (date: Date): boolean => {
