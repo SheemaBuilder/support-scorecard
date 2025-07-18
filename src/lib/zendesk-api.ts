@@ -501,10 +501,30 @@ export function calculateEngineerMetrics(
     (rating) => rating.assignee_id === user.id,
   );
 
+  // Debug ticket 20225 for this user
+  const ticket20225 = userTickets.find((t) => t.id === 20225);
+  if (ticket20225) {
+    console.log(`🎯 Ticket 20225 assigned to ${user.name} (ID: ${user.id}):`, {
+      status: ticket20225.status,
+      created_at: ticket20225.created_at,
+      solved_at: ticket20225.solved_at,
+    });
+  }
+
   // Calculate metrics
   const closedTickets = userTickets.filter(
     (ticket) => ticket.status === "closed" || ticket.status === "solved",
   );
+
+  // Debug closed tickets for users with ticket 20225
+  if (ticket20225) {
+    console.log(
+      `📊 ${user.name} total tickets: ${userTickets.length}, closed: ${closedTickets.length}`,
+    );
+    console.log(
+      `🔍 Ticket 20225 counted as closed: ${closedTickets.some((t) => t.id === 20225)}`,
+    );
+  }
 
   const openTickets = userTickets.filter(
     (ticket) =>
