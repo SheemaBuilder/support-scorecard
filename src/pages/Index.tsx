@@ -479,6 +479,30 @@ export default function Index() {
                   <span>Reload Data</span>
                 </button>
 
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(
+                        "/api/zendesk/tickets/20225",
+                      );
+                      const data = await response.json();
+                      if (response.ok) {
+                        alert(
+                          `✅ Ticket 20225 Found!\nID: ${data.ticket.id}\nSubject: ${data.ticket.subject}\nStatus: ${data.ticket.status}\nCreated: ${data.ticket.created_at}\nSolved: ${data.ticket.solved_at || "Not solved"}\nAssignee ID: ${data.ticket.assignee_id || "Unassigned"}`,
+                        );
+                      } else {
+                        alert(`❌ Failed to fetch ticket 20225: ${data.error}`);
+                      }
+                    } catch (error) {
+                      alert(`❌ Error fetching ticket 20225: ${error}`);
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                >
+                  <span>🎫</span>
+                  <span>Test Ticket 20225</span>
+                </button>
+
                 {currentEngineer && (
                   <button
                     onClick={() =>
