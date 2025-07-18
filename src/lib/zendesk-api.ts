@@ -156,7 +156,10 @@ async function apiRequest<T>(
     // Handle specific error types
     if (error instanceof Error) {
       // Check for rate limit errors from backend
-      if (error.message.includes("Rate limit protection active")) {
+      if (
+        error.message.includes("Rate limit protection active") ||
+        error.message.includes("API rate limit exceeded")
+      ) {
         // Extract wait time if possible
         const waitMatch = error.message.match(/(\d+) seconds/);
         const waitTime = waitMatch ? waitMatch[1] : "2-3 minutes";
@@ -278,6 +281,31 @@ export async function getUsers(): Promise<ZendeskUser[]> {
       // Handle AbortError specifically
       if (error instanceof Error && error.name === "AbortError") {
         console.warn(`⏰ Request timeout for ${name}, creating placeholder`);
+      }
+
+      // Handle rate limit errors specifically
+      if (error instanceof Error && error.message.includes("Rate limit")) {
+        console.warn(
+          `🚫 Rate limit hit for ${name}, stopping further requests`,
+        );
+        // Create placeholder for remaining users to avoid overwhelming the API
+        const remainingEntries = engineerEntries.slice(processed - 1);
+        for (const [remainingName, remainingId] of remainingEntries) {
+          const placeholderUser: ZendeskUser = {
+            id: remainingId,
+            name: remainingName,
+            email: `${remainingName.toLowerCase().replace(" ", ".")}@placeholder.com`,
+            role: "agent",
+            active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          users.push(placeholderUser);
+          console.log(
+            `📝 Created placeholder for rate-limited: ${remainingName}`,
+          );
+        }
+        break;
       }
 
       // Create a placeholder user if the ID doesn't exist or request failed
