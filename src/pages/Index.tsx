@@ -553,15 +553,22 @@ export default function Index() {
                           ? "✅ In tracked engineers"
                           : "❌ NOT in tracked engineers";
 
-                        // Check date range
-                        const ticketDate = new Date(data.ticket.created_at);
+                        // Check date range using both created_at and updated_at
+                        const createdDate = new Date(data.ticket.created_at);
+                        const updatedDate = new Date(data.ticket.updated_at);
                         const currentRange = selectedPeriod;
-                        const inDateRange =
-                          ticketDate >= currentRange.start &&
-                          ticketDate <= currentRange.end;
-                        const dateInfo = inDateRange
-                          ? "✅ In current date range"
-                          : "❌ Outside current date range";
+
+                        const createdInRange =
+                          createdDate >= currentRange.start &&
+                          createdDate <= currentRange.end;
+                        const updatedInRange =
+                          updatedDate >= currentRange.start &&
+                          updatedDate <= currentRange.end;
+
+                        const dateInfo =
+                          `Created: ${createdInRange ? "✅" : "❌"} (${createdDate.toISOString()})\n` +
+                          `Updated: ${updatedInRange ? "✅" : "❌"} (${updatedDate.toISOString()})\n` +
+                          `Should count: ${updatedInRange ? "YES (updated in range)" : "NO (updated outside range)"}`;
 
                         // Fix the solved display logic
                         const isSolved =
