@@ -77,9 +77,9 @@ async function proxyZendeskRequest(endpoint) {
 
     // Handle rate limiting specifically
     if (response.status === 429) {
-      console.log("Rate limit hit, waiting 5 seconds...");
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds instead of 60
-      console.log("Retrying request...");
+      console.log("Rate limit hit, waiting 30 seconds...");
+      await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds for proper rate limit recovery
+      console.log("Retrying request after rate limit...");
       return proxyZendeskRequest(endpoint); // Retry once
     }
 
