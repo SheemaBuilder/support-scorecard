@@ -10,8 +10,8 @@ const isCloudEnvironment = () => {
   const hostname = window.location.hostname;
   const isCloud = hostname !== "localhost" && hostname !== "127.0.0.1";
   console.log("🌐 Environment check:", { hostname, isCloud });
-  // Enable cloud environment detection to use mock data and avoid rate limiting
-  return isCloud;
+  // FORCE REAL DATA ONLY - Never use mock data regardless of environment
+  return false;
 };
 
 interface UseZendeskDataState {

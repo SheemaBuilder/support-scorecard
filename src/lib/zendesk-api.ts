@@ -519,7 +519,7 @@ export function calculateEngineerMetrics(
   // Debug closed tickets for users with ticket 20225
   if (ticket20225) {
     console.log(
-      `📊 ${user.name} total tickets: ${userTickets.length}, closed: ${closedTickets.length}`,
+      `��� ${user.name} total tickets: ${userTickets.length}, closed: ${closedTickets.length}`,
     );
     console.log(
       `🔍 Ticket 20225 counted as closed: ${closedTickets.some((t) => t.id === 20225)}`,
@@ -796,8 +796,10 @@ export async function fetchAllEngineerMetrics(
     );
 
     if (users.length === 0) {
-      console.warn("⚠️ No engineers found from API, using mock data");
-      return createMockData();
+      console.error(
+        "❌ No engineers found from API - this should not happen with real data",
+      );
+      throw new Error("No engineers found in API response");
     }
 
     const engineerMetrics = users.map((user) =>
