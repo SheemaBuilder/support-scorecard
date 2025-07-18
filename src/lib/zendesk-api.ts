@@ -16,39 +16,154 @@ const isCloudEnvironment = () => {
   );
 };
 
-// Mock data for when backend is not available
+// Static mock data for when backend is not available - consistent values
 const createMockData = (): EngineerMetrics[] => {
-  const engineersFromMap = Array.from(nameToIdMap.keys());
-  console.log("🎭 Creating mock data for engineers:", engineersFromMap);
-  console.log("📊 Total engineers in nameToIdMap:", engineersFromMap.length);
+  console.log("🎭 Using static mock data for engineers from nameToIdMap");
 
-  const mockData = engineersFromMap.map((name, index) => {
-    const data = {
-      name,
-      cesPercent: 75 + Math.random() * 20, // 75-95%
-      avgPcc: 2 + Math.random() * 6, // 2-8 hours
-      closed: 15 + Math.floor(Math.random() * 25), // 15-40 tickets
-      open: Math.floor(Math.random() * 8), // 0-8 tickets
-      openGreaterThan14: Math.floor(Math.random() * 3), // 0-3 tickets
-      closedLessThan7: 60 + Math.random() * 30, // 60-90%
-      closedEqual1: 30 + Math.random() * 40, // 30-70%
-      participationRate: 3 + Math.random() * 2, // 3-5 rating
-      linkCount: 2 + Math.random() * 3, // 2-5 links
-      citationCount: 3 + Math.random() * 2, // 3-5 citations
-      creationCount: 3.5 + Math.random() * 1.5, // 3.5-5 rating
-      enterprisePercent: 20 + Math.random() * 40, // 20-60%
-      technicalPercent: 40 + Math.random() * 30, // 40-70%
-      surveyCount: 8 + Math.floor(Math.random() * 15), // 8-23 surveys
-    };
-    console.log(`👤 Generated data for ${name}:`, data);
-    return data;
-  });
+  const staticMockData: EngineerMetrics[] = [
+    {
+      name: "Jared Beckler",
+      cesPercent: 89.2,
+      avgPcc: 3.4,
+      closed: 32,
+      open: 4,
+      openGreaterThan14: 1,
+      closedLessThan7: 78.5,
+      closedEqual1: 45.2,
+      participationRate: 4.2,
+      linkCount: 3.8,
+      citationCount: 4.1,
+      creationCount: 4.3,
+      enterprisePercent: 42.0,
+      technicalPercent: 58.5,
+      surveyCount: 18,
+    },
+    {
+      name: "Rahul Joshi",
+      cesPercent: 85.7,
+      avgPcc: 2.8,
+      closed: 28,
+      open: 6,
+      openGreaterThan14: 2,
+      closedLessThan7: 82.1,
+      closedEqual1: 52.3,
+      participationRate: 4.0,
+      linkCount: 4.2,
+      citationCount: 3.9,
+      creationCount: 4.1,
+      enterprisePercent: 38.5,
+      technicalPercent: 65.2,
+      surveyCount: 16,
+    },
+    {
+      name: "Parth Sharma",
+      cesPercent: 91.3,
+      avgPcc: 2.1,
+      closed: 35,
+      open: 3,
+      openGreaterThan14: 0,
+      closedLessThan7: 88.9,
+      closedEqual1: 62.1,
+      participationRate: 4.5,
+      linkCount: 4.6,
+      citationCount: 4.4,
+      creationCount: 4.7,
+      enterprisePercent: 45.8,
+      technicalPercent: 72.3,
+      surveyCount: 21,
+    },
+    {
+      name: "Fernando Duran",
+      cesPercent: 83.1,
+      avgPcc: 4.2,
+      closed: 24,
+      open: 7,
+      openGreaterThan14: 1,
+      closedLessThan7: 75.6,
+      closedEqual1: 38.9,
+      participationRate: 3.8,
+      linkCount: 3.5,
+      citationCount: 3.7,
+      creationCount: 3.9,
+      enterprisePercent: 35.2,
+      technicalPercent: 52.8,
+      surveyCount: 14,
+    },
+    {
+      name: "Alex Bridgeman",
+      cesPercent: 87.4,
+      avgPcc: 3.1,
+      closed: 30,
+      open: 5,
+      openGreaterThan14: 1,
+      closedLessThan7: 80.3,
+      closedEqual1: 48.7,
+      participationRate: 4.1,
+      linkCount: 4.0,
+      citationCount: 4.0,
+      creationCount: 4.2,
+      enterprisePercent: 41.7,
+      technicalPercent: 61.9,
+      surveyCount: 17,
+    },
+    {
+      name: "Sheema Parwaz",
+      cesPercent: 93.6,
+      avgPcc: 1.9,
+      closed: 38,
+      open: 2,
+      openGreaterThan14: 0,
+      closedLessThan7: 92.1,
+      closedEqual1: 68.4,
+      participationRate: 4.7,
+      linkCount: 4.8,
+      citationCount: 4.6,
+      creationCount: 4.8,
+      enterprisePercent: 48.3,
+      technicalPercent: 75.6,
+      surveyCount: 23,
+    },
+    {
+      name: "Manish Sharma",
+      cesPercent: 86.8,
+      avgPcc: 2.7,
+      closed: 29,
+      open: 5,
+      openGreaterThan14: 1,
+      closedLessThan7: 81.7,
+      closedEqual1: 51.2,
+      participationRate: 4.1,
+      linkCount: 4.1,
+      citationCount: 4.0,
+      creationCount: 4.3,
+      enterprisePercent: 40.1,
+      technicalPercent: 63.4,
+      surveyCount: 19,
+    },
+    {
+      name: "Akash Singh",
+      cesPercent: 84.2,
+      avgPcc: 3.6,
+      closed: 26,
+      open: 6,
+      openGreaterThan14: 2,
+      closedLessThan7: 76.8,
+      closedEqual1: 42.5,
+      participationRate: 3.9,
+      linkCount: 3.7,
+      citationCount: 3.8,
+      creationCount: 4.0,
+      enterprisePercent: 36.9,
+      technicalPercent: 55.7,
+      surveyCount: 15,
+    },
+  ];
 
   console.log(
-    "✅ Mock data generation complete. Total records:",
-    mockData.length,
+    "✅ Static mock data loaded. Total records:",
+    staticMockData.length,
   );
-  return mockData;
+  return staticMockData;
 };
 
 // Check if backend is available
