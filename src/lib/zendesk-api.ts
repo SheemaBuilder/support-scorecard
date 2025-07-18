@@ -432,9 +432,29 @@ export async function getTickets(
   if (startDate && endDate) {
     params.append("start_date", startDate.toISOString());
     params.append("end_date", endDate.toISOString());
+    console.log(
+      `🔍 Date filter - Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`,
+    );
   }
 
   const response = await apiRequest<ZendeskTicketsResponse>("/tickets", params);
+
+  // Debug ticket 20225 specifically
+  const ticket20225 = response.tickets.find((t) => t.id === 20225);
+  if (ticket20225) {
+    console.log(`🎫 Found ticket 20225 in API response:`, {
+      id: ticket20225.id,
+      status: ticket20225.status,
+      created_at: ticket20225.created_at,
+      assignee_id: ticket20225.assignee_id,
+      subject: ticket20225.subject.substring(0, 50) + "...",
+    });
+  } else {
+    console.log(
+      `❌ Ticket 20225 NOT found in API response (total tickets: ${response.tickets.length})`,
+    );
+  }
+
   return response.tickets;
 }
 
