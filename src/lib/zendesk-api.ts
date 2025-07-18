@@ -723,11 +723,13 @@ export async function fetchAllEngineerMetrics(
 
   try {
     console.log("✅ Attempting to fetch real Zendesk data...");
-    const [users, tickets, ratings] = await Promise.all([
-      getUsers(), // This now fetches only engineers from nameToIdMap
-      getTickets(startDate, endDate),
-      getSatisfactionRatings(startDate, endDate),
-    ]);
+    // Make requests sequentially to avoid rate limits
+    console.log("🧑‍💻 Fetching users...");
+    const users = await getUsers(); // This now fetches only engineers from nameToIdMap
+    console.log("🎫 Fetching tickets...");
+    const tickets = await getTickets(startDate, endDate);
+    console.log("⭐ Fetching satisfaction ratings...");
+    const ratings = await getSatisfactionRatings(startDate, endDate);
 
     console.log("📊 Raw data received:");
     console.log("- Engineers:", users.length);
