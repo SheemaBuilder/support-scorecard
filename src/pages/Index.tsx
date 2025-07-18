@@ -206,7 +206,8 @@ export default function Index() {
             <div>✓ VITE_ZENDESK_SUBDOMAIN: {config.subdomain || "Missing"}</div>
             <div>✓ VITE_ZENDESK_EMAIL: {config.email || "Missing"}</div>
             <div>
-              ✓ VITE_ZENDESK_API_TOKEN: {config.hasApiToken ? "Set" : "Missing"}
+              ��� VITE_ZENDESK_API_TOKEN:{" "}
+              {config.hasApiToken ? "Set" : "Missing"}
             </div>
           </div>
         </div>
@@ -433,7 +434,7 @@ export default function Index() {
               </div>
               <div className="text-orange-800">
                 <span className="font-medium">Loading:</span>{" "}
-                {isLoading ? "🔄 In progress" : "�� Complete"}
+                {isLoading ? "🔄 In progress" : "✅ Complete"}
               </div>
               <div className="text-orange-800">
                 <span className="font-medium">Error:</span> {error || "None"}
@@ -528,6 +529,82 @@ export default function Index() {
 
                 <button
                   onClick={async () => {
+                    const jaredId = 29215234714775;
+                    try {
+                      // Fetch satisfaction ratings
+                      const ratingsResponse = await fetch(
+                        "/api/zendesk/satisfaction_ratings",
+                      );
+                      const ratingsData = await ratingsResponse.json();
+
+                      if (ratingsResponse.ok) {
+                        // Filter ratings for Jared
+                        const jaredRatings =
+                          ratingsData.satisfaction_ratings?.filter(
+                            (rating) => rating.assignee_id === jaredId,
+                          ) || [];
+
+                        // Get score breakdown
+                        const goodRatings = jaredRatings.filter(
+                          (r) => r.score === "good",
+                        ).length;
+                        const badRatings = jaredRatings.filter(
+                          (r) => r.score === "bad",
+                        ).length;
+                        const receivedRatings = jaredRatings.filter(
+                          (r) => r.score === "received",
+                        ).length;
+                        const offeredRatings = jaredRatings.filter(
+                          (r) => r.score === "offered",
+                        ).length;
+
+                        // Calculate CES percentage
+                        const cesPercent =
+                          jaredRatings.length > 0
+                            ? (
+                                (goodRatings / jaredRatings.length) *
+                                100
+                              ).toFixed(1)
+                            : "0.0";
+
+                        const surveyInfo =
+                          `🎯 Jared Beckler's Survey Analysis\n\n` +
+                          `📊 Total Surveys: ${jaredRatings.length}\n` +
+                          `✅ Good Ratings: ${goodRatings}\n` +
+                          `❌ Bad Ratings: ${badRatings}\n` +
+                          `📥 Received: ${receivedRatings}\n` +
+                          `📤 Offered: ${offeredRatings}\n\n` +
+                          `🎯 CES Score: ${cesPercent}%\n\n` +
+                          `📋 Recent Survey Details:\n` +
+                          jaredRatings
+                            .slice(0, 5)
+                            .map(
+                              (rating) =>
+                                `• Ticket ${rating.ticket_id}: ${rating.score} (${new Date(rating.created_at).toLocaleDateString()})`,
+                            )
+                            .join("\n") +
+                          (jaredRatings.length > 5
+                            ? `\n... and ${jaredRatings.length - 5} more`
+                            : "");
+
+                        alert(surveyInfo);
+                      } else {
+                        alert(
+                          `❌ Failed to fetch satisfaction ratings: ${ratingsData.error}`,
+                        );
+                      }
+                    } catch (error) {
+                      alert(`❌ Error fetching Jared's surveys: ${error}`);
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                >
+                  <span>⭐</span>
+                  <span>Jared's Survey Tickets</span>
+                </button>
+
+                <button
+                  onClick={async () => {
                     try {
                       const response = await fetch(
                         "/api/zendesk/tickets/20225",
@@ -601,7 +678,7 @@ export default function Index() {
                   }}
                   className="flex items-center space-x-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                 >
-                  <span>���</span>
+                  <span>🎫</span>
                   <span>Debug Ticket 20225</span>
                 </button>
               </div>
