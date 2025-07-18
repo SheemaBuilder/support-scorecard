@@ -102,6 +102,19 @@ app.get("/api/zendesk/users", async (req, res) => {
   }
 });
 
+// Add endpoint to fetch individual user by ID
+app.get("/api/zendesk/users/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log(`Fetching individual user: ${userId}`);
+    const data = await proxyZendeskRequest(`/users/${userId}.json`);
+    res.json(data);
+  } catch (error) {
+    console.error(`Error fetching user ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/zendesk/tickets", async (req, res) => {
   try {
     let endpoint = "/tickets.json?include=users";
