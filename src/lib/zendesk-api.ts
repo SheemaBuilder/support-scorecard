@@ -137,15 +137,9 @@ async function apiRequest<T>(
       error instanceof TypeError &&
       error.message.includes("Failed to fetch")
     ) {
-      if (isCloudEnvironment()) {
-        throw new Error(
-          "Cannot connect to backend server in cloud environment. Backend required for real data.",
-        );
-      } else {
-        throw new Error(
-          "Cannot connect to backend server. Make sure it's running on port 3001.",
-        );
-      }
+      throw new Error(
+        "Network connection issue. Please wait 30 seconds and try 'Pull Data' again.",
+      );
     }
 
     throw error;
