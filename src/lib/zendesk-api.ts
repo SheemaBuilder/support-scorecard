@@ -91,35 +91,41 @@ async function apiRequest<T>(
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, response.headers);
 
+    // Read response body once and handle both success and error cases
+    const contentType = response.headers.get("content-type");
+    let responseData: any;
+
+    try {
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+    } catch (parseError) {
+      console.error("Failed to read response:", parseError);
+      throw new Error("Failed to read response from server");
+    }
+
     if (!response.ok) {
-      // For error responses, try to read the error details
+      // For error responses, extract error message from parsed data
       let errorText: string = `HTTP ${response.status} ${response.statusText}`;
 
-      try {
-        // Read as text first to avoid stream consumption issues
-        const responseText = await response.text();
-        console.log("📄 Raw error response:", responseText);
-
-        if (responseText) {
-          try {
-            // Try to parse as JSON
-            const errorData = JSON.parse(responseText);
-            errorText = errorData.error || errorData.message || responseText;
-            console.log("📄 Parsed error JSON:", errorData);
-          } catch (jsonParseError) {
-            // If not valid JSON, use the raw text
-            errorText = responseText;
-            console.log("📄 Using raw text as error");
-          }
-        }
-      } catch (readError) {
-        console.warn("⚠️ Could not read error response:", readError);
+      if (typeof responseData === "string") {
+        errorText = responseData;
+      } else if (responseData && typeof responseData === "object") {
+        errorText =
+          responseData.error ||
+          responseData.message ||
+          JSON.stringify(responseData);
       }
 
       console.error(`API error response:`, errorText);
 
       // Handle specific backend errors
-      if (errorText.includes("Rate limit protection active")) {
+      if (
+        errorText.includes("Rate limit protection active") ||
+        errorText.includes("API rate limit exceeded")
+      ) {
         throw new Error(errorText);
       }
 
@@ -128,21 +134,8 @@ async function apiRequest<T>(
       );
     }
 
-    // For successful responses, read as JSON directly
-    const contentType = response.headers.get("content-type");
-    try {
-      if (contentType && contentType.includes("application/json")) {
-        return await response.json();
-      } else {
-        // For non-JSON responses, read as text
-        const responseText = await response.text();
-        console.warn("Non-JSON response received:", contentType);
-        return responseText as T;
-      }
-    } catch (parseError) {
-      console.error("Failed to parse response:", parseError);
-      throw new Error("Failed to parse response from server");
-    }
+    // Return successful response data
+    return responseData as T;
   } catch (error) {
     console.error(`API request failed for ${url.toString()}:`, error);
 
@@ -725,7 +718,7 @@ export async function fetchAllEngineerMetrics(
     console.log("- Ratings:", ratings.length);
 
     console.log(
-      "👥 Engineers fetched:",
+      "�� Engineers fetched:",
       users.map((u) => u.name),
     );
 
