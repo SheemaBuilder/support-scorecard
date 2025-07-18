@@ -208,6 +208,7 @@ export function useZendeskData(
         // Track consecutive failures for circuit breaker
         if (
           errorMessage.includes("rate limit") ||
+          errorMessage.includes("Rate limit active") ||
           errorMessage.includes("timeout") ||
           errorMessage.includes("429")
         ) {
