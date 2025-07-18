@@ -22,8 +22,19 @@ import { MetricCard } from "../components/MetricCard";
 import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "../components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Button } from "../components/ui/button";
@@ -96,12 +107,19 @@ const getDateRanges = (): DateRange[] => {
   const sevenWorkingDaysAgo = getWorkingDaysBack(7);
 
   // This month: first working day of current month to today
-  const thisMonthStart = getFirstWorkingDayOfMonth(today.getFullYear(), today.getMonth());
+  const thisMonthStart = getFirstWorkingDayOfMonth(
+    today.getFullYear(),
+    today.getMonth(),
+  );
 
   // Last month: first to last working day of previous month
-  const lastMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+  const lastMonthYear =
+    today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
   const lastMonthMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-  const lastMonthStart = getFirstWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
+  const lastMonthStart = getFirstWorkingDayOfMonth(
+    lastMonthYear,
+    lastMonthMonth,
+  );
   const lastMonthEnd = getLastWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
 
   return [
@@ -516,10 +534,13 @@ export default function Index() {
         </div>
       )}
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="scorecard" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="scorecard" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="scorecard"
+              className="flex items-center space-x-2"
+            >
               <BarChart3 className="w-4 h-4" />
               <span>Score Card</span>
             </TabsTrigger>
@@ -531,7 +552,10 @@ export default function Index() {
               <Shield className="w-4 h-4" />
               <span>Quality Assurance</span>
             </TabsTrigger>
-            <TabsTrigger value="summary" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="summary"
+              className="flex items-center space-x-2"
+            >
               <FileText className="w-4 h-4" />
               <span>Monthly Summary</span>
             </TabsTrigger>
@@ -539,253 +563,254 @@ export default function Index() {
 
           {/* Score Card Tab */}
           <TabsContent value="scorecard">
-        {/* Summary Cards */}
-        {averageMetrics ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <MetricCard
-              title="Team Average CES"
-              value={`${averageMetrics.cesPercent.toFixed(1)}%`}
-              subtitle={selectedPeriod.label}
-              trend={averageMetrics.cesPercent >= 80 ? "up" : "down"}
-              trendValue={`${averageMetrics.cesPercent >= 80 ? "+" : ""}${(averageMetrics.cesPercent - 80).toFixed(1)}%`}
-              color={
-                averageMetrics.cesPercent >= 85
-                  ? "green"
-                  : averageMetrics.cesPercent >= 75
-                    ? "yellow"
-                    : "red"
-              }
-            />
-            <MetricCard
-              title="Total Tickets Closed"
-              value={engineerData.reduce((sum, eng) => sum + eng.closed, 0)}
-              subtitle={selectedPeriod.label}
-              color="blue"
-            />
-            <MetricCard
-              title="Avg Response Time"
-              value={`${averageMetrics.avgPcc.toFixed(1)}h`}
-              subtitle="Hours"
-              color="purple"
-            />
-            <MetricCard
-              title="Active Engineers"
-              value={engineerData.length}
-              subtitle="Currently tracked"
-              color="yellow"
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-center h-20">
-                  <div className="text-center">
-                    <div className="text-gray-400 mb-2">No Data</div>
-                    <div className="text-sm text-gray-500">
-                      Backend required
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Performance Table */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Team Performance Overview
-            </h2>
-            <div className="text-sm text-gray-500">
-              {lastUpdated && (
-                <span>
-                  Last Updated: {lastUpdated.toLocaleDateString()} at{" "}
-                  {lastUpdated.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-          </div>
-          {averageMetrics ? (
-            <PerformanceTable
-              data={engineerData}
-              averageData={averageMetrics}
-            />
-          ) : (
-            <div className="bg-white rounded-lg shadow p-8">
-              <div className="text-center">
-                <div className="text-gray-400 mb-2">
-                  No Performance Data Available
-                </div>
-                <div className="text-sm text-gray-500">
-                  Start the backend server to load Zendesk data
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Performance Charts Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Individual Performance Analysis
-            </h2>
-            <div className="flex items-center space-x-4">
-              <label className="text-sm font-medium text-gray-700">
-                Engineer:
-              </label>
-              {engineerData.length > 0 ? (
-                <select
-                  value={selectedEngineer}
-                  onChange={(e) => setSelectedEngineer(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {engineerData.map((engineer) => (
-                    <option key={engineer.name} value={engineer.name}>
-                      {engineer.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
-                  Loading engineers...
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Current Period Chart */}
-            {currentEngineer && currentRadarData.metrics.length > 0 ? (
-              <div>
-                <RadarChart data={currentRadarData} size={320} />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Loading engineer data...</p>
-                </div>
-              </div>
-            )}
-
-            {/* Previous Period Chart */}
-            {currentEngineer && currentRadarData.metrics.length > 0 ? (
-              <div>
-                <RadarChart
-                  data={{
-                    title: selectedEngineer,
-                    subtitle: "Previous Period",
-                    metrics: currentRadarData.metrics.map((metric) => ({
-                      ...metric,
-                      value: Math.max(
-                        0,
-                        metric.value + (Math.random() - 0.5) * 0.6,
-                      ),
-                      color: "#64748b",
-                    })),
-                  }}
-                  size={320}
+            {/* Summary Cards */}
+            {averageMetrics ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <MetricCard
+                  title="Team Average CES"
+                  value={`${averageMetrics.cesPercent.toFixed(1)}%`}
+                  subtitle={selectedPeriod.label}
+                  trend={averageMetrics.cesPercent >= 80 ? "up" : "down"}
+                  trendValue={`${averageMetrics.cesPercent >= 80 ? "+" : ""}${(averageMetrics.cesPercent - 80).toFixed(1)}%`}
+                  color={
+                    averageMetrics.cesPercent >= 85
+                      ? "green"
+                      : averageMetrics.cesPercent >= 75
+                        ? "yellow"
+                        : "red"
+                  }
+                />
+                <MetricCard
+                  title="Total Tickets Closed"
+                  value={engineerData.reduce((sum, eng) => sum + eng.closed, 0)}
+                  subtitle={selectedPeriod.label}
+                  color="blue"
+                />
+                <MetricCard
+                  title="Avg Response Time"
+                  value={`${averageMetrics.avgPcc.toFixed(1)}h`}
+                  subtitle="Hours"
+                  color="purple"
+                />
+                <MetricCard
+                  title="Active Engineers"
+                  value={engineerData.length}
+                  subtitle="Currently tracked"
+                  color="yellow"
                 />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Loading engineer data...</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Detailed Metrics for Selected Engineer */}
-        {currentEngineer && averageMetrics ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <MetricCard
-              title="Customer Effort Score"
-              value={`${currentEngineer.cesPercent.toFixed(1)}%`}
-              subtitle="CES Score"
-              trend={
-                currentEngineer.cesPercent > averageMetrics.cesPercent
-                  ? "up"
-                  : "down"
-              }
-              trendValue={`${currentEngineer.cesPercent > averageMetrics.cesPercent ? "+" : ""}${(currentEngineer.cesPercent - averageMetrics.cesPercent).toFixed(1)}%`}
-              color={
-                currentEngineer.cesPercent >= 85
-                  ? "green"
-                  : currentEngineer.cesPercent >= 75
-                    ? "yellow"
-                    : "red"
-              }
-            />
-            <MetricCard
-              title="Tickets Closed"
-              value={currentEngineer.closed}
-              subtitle={selectedPeriod.label}
-              trend={
-                currentEngineer.closed > averageMetrics.closed ? "up" : "down"
-              }
-              trendValue={`${currentEngineer.closed > averageMetrics.closed ? "+" : ""}${(currentEngineer.closed - averageMetrics.closed).toFixed(0)}`}
-              color="blue"
-            />
-            <MetricCard
-              title="Overall Quality Score"
-              value={currentEngineer.participationRate.toFixed(1)}
-              subtitle="Quality rating"
-              trend={
-                currentEngineer.participationRate >
-                averageMetrics.participationRate
-                  ? "up"
-                  : "down"
-              }
-              trendValue={`${currentEngineer.participationRate > averageMetrics.participationRate ? "+" : ""}${(currentEngineer.participationRate - averageMetrics.participationRate).toFixed(1)}`}
-              color={
-                currentEngineer.participationRate >=
-                averageMetrics.participationRate
-                  ? "green"
-                  : "yellow"
-              }
-            />
-            <MetricCard
-              title="Technical Accuracy"
-              value={currentEngineer.creationCount.toFixed(1)}
-              subtitle="Score out of 5"
-              trend={
-                currentEngineer.creationCount > averageMetrics.creationCount
-                  ? "up"
-                  : "down"
-              }
-              trendValue={`${currentEngineer.creationCount > averageMetrics.creationCount ? "+" : ""}${(currentEngineer.creationCount - averageMetrics.creationCount).toFixed(1)}`}
-              color="purple"
-            />
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Individual Performance Analysis
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-center h-20">
-                    <div className="text-center">
-                      <div className="text-gray-400 mb-2">No Data</div>
-                      <div className="text-sm text-gray-500">
-                        Backend required
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-center h-20">
+                      <div className="text-center">
+                        <div className="text-gray-400 mb-2">No Data</div>
+                        <div className="text-sm text-gray-500">
+                          Backend required
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                ))}
+              </div>
+            )}
 
-                  </TabsContent>
+            {/* Performance Table */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Team Performance Overview
+                </h2>
+                <div className="text-sm text-gray-500">
+                  {lastUpdated && (
+                    <span>
+                      Last Updated: {lastUpdated.toLocaleDateString()} at{" "}
+                      {lastUpdated.toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {averageMetrics ? (
+                <PerformanceTable
+                  data={engineerData}
+                  averageData={averageMetrics}
+                />
+              ) : (
+                <div className="bg-white rounded-lg shadow p-8">
+                  <div className="text-center">
+                    <div className="text-gray-400 mb-2">
+                      No Performance Data Available
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Start the backend server to load Zendesk data
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Performance Charts Section */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Individual Performance Analysis
+                </h2>
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-gray-700">
+                    Engineer:
+                  </label>
+                  {engineerData.length > 0 ? (
+                    <select
+                      value={selectedEngineer}
+                      onChange={(e) => setSelectedEngineer(e.target.value)}
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {engineerData.map((engineer) => (
+                        <option key={engineer.name} value={engineer.name}>
+                          {engineer.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                      Loading engineers...
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Current Period Chart */}
+                {currentEngineer && currentRadarData.metrics.length > 0 ? (
+                  <div>
+                    <RadarChart data={currentRadarData} size={320} />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
+                    <div className="text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">Loading engineer data...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Previous Period Chart */}
+                {currentEngineer && currentRadarData.metrics.length > 0 ? (
+                  <div>
+                    <RadarChart
+                      data={{
+                        title: selectedEngineer,
+                        subtitle: "Previous Period",
+                        metrics: currentRadarData.metrics.map((metric) => ({
+                          ...metric,
+                          value: Math.max(
+                            0,
+                            metric.value + (Math.random() - 0.5) * 0.6,
+                          ),
+                          color: "#64748b",
+                        })),
+                      }}
+                      size={320}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
+                    <div className="text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">Loading engineer data...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Detailed Metrics for Selected Engineer */}
+            {currentEngineer && averageMetrics ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <MetricCard
+                  title="Customer Effort Score"
+                  value={`${currentEngineer.cesPercent.toFixed(1)}%`}
+                  subtitle="CES Score"
+                  trend={
+                    currentEngineer.cesPercent > averageMetrics.cesPercent
+                      ? "up"
+                      : "down"
+                  }
+                  trendValue={`${currentEngineer.cesPercent > averageMetrics.cesPercent ? "+" : ""}${(currentEngineer.cesPercent - averageMetrics.cesPercent).toFixed(1)}%`}
+                  color={
+                    currentEngineer.cesPercent >= 85
+                      ? "green"
+                      : currentEngineer.cesPercent >= 75
+                        ? "yellow"
+                        : "red"
+                  }
+                />
+                <MetricCard
+                  title="Tickets Closed"
+                  value={currentEngineer.closed}
+                  subtitle={selectedPeriod.label}
+                  trend={
+                    currentEngineer.closed > averageMetrics.closed
+                      ? "up"
+                      : "down"
+                  }
+                  trendValue={`${currentEngineer.closed > averageMetrics.closed ? "+" : ""}${(currentEngineer.closed - averageMetrics.closed).toFixed(0)}`}
+                  color="blue"
+                />
+                <MetricCard
+                  title="Overall Quality Score"
+                  value={currentEngineer.participationRate.toFixed(1)}
+                  subtitle="Quality rating"
+                  trend={
+                    currentEngineer.participationRate >
+                    averageMetrics.participationRate
+                      ? "up"
+                      : "down"
+                  }
+                  trendValue={`${currentEngineer.participationRate > averageMetrics.participationRate ? "+" : ""}${(currentEngineer.participationRate - averageMetrics.participationRate).toFixed(1)}`}
+                  color={
+                    currentEngineer.participationRate >=
+                    averageMetrics.participationRate
+                      ? "green"
+                      : "yellow"
+                  }
+                />
+                <MetricCard
+                  title="Technical Accuracy"
+                  value={currentEngineer.creationCount.toFixed(1)}
+                  subtitle="Score out of 5"
+                  trend={
+                    currentEngineer.creationCount > averageMetrics.creationCount
+                      ? "up"
+                      : "down"
+                  }
+                  trendValue={`${currentEngineer.creationCount > averageMetrics.creationCount ? "+" : ""}${(currentEngineer.creationCount - averageMetrics.creationCount).toFixed(1)}`}
+                  color="purple"
+                />
+              </div>
+            ) : (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Individual Performance Analysis
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-white rounded-lg shadow p-6">
+                      <div className="flex items-center justify-center h-20">
+                        <div className="text-center">
+                          <div className="text-gray-400 mb-2">No Data</div>
+                          <div className="text-sm text-gray-500">
+                            Backend required
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
 
           {/* CES Deep Dive Tab */}
           <TabsContent value="ces">
@@ -797,17 +822,33 @@ export default function Index() {
                       <Star className="w-5 h-5 text-yellow-500" />
                       <span>CES Score Distribution</span>
                     </CardTitle>
-                    <CardDescription>Customer Effort Score breakdown by engineer</CardDescription>
+                    <CardDescription>
+                      Customer Effort Score breakdown by engineer
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {engineerData.length > 0 ? (
                       <div className="space-y-4">
                         {engineerData.map((engineer) => (
-                          <div key={engineer.name} className="flex items-center justify-between">
+                          <div
+                            key={engineer.name}
+                            className="flex items-center justify-between"
+                          >
                             <span className="font-medium">{engineer.name}</span>
                             <div className="flex items-center space-x-3">
-                              <Progress value={engineer.cesPercent} className="w-24" />
-                              <Badge variant={engineer.cesPercent >= 85 ? "default" : engineer.cesPercent >= 75 ? "secondary" : "destructive"}>
+                              <Progress
+                                value={engineer.cesPercent}
+                                className="w-24"
+                              />
+                              <Badge
+                                variant={
+                                  engineer.cesPercent >= 85
+                                    ? "default"
+                                    : engineer.cesPercent >= 75
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
                                 {engineer.cesPercent.toFixed(1)}%
                               </Badge>
                             </div>
@@ -815,7 +856,9 @@ export default function Index() {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">No CES data available</div>
+                      <div className="text-center py-8 text-gray-500">
+                        No CES data available
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -823,33 +866,47 @@ export default function Index() {
                 <Card>
                   <CardHeader>
                     <CardTitle>CES Trends & Insights</CardTitle>
-                    <CardDescription>Analysis of customer effort patterns</CardDescription>
+                    <CardDescription>
+                      Analysis of customer effort patterns
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="p-4 bg-green-50 rounded-lg">
-                        <h4 className="font-medium text-green-800 mb-2">Top Performers</h4>
+                        <h4 className="font-medium text-green-800 mb-2">
+                          Top Performers
+                        </h4>
                         <div className="space-y-1">
                           {engineerData
-                            .filter(e => e.cesPercent >= 85)
+                            .filter((e) => e.cesPercent >= 85)
                             .slice(0, 3)
-                            .map(engineer => (
-                              <div key={engineer.name} className="text-sm text-green-700">
-                                {engineer.name}: {engineer.cesPercent.toFixed(1)}%
+                            .map((engineer) => (
+                              <div
+                                key={engineer.name}
+                                className="text-sm text-green-700"
+                              >
+                                {engineer.name}:{" "}
+                                {engineer.cesPercent.toFixed(1)}%
                               </div>
                             ))}
                         </div>
                       </div>
 
                       <div className="p-4 bg-yellow-50 rounded-lg">
-                        <h4 className="font-medium text-yellow-800 mb-2">Improvement Opportunities</h4>
+                        <h4 className="font-medium text-yellow-800 mb-2">
+                          Improvement Opportunities
+                        </h4>
                         <div className="space-y-1">
                           {engineerData
-                            .filter(e => e.cesPercent < 85)
+                            .filter((e) => e.cesPercent < 85)
                             .slice(0, 3)
-                            .map(engineer => (
-                              <div key={engineer.name} className="text-sm text-yellow-700">
-                                {engineer.name}: {engineer.cesPercent.toFixed(1)}%
+                            .map((engineer) => (
+                              <div
+                                key={engineer.name}
+                                className="text-sm text-yellow-700"
+                              >
+                                {engineer.name}:{" "}
+                                {engineer.cesPercent.toFixed(1)}%
                               </div>
                             ))}
                         </div>
@@ -862,27 +919,36 @@ export default function Index() {
               <Card>
                 <CardHeader>
                   <CardTitle>CES Score Analysis</CardTitle>
-                  <CardDescription>Detailed breakdown of customer effort metrics</CardDescription>
+                  <CardDescription>
+                    Detailed breakdown of customer effort metrics
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-green-600">
-                        {averageMetrics ? averageMetrics.cesPercent.toFixed(1) : "--"}%
+                        {averageMetrics
+                          ? averageMetrics.cesPercent.toFixed(1)
+                          : "--"}
+                        %
                       </div>
                       <div className="text-sm text-gray-600">Team Average</div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">
-                        {engineerData.filter(e => e.cesPercent >= 85).length}
+                        {engineerData.filter((e) => e.cesPercent >= 85).length}
                       </div>
-                      <div className="text-sm text-gray-600">Excellent (≥85%)</div>
+                      <div className="text-sm text-gray-600">
+                        Excellent (≥85%)
+                      </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-orange-600">
-                        {engineerData.filter(e => e.cesPercent < 75).length}
+                        {engineerData.filter((e) => e.cesPercent < 75).length}
                       </div>
-                      <div className="text-sm text-gray-600">Needs Attention (<75%)</div>
+                      <div className="text-sm text-gray-600">
+                        Needs Attention (&lt;75%)
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -899,31 +965,47 @@ export default function Index() {
                     <Shield className="w-5 h-5 text-blue-500" />
                     <span>Quality Metrics Overview</span>
                   </CardTitle>
-                  <CardDescription>Comprehensive quality assessment across all engineers</CardDescription>
+                  <CardDescription>
+                    Comprehensive quality assessment across all engineers
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-purple-600">
-                        {averageMetrics ? averageMetrics.participationRate.toFixed(1) : "--"}
+                        {averageMetrics
+                          ? averageMetrics.participationRate.toFixed(1)
+                          : "--"}
                       </div>
-                      <div className="text-sm text-gray-600">Avg Quality Score</div>
+                      <div className="text-sm text-gray-600">
+                        Avg Quality Score
+                      </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">
-                        {averageMetrics ? averageMetrics.citationCount.toFixed(1) : "--"}
+                        {averageMetrics
+                          ? averageMetrics.citationCount.toFixed(1)
+                          : "--"}
                       </div>
-                      <div className="text-sm text-gray-600">Response Quality</div>
+                      <div className="text-sm text-gray-600">
+                        Response Quality
+                      </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-green-600">
-                        {averageMetrics ? averageMetrics.creationCount.toFixed(1) : "--"}
+                        {averageMetrics
+                          ? averageMetrics.creationCount.toFixed(1)
+                          : "--"}
                       </div>
-                      <div className="text-sm text-gray-600">Technical Accuracy</div>
+                      <div className="text-sm text-gray-600">
+                        Technical Accuracy
+                      </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-orange-600">
-                        {averageMetrics ? averageMetrics.linkCount.toFixed(1) : "--"}
+                        {averageMetrics
+                          ? averageMetrics.linkCount.toFixed(1)
+                          : "--"}
                       </div>
                       <div className="text-sm text-gray-600">Communication</div>
                     </div>
@@ -942,11 +1024,20 @@ export default function Index() {
                         <div key={engineer.name} className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="font-medium">{engineer.name}</span>
-                            <Badge variant={engineer.participationRate >= 4 ? "default" : "secondary"}>
+                            <Badge
+                              variant={
+                                engineer.participationRate >= 4
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
                               {engineer.participationRate.toFixed(1)}/5.0
                             </Badge>
                           </div>
-                          <Progress value={(engineer.participationRate / 5) * 100} className="h-2" />
+                          <Progress
+                            value={(engineer.participationRate / 5) * 100}
+                            className="h-2"
+                          />
                         </div>
                       ))}
                     </div>
@@ -999,7 +1090,8 @@ export default function Index() {
                     <span>Monthly Performance Summary</span>
                   </CardTitle>
                   <CardDescription>
-                    {selectedPeriod.label} • Generated on {new Date().toLocaleDateString()}
+                    {selectedPeriod.label} • Generated on{" "}
+                    {new Date().toLocaleDateString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1008,19 +1100,31 @@ export default function Index() {
                       <div className="text-3xl font-bold text-green-600 mb-2">
                         {engineerData.reduce((sum, eng) => sum + eng.closed, 0)}
                       </div>
-                      <div className="text-sm text-gray-600">Total Tickets Resolved</div>
+                      <div className="text-sm text-gray-600">
+                        Total Tickets Resolved
+                      </div>
                     </div>
                     <div className="text-center p-6 bg-blue-50 rounded-lg">
                       <div className="text-3xl font-bold text-blue-600 mb-2">
-                        {averageMetrics ? averageMetrics.cesPercent.toFixed(1) : "--"}%
+                        {averageMetrics
+                          ? averageMetrics.cesPercent.toFixed(1)
+                          : "--"}
+                        %
                       </div>
-                      <div className="text-sm text-gray-600">Average CES Score</div>
+                      <div className="text-sm text-gray-600">
+                        Average CES Score
+                      </div>
                     </div>
                     <div className="text-center p-6 bg-purple-50 rounded-lg">
                       <div className="text-3xl font-bold text-purple-600 mb-2">
-                        {averageMetrics ? averageMetrics.avgPcc.toFixed(1) : "--"}h
+                        {averageMetrics
+                          ? averageMetrics.avgPcc.toFixed(1)
+                          : "--"}
+                        h
                       </div>
-                      <div className="text-sm text-gray-600">Avg Response Time</div>
+                      <div className="text-sm text-gray-600">
+                        Avg Response Time
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1036,9 +1140,15 @@ export default function Index() {
                       <div className="flex items-start space-x-3">
                         <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
                         <div>
-                          <h4 className="font-medium">Excellent Team Performance</h4>
+                          <h4 className="font-medium">
+                            Excellent Team Performance
+                          </h4>
                           <p className="text-sm text-gray-600">
-                            {engineerData.filter(e => e.cesPercent >= 85).length} engineers achieved CES scores above 85%
+                            {
+                              engineerData.filter((e) => e.cesPercent >= 85)
+                                .length
+                            }{" "}
+                            engineers achieved CES scores above 85%
                           </p>
                         </div>
                       </div>
@@ -1047,7 +1157,12 @@ export default function Index() {
                         <div>
                           <h4 className="font-medium">High Resolution Rate</h4>
                           <p className="text-sm text-gray-600">
-                            Successfully resolved {engineerData.reduce((sum, eng) => sum + eng.closed, 0)} tickets this period
+                            Successfully resolved{" "}
+                            {engineerData.reduce(
+                              (sum, eng) => sum + eng.closed,
+                              0,
+                            )}{" "}
+                            tickets this period
                           </p>
                         </div>
                       </div>
@@ -1056,7 +1171,8 @@ export default function Index() {
                         <div>
                           <h4 className="font-medium">Quality Consistency</h4>
                           <p className="text-sm text-gray-600">
-                            Maintained high quality standards across all support channels
+                            Maintained high quality standards across all support
+                            channels
                           </p>
                         </div>
                       </div>
@@ -1071,21 +1187,30 @@ export default function Index() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="p-4 border-l-4 border-blue-500 bg-blue-50">
-                        <h4 className="font-medium text-blue-800">Training Focus</h4>
+                        <h4 className="font-medium text-blue-800">
+                          Training Focus
+                        </h4>
                         <p className="text-sm text-blue-700">
-                          Implement advanced customer communication workshops for engineers with CES scores below 85%
+                          Implement advanced customer communication workshops
+                          for engineers with CES scores below 85%
                         </p>
                       </div>
                       <div className="p-4 border-l-4 border-green-500 bg-green-50">
-                        <h4 className="font-medium text-green-800">Process Improvement</h4>
+                        <h4 className="font-medium text-green-800">
+                          Process Improvement
+                        </h4>
                         <p className="text-sm text-green-700">
-                          Deploy new knowledge base tools to reduce average response time by 15%
+                          Deploy new knowledge base tools to reduce average
+                          response time by 15%
                         </p>
                       </div>
                       <div className="p-4 border-l-4 border-purple-500 bg-purple-50">
-                        <h4 className="font-medium text-purple-800">Team Development</h4>
+                        <h4 className="font-medium text-purple-800">
+                          Team Development
+                        </h4>
                         <p className="text-sm text-purple-700">
-                          Establish peer mentoring program to share best practices across the team
+                          Establish peer mentoring program to share best
+                          practices across the team
                         </p>
                       </div>
                     </div>
@@ -1100,25 +1225,42 @@ export default function Index() {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="font-medium text-gray-900">Total Surveys</div>
+                      <div className="font-medium text-gray-900">
+                        Total Surveys
+                      </div>
                       <div className="text-gray-600">
-                        {engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0)}
+                        {engineerData.reduce(
+                          (sum, eng) => sum + eng.surveyCount,
+                          0,
+                        )}
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">Avg Technical %</div>
+                      <div className="font-medium text-gray-900">
+                        Avg Technical %
+                      </div>
                       <div className="text-gray-600">
-                        {averageMetrics ? averageMetrics.technicalPercent.toFixed(1) : "--"}%
+                        {averageMetrics
+                          ? averageMetrics.technicalPercent.toFixed(1)
+                          : "--"}
+                        %
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">Enterprise %</div>
+                      <div className="font-medium text-gray-900">
+                        Enterprise %
+                      </div>
                       <div className="text-gray-600">
-                        {averageMetrics ? averageMetrics.enterprisePercent.toFixed(1) : "--"}%
+                        {averageMetrics
+                          ? averageMetrics.enterprisePercent.toFixed(1)
+                          : "--"}
+                        %
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">Open Tickets</div>
+                      <div className="font-medium text-gray-900">
+                        Open Tickets
+                      </div>
                       <div className="text-gray-600">
                         {engineerData.reduce((sum, eng) => sum + eng.open, 0)}
                       </div>
