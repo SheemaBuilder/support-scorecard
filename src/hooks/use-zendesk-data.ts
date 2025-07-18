@@ -365,6 +365,10 @@ export function useZendeskData(
 
   // Initial data fetch
   useEffect(() => {
+    console.log(
+      "🚀 useZendeskData useEffect triggered with initialDateRange:",
+      initialDateRange,
+    );
     fetchData(initialDateRange);
   }, [fetchData, initialDateRange]);
 
