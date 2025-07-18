@@ -530,60 +530,46 @@ export default function Index() {
                   onClick={async () => {
                     const jaredId = 29215234714775;
                     try {
-                      // Fetch satisfaction ratings
-                      const ratingsResponse = await fetch(
-                        "/api/zendesk/satisfaction_ratings",
+                      // Fetch tickets using current date range
+                      const params = new URLSearchParams({
+                        start_date: selectedPeriod.start.toISOString(),
+                        end_date: selectedPeriod.end.toISOString(),
+                      });
+                      const ticketsResponse = await fetch(
+                        `/api/zendesk/tickets?${params}`,
                       );
-                      const ratingsData = await ratingsResponse.json();
+                      const ticketsData = await ticketsResponse.json();
 
-                      if (ratingsResponse.ok) {
-                        const allRatings =
-                          ratingsData.satisfaction_ratings || [];
+                      if (ticketsResponse.ok) {
+                        const allTickets = ticketsData.tickets || [];
                         console.log(
-                          "🔍 Debug - All satisfaction ratings:",
-                          allRatings.length,
+                          "🔍 Debug - All tickets:",
+                          allTickets.length,
                         );
                         console.log(
-                          "🔍 Debug - First few ratings:",
-                          allRatings.slice(0, 3),
-                        );
-
-                        // Check what assignee IDs we have
-                        const uniqueAssigneeIds = [
-                          ...new Set(allRatings.map((r) => r.assignee_id)),
-                        ];
-                        console.log(
-                          "🔍 Debug - Unique assignee IDs:",
-                          uniqueAssigneeIds,
-                        );
-                        console.log(
-                          "🔍 Debug - Looking for Jared ID:",
-                          jaredId,
+                          "🔍 Debug - First few tickets:",
+                          allTickets.slice(0, 3),
                         );
 
-                        // Filter ratings for Jared
-                        const jaredRatings = allRatings.filter(
-                          (rating) => rating.assignee_id === jaredId,
+                        // Filter tickets for Jared
+                        const jaredTickets = allTickets.filter(
+                          (ticket) => ticket.assignee_id === jaredId,
+                        );
+
+                        // Filter closed/solved tickets
+                        const jaredClosedTickets = jaredTickets.filter(
+                          (ticket) =>
+                            ticket.status === "closed" ||
+                            ticket.status === "solved",
                         );
 
                         console.log(
-                          "🔍 Debug - Jared's ratings found:",
-                          jaredRatings.length,
+                          "🔍 Debug - Jared's total tickets:",
+                          jaredTickets.length,
                         );
                         console.log(
-                          "🔍 Debug - Jared's ratings:",
-                          jaredRatings,
-                        );
-
-                        // Also check if any ratings have Jared's ID as a different field
-                        const jaredRatingsAlt = allRatings.filter(
-                          (rating) =>
-                            rating.requester_id === jaredId ||
-                            rating.user_id === jaredId,
-                        );
-                        console.log(
-                          "🔍 Debug - Alternative field matches:",
-                          jaredRatingsAlt.length,
+                          "🔍 Debug - Jared's closed tickets:",
+                          jaredClosedTickets.length,
                         );
 
                         // Get the current engineer data from state to compare
@@ -592,72 +578,60 @@ export default function Index() {
                         );
                         console.log(
                           "🔍 Debug - Jared from performance table:",
-                          jaredFromTable?.surveyCount,
+                          jaredFromTable?.closed,
                         );
 
-                        // Get score breakdown
-                        const goodRatings = jaredRatings.filter(
-                          (r) => r.score === "good",
-                        ).length;
-                        const badRatings = jaredRatings.filter(
-                          (r) => r.score === "bad",
-                        ).length;
-                        const receivedRatings = jaredRatings.filter(
-                          (r) => r.score === "received",
-                        ).length;
-                        const offeredRatings = jaredRatings.filter(
-                          (r) => r.score === "offered",
-                        ).length;
+                        // Get status breakdown
+                        const statusBreakdown = jaredTickets.reduce(
+                          (acc, ticket) => {
+                            acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+                            return acc;
+                          },
+                          {} as Record<string, number>,
+                        );
 
-                        // Calculate CES percentage
-                        const cesPercent =
-                          jaredRatings.length > 0
-                            ? (
-                                (goodRatings / jaredRatings.length) *
-                                100
-                              ).toFixed(1)
-                            : "0.0";
-
-                        const surveyInfo =
-                          `🎯 Jared Beckler's Survey Analysis\n\n` +
+                        const ticketInfo =
+                          `🎯 Jared Beckler's Closed Tickets Analysis\n\n` +
                           `🔍 Debug Info:\n` +
-                          `Total API ratings: ${allRatings.length}\n` +
-                          `Unique assignee IDs: ${uniqueAssigneeIds.length}\n` +
-                          `Table shows: ${jaredFromTable?.surveyCount || "N/A"} surveys\n\n` +
-                          `📊 Filtered Results:\n` +
-                          `Total Surveys: ${jaredRatings.length}\n` +
-                          `✅ Good Ratings: ${goodRatings}\n` +
-                          `❌ Bad Ratings: ${badRatings}\n` +
-                          `📥 Received: ${receivedRatings}\n` +
-                          `📤 Offered: ${offeredRatings}\n\n` +
-                          `🎯 CES Score: ${cesPercent}%\n\n` +
-                          `📋 Recent Survey Details:\n` +
-                          jaredRatings
-                            .slice(0, 3)
+                          `Total API tickets: ${allTickets.length}\n` +
+                          `Date Range: ${selectedPeriod.label}\n` +
+                          `Table shows: ${jaredFromTable?.closed || "N/A"} closed\n\n` +
+                          `📊 Jared's Tickets:\n` +
+                          `Total Assigned: ${jaredTickets.length}\n` +
+                          `Closed/Solved: ${jaredClosedTickets.length}\n\n` +
+                          `📋 Status Breakdown:\n` +
+                          Object.entries(statusBreakdown)
+                            .map(([status, count]) => `• ${status}: ${count}`)
+                            .join("\n") +
+                          `\n\n📋 Recent Closed Tickets:\n` +
+                          jaredClosedTickets
+                            .slice(0, 5)
                             .map(
-                              (rating) =>
-                                `• Ticket ${rating.ticket_id}: ${rating.score} (assignee: ${rating.assignee_id})`,
+                              (ticket) =>
+                                `• #${ticket.id}: ${ticket.status} (${new Date(ticket.updated_at).toLocaleDateString()})`,
                             )
                             .join("\n") +
-                          (jaredRatings.length > 3
-                            ? `\n... and ${jaredRatings.length - 3} more`
+                          (jaredClosedTickets.length > 5
+                            ? `\n... and ${jaredClosedTickets.length - 5} more`
                             : "") +
                           `\n\n💡 Check browser console for detailed debug info`;
 
-                        alert(surveyInfo);
+                        alert(ticketInfo);
                       } else {
                         alert(
-                          `❌ Failed to fetch satisfaction ratings: ${ratingsData.error}`,
+                          `❌ Failed to fetch tickets: ${ticketsData.error}`,
                         );
                       }
                     } catch (error) {
-                      alert(`❌ Error fetching Jared's surveys: ${error}`);
+                      alert(
+                        `❌ Error fetching Jared's closed tickets: ${error}`,
+                      );
                     }
                   }}
                   className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                 >
-                  <span>⭐</span>
-                  <span>Jared's Survey Tickets</span>
+                  <span>🎫</span>
+                  <span>Jared's Closed Tickets</span>
                 </button>
 
                 <button
