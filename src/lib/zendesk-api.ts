@@ -227,7 +227,15 @@ async function apiRequest<T>(
   console.log(`Making API request to: ${url.toString()}`);
 
   try {
-    const response = await fetch(url.toString());
+    // Add timeout to prevent hanging on rate limits
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
 
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, response.headers);
