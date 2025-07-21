@@ -16,6 +16,10 @@ import { MetricCard } from "../components/MetricCard";
 import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
+import { testZendeskConnection } from "../test-zendesk.js";
+
+// Add debug helper
+const DEBUG_MODE = import.meta.env.DEV;
 
 // Default date ranges
 const dateRanges: DateRange[] = [
@@ -71,6 +75,25 @@ export default function Index() {
       setSelectedEngineer(engineerData[0].name);
     }
   }, [engineerData, selectedEngineer]);
+
+  // Debug logging
+  React.useEffect(() => {
+    if (DEBUG_MODE) {
+      console.log("🔍 Debug data state:", {
+        engineerDataLength: engineerData.length,
+        averageMetrics: averageMetrics,
+        isLoading,
+        error,
+        lastUpdated,
+        engineerSample: engineerData.slice(0, 2).map((e) => ({
+          name: e.name,
+          cesPercent: e.cesPercent,
+          closed: e.closed,
+          open: e.open,
+        })),
+      });
+    }
+  }, [engineerData, averageMetrics, isLoading, error, lastUpdated]);
 
   const currentEngineer =
     engineerData.find((e) => e.name === selectedEngineer) || engineerData[0];
@@ -362,6 +385,105 @@ export default function Index() {
         </div>
       </header>
 
+      {/* Debug Panel - only in development */}
+      {DEBUG_MODE && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <details className="text-sm">
+              <summary className="cursor-pointer text-yellow-800 font-medium">
+                🔍 Debug Info (Click to expand)
+              </summary>
+              <div className="mt-2 space-y-1 text-yellow-700">
+                <div>Engineers loaded: {engineerData.length}</div>
+                <div>
+                  Average metrics: {averageMetrics ? "✅ Loaded" : "❌ Missing"}
+                </div>
+                <div>Loading: {isLoading ? "⏳ Yes" : "✅ Complete"}</div>
+                <div>Error: {error || "None"}</div>
+                <div>
+                  Last updated: {lastUpdated?.toLocaleString() || "Never"}
+                </div>
+                {engineerData.length > 0 && (
+                  <div>
+                    Sample engineer: {engineerData[0].name} - Closed:{" "}
+                    {engineerData[0].closed}, CES:{" "}
+                    {engineerData[0].cesPercent.toFixed(1)}%
+                  </div>
+                )}
+                <div className="mt-3 flex space-x-2">
+                  <button
+                    onClick={async () => {
+                      console.log("🔬 Testing Zendesk API...");
+                      try {
+                        const result = await testZendeskConnection();
+                        console.log("Test result:", result);
+                      } catch (error) {
+                        console.error("Test failed:", error);
+                      }
+                    }}
+                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >
+                    🔬 Test Zendesk API
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log("🔄 Refetching data...");
+                      refetch(selectedPeriod);
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  >
+                    🔄 Refetch Data
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log("🎯 Checking ticket 19934...");
+                      try {
+                        // Add timestamp to prevent caching issues
+                        const url = `/api/debug/ticket/19934?t=${Date.now()}`;
+                        const response = await fetch(url);
+
+                        // Check if response is ok before reading
+                        if (!response.ok) {
+                          console.error(
+                            "🎯 API Error:",
+                            response.status,
+                            response.statusText,
+                          );
+                          return;
+                        }
+
+                        // Read response as JSON directly
+                        const data = await response.json();
+                        console.log("🎯 Ticket 19934 details:", data);
+
+                        // Specific logging for CES field
+                        const cesField = data.custom_fields?.find(
+                          (cf) => cf.id === 31797439524887,
+                        );
+                        if (cesField) {
+                          console.log("✅ Found CES field:", cesField);
+                        } else {
+                          console.log("❌ CES field not found");
+                          console.log(
+                            "📝 Available custom field IDs:",
+                            data.custom_fields?.map((cf) => cf.id) || [],
+                          );
+                        }
+                      } catch (error) {
+                        console.error("🎯 Ticket check error:", error.message);
+                      }
+                    }}
+                    className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                  >
+                    🎯 Check Ticket 19934
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      )}
+
       {/* Alerts Panel */}
       {showAlerts && (
         <div className="bg-yellow-50 border-b border-yellow-200">
@@ -423,7 +545,7 @@ export default function Index() {
               color="blue"
             />
             <MetricCard
-              title="Avg Response Time"
+              title="Avg RESOLUTION Time"
               value={`${averageMetrics.avgPcc.toFixed(1)}h`}
               subtitle="Hours"
               color="purple"
@@ -510,7 +632,7 @@ export default function Index() {
                 </select>
               ) : (
                 <div className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
-                  Loading engineers...
+                  {isLoading ? "Loading engineers..." : "No engineers found"}
                 </div>
               )}
             </div>

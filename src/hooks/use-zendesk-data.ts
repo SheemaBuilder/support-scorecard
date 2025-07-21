@@ -31,7 +31,7 @@ export function useZendeskData(
   initialDateRange?: DateRange,
 ): UseZendeskDataReturn {
   const [state, setState] = useState<UseZendeskDataState>({
-    engineerData: [],
+    engineerData: [], // Start with empty array - no dummy data
     averageMetrics: null,
     alerts: [],
     isLoading: true,
@@ -108,30 +108,27 @@ export function useZendeskData(
     async (dateRange?: DateRange) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // In cloud environments, don't attempt API calls - just show empty state
-      if (isCloudEnvironment()) {
-        console.warn(
-          "Cloud environment detected - no backend server available",
-        );
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error:
-            "Backend server required for data. This is a demo running in cloud environment.",
-        }));
-        return;
-      }
-
       try {
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
+
+        console.log("🔄 Fetching engineer metrics with date range:", {
+          startDate: startDate?.toISOString(),
+          endDate: endDate?.toISOString(),
+        });
 
         const engineerMetrics = await fetchAllEngineerMetrics(
           startDate,
           endDate,
         );
+
+        console.log("📊 Raw engineer metrics:", engineerMetrics);
+
         const teamAverages = await calculateTeamAverages(engineerMetrics);
+        console.log("📈 Team averages:", teamAverages);
+
         const alerts = generateAlerts(engineerMetrics, teamAverages);
+        console.log("🚨 Generated alerts:", alerts);
 
         setState({
           engineerData: engineerMetrics,
@@ -141,8 +138,14 @@ export function useZendeskData(
           error: null,
           lastUpdated: new Date(),
         });
+
+        console.log("✅ Successfully loaded data:", {
+          engineerCount: engineerMetrics.length,
+          hasAverages: !!teamAverages,
+          alertCount: alerts.length,
+        });
       } catch (error) {
-        console.error("Error fetching Zendesk data:", error);
+        console.error("❌ Error fetching Zendesk data:", error);
 
         const errorMessage =
           error instanceof Error ? error.message : "Failed to fetch data";
