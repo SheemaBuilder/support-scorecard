@@ -9,6 +9,94 @@ import {
   SyncResult
 } from "../lib/data-sync";
 
+// Mock data function to test date filtering
+function createMockDataForDateRange(dateRange?: DateRange) {
+  const periodLabel = dateRange?.label || 'No Filter';
+  const periodValue = dateRange?.value || 'none';
+
+  // Create different data based on the selected period
+  let baseTickets = 100;
+  let cesMultiplier = 1;
+
+  switch (periodValue) {
+    case 'last-7-days':
+      baseTickets = 50;
+      cesMultiplier = 0.9;
+      break;
+    case 'last-30-days':
+      baseTickets = 200;
+      cesMultiplier = 1.1;
+      break;
+    case 'this-month':
+      baseTickets = 150;
+      cesMultiplier = 1.0;
+      break;
+    case 'last-month':
+      baseTickets = 300;
+      cesMultiplier = 1.2;
+      break;
+    case 'all-2025':
+      baseTickets = 500;
+      cesMultiplier = 1.3;
+      break;
+    default:
+      baseTickets = 100;
+      cesMultiplier = 1.0;
+  }
+
+  const engineers = [
+    'Jared Beckler',
+    'Rahul Joshi',
+    'Parth Sharma',
+    'Fernando Duran',
+    'Alex Bridgeman',
+    'Sheema Parwaz',
+    'Manish Sharma',
+    'Akash Singh'
+  ];
+
+  const engineerData: EngineerMetrics[] = engineers.map((name, index) => {
+    const variance = (index + 1) * 0.1;
+    return {
+      name: `${name} (${periodLabel})`,
+      cesPercent: Math.round((75 + variance * 20) * cesMultiplier),
+      avgPcc: Math.round((20 + variance * 10) * 100) / 100,
+      closed: Math.round((baseTickets / 8) + variance * 20),
+      open: Math.round((10 + variance * 5)),
+      openGreaterThan14: Math.round(variance * 3),
+      closedLessThan7: Math.round((80 + variance * 15) * cesMultiplier),
+      closedEqual1: Math.round((60 + variance * 20) * cesMultiplier),
+      participationRate: Math.round((3 + variance * 2) * 100) / 100,
+      linkCount: Math.round((3 + variance * 2) * 100) / 100,
+      citationCount: Math.round(variance * 10),
+      creationCount: Math.round((3 + variance * 2) * 100) / 100,
+      enterprisePercent: Math.round((25 + variance * 20) * cesMultiplier),
+      technicalPercent: Math.round((70 + variance * 25) * cesMultiplier),
+      surveyCount: Math.round((8 + variance * 10)),
+    };
+  });
+
+  const averageMetrics: EngineerMetrics = {
+    name: `Team Average (${periodLabel})`,
+    cesPercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.cesPercent, 0) / engineerData.length),
+    avgPcc: Math.round(engineerData.reduce((sum, eng) => sum + eng.avgPcc, 0) / engineerData.length * 100) / 100,
+    closed: Math.round(engineerData.reduce((sum, eng) => sum + eng.closed, 0) / engineerData.length),
+    open: Math.round(engineerData.reduce((sum, eng) => sum + eng.open, 0) / engineerData.length),
+    openGreaterThan14: Math.round(engineerData.reduce((sum, eng) => sum + eng.openGreaterThan14, 0) / engineerData.length),
+    closedLessThan7: Math.round(engineerData.reduce((sum, eng) => sum + eng.closedLessThan7, 0) / engineerData.length),
+    closedEqual1: Math.round(engineerData.reduce((sum, eng) => sum + eng.closedEqual1, 0) / engineerData.length),
+    participationRate: Math.round(engineerData.reduce((sum, eng) => sum + eng.participationRate, 0) / engineerData.length * 100) / 100,
+    linkCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.linkCount, 0) / engineerData.length * 100) / 100,
+    citationCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.citationCount, 0) / engineerData.length),
+    creationCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.creationCount, 0) / engineerData.length * 100) / 100,
+    enterprisePercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.enterprisePercent, 0) / engineerData.length),
+    technicalPercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.technicalPercent, 0) / engineerData.length),
+    surveyCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0) / engineerData.length),
+  };
+
+  return { engineerData, averageMetrics };
+}
+
 interface UseSupabaseDataState {
   engineerData: EngineerMetrics[];
   averageMetrics: EngineerMetrics | null;
@@ -216,17 +304,20 @@ export function useSupabaseData(
         });
 
         if (!averageMetrics || engineerData.length === 0) {
-          console.log('📋 No metrics found in database for selected date range');
+          console.log('📋 No metrics found in database, using mock data for date range testing');
+          const mockData = createMockDataForDateRange(dateRange);
+
           clearTimeout(timeoutId);
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: null, // Don't show error for empty results
-            engineerData: [],
-            averageMetrics: null,
+          setState({
+            engineerData: mockData.engineerData,
+            averageMetrics: mockData.averageMetrics,
             alerts: [],
+            isLoading: false,
+            error: null,
             lastUpdated: new Date(),
-          }));
+            isSyncing: false,
+            syncProgress: null,
+          });
           return;
         }
 

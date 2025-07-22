@@ -79,6 +79,11 @@ async function apiRequest<T>(
     // Read response text once, regardless of status
     let responseText: string;
     try {
+      // Check if the body has already been read
+      if (response.bodyUsed) {
+        console.error('❌ Response body has already been consumed');
+        throw new Error('Response body has already been read');
+      }
       responseText = await response.text();
     } catch (streamError) {
       console.error("❌ Failed to read response stream:", streamError);
