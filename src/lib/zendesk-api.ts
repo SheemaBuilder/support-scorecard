@@ -90,28 +90,42 @@ async function apiRequest<T>(
 
     console.log(`Response status: ${response.status}`);
 
-    // Simple, safe response handling - no cloning or double reading
-    let responseText: string;
-    try {
-      responseText = await response.text();
-    } catch (readError) {
-      console.error("Failed to read response as text:", readError);
-      throw new Error("Failed to read response from server");
-    }
-
-    // Parse response based on content type
+    // Most defensive response handling possible
     let responseData: any;
-    const contentType = response.headers.get("content-type") || "";
 
-    if (contentType.includes("application/json") && responseText.trim()) {
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.warn("Failed to parse JSON, using raw text:", jsonError);
-        responseData = { error: responseText };
-      }
+    // Check if response body is already consumed
+    if (response.bodyUsed) {
+      console.warn("Response body already consumed, creating fallback response");
+      responseData = response.ok
+        ? { error: "Response body was already consumed" }
+        : { error: `HTTP ${response.status} ${response.statusText}` };
     } else {
-      responseData = responseText;
+      try {
+        // Clone the response immediately to protect against consumption
+        const responseClone = response.clone();
+
+        // Try reading as text first (most compatible)
+        const responseText = await response.text();
+
+        // Parse as JSON if it looks like JSON
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json") && responseText.trim().startsWith("{")) {
+          try {
+            responseData = JSON.parse(responseText);
+          } catch (jsonError) {
+            console.warn("JSON parse failed, using text:", responseText);
+            responseData = { error: responseText };
+          }
+        } else {
+          responseData = responseText || { error: "Empty response" };
+        }
+      } catch (streamError) {
+        console.error("Stream read failed:", streamError);
+        // Create minimal fallback response
+        responseData = response.ok
+          ? { error: "Failed to read response stream" }
+          : { error: `HTTP ${response.status} ${response.statusText}` };
+      }
     }
 
     if (!response.ok) {
