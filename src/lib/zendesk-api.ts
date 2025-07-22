@@ -348,7 +348,7 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
   }
 
   let closedIn3Days = 0; // CL_3: 0-72 hours (0-3 days)
-  let closedIn3To14Days = 0; // CL_14: 72-336 hours (3-14 days)
+  let closedIn14Days = 0; // CL_14: 0-336 hours (0-14 days)
   let ticketsWithSolvedAt = 0;
   let ticketsWithoutSolvedAt = 0;
 
@@ -375,9 +375,9 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
         closedIn3Days++;
       }
 
-      // CL_14: 72-336 hours (3-14 days)
-      if (hoursDiff > 72 && hoursDiff <= 336) {
-        closedIn3To14Days++;
+      // CL_14: 0-336 hours (0-14 days)
+      if (hoursDiff <= 336) {
+        closedIn14Days++;
       }
     } else {
       ticketsWithoutSolvedAt++;
@@ -395,13 +395,13 @@ function calculateClosureStats(closedTickets: ZendeskTicket[]) {
     withSolvedAt: ticketsWithSolvedAt,
     withoutSolvedAt: ticketsWithoutSolvedAt,
     closedIn3Days,
-    closedIn3To14Days,
+    closedIn14Days,
     cl3Percent: (closedIn3Days / closedTickets.length) * 100,
-    cl14Percent: (closedIn3To14Days / closedTickets.length) * 100,
+    cl14Percent: (closedIn14Days / closedTickets.length) * 100,
   });
 
   return {
-    closedLessThan7Percent: (closedIn3To14Days / closedTickets.length) * 100, // CL_14 column
+    closedLessThan7Percent: (closedIn14Days / closedTickets.length) * 100, // CL_14 column
     closedEqual1Percent: (closedIn3Days / closedTickets.length) * 100, // CL_3 column
   };
 }

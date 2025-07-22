@@ -13,51 +13,66 @@ import {
 import { PerformanceTable } from "../components/PerformanceTable";
 import { RadarChart } from "../components/RadarChart";
 import { MetricCard } from "../components/MetricCard";
-import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
+import { useSupabaseData, useSupabaseConfig } from "../hooks/use-supabase-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
-import { testZendeskConnection } from "../test-zendesk.js";
+
 
 // Add debug helper
 const DEBUG_MODE = import.meta.env.DEV;
 
-// Default date ranges
-const dateRanges: DateRange[] = [
-  {
-    label: "Last 30 Days",
-    value: "last-30-days",
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    end: new Date(),
-  },
-  {
-    label: "Last 7 Days",
-    value: "last-7-days",
-    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    end: new Date(),
-  },
-  {
-    label: "This Month",
-    value: "this-month",
-    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-    end: new Date(),
-  },
-  {
-    label: "Last Month",
-    value: "last-month",
-    start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-    end: new Date(new Date().getFullYear(), new Date().getMonth(), 0),
-  },
-];
+// Function to create date ranges dynamically
+const createDateRanges = (): DateRange[] => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59); // End of today
+
+  return [
+    {
+      label: "Last 30 Days",
+      value: "last-30-days",
+      start: new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000), // 30 days including today
+      end: endOfToday,
+    },
+    {
+      label: "Last 7 Days",
+      value: "last-7-days",
+      start: new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000), // 7 days including today
+      end: endOfToday,
+    },
+    {
+      label: "This Month",
+      value: "this-month",
+      start: new Date(now.getFullYear(), now.getMonth(), 1), // First day of current month
+      end: endOfToday,
+    },
+    {
+      label: "Last Month",
+      value: "last-month",
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1), // First day of last month
+      end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59), // Last day of last month
+    },
+    {
+      label: "All 2025 Data",
+      value: "all-2025",
+      start: new Date(2025, 0, 1), // January 1, 2025
+      end: endOfToday,
+    },
+  ];
+};
 
 export default function Index() {
-  const [selectedPeriod, setSelectedPeriod] = useState(dateRanges[0]);
+  // Generate fresh date ranges on each render
+  const dateRanges = React.useMemo(() => createDateRanges(), []);
+
+  const [selectedPeriod, setSelectedPeriod] = useState(() => dateRanges[0]);
   const [selectedEngineer, setSelectedEngineer] = useState("");
   const [showAlerts, setShowAlerts] = useState(false);
 
-  // Check if Zendesk is configured
-  const { isConfigured, config } = useZendeskConfig();
+  // Check if Supabase is configured
+  const { isConfigured, config } = useSupabaseConfig();
 
-  // Fetch data from Zendesk
+  // Fetch data from Supabase with sync capability
   const {
     engineerData,
     averageMetrics,
@@ -66,8 +81,11 @@ export default function Index() {
     error,
     lastUpdated,
     refetch,
+    syncData,
     clearError,
-  } = useZendeskData(selectedPeriod);
+    isSyncing,
+    syncProgress,
+  } = useSupabaseData(selectedPeriod);
 
   // Set default selected engineer when data loads
   React.useEffect(() => {
@@ -100,8 +118,17 @@ export default function Index() {
 
   // Handle period change
   const handlePeriodChange = async (newPeriod: DateRange) => {
+    console.log('📅 Period change triggered:', {
+      oldPeriod: selectedPeriod.label,
+      newPeriod: newPeriod.label,
+      newStart: newPeriod.start.toISOString(),
+      newEnd: newPeriod.end.toISOString()
+    });
+
     setSelectedPeriod(newPeriod);
+    console.log('🔄 Calling refetch with new period...');
     await refetch(newPeriod);
+    console.log('✅ Refetch completed');
   };
 
   // Show configuration error if not properly set up
@@ -114,15 +141,12 @@ export default function Index() {
             <h2 className="text-lg font-semibold">Configuration Required</h2>
           </div>
           <p className="text-gray-600 mb-4">
-            Zendesk API credentials are not configured. Please check your .env
+            Supabase credentials are not configured. Please check your .env
             file.
           </p>
           <div className="space-y-2 text-sm text-gray-500">
-            <div>✓ VITE_ZENDESK_SUBDOMAIN: {config.subdomain || "Missing"}</div>
-            <div>✓ VITE_ZENDESK_EMAIL: {config.email || "Missing"}</div>
-            <div>
-              ✓ VITE_ZENDESK_API_TOKEN: {config.hasApiToken ? "Set" : "Missing"}
-            </div>
+            <div>✓ VITE_SUPABASE_URL: {config.hasSupabaseUrl ? "Set" : "Missing"}</div>
+            <div>✓ VITE_SUPABASE_ANON_KEY: {config.hasSupabaseKey ? "Set" : "Missing"}</div>
           </div>
         </div>
       </div>
@@ -133,6 +157,48 @@ export default function Index() {
   const isCloudEnv =
     window.location.hostname !== "localhost" &&
     window.location.hostname !== "127.0.0.1";
+
+  // Show empty state when no data but no error (clean database)
+  if (!isLoading && !error && engineerData.length === 0 && !averageMetrics) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg text-center">
+          <div className="flex items-center justify-center space-x-3 text-blue-600 mb-4">
+            <Info className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">No Data Available</h2>
+          </div>
+          <div className="text-gray-600 mb-6">
+            <p className="mb-3">
+              Your database is set up but doesn't contain any metrics yet.
+            </p>
+            <p className="mb-3">
+              Click "Pull Data" to sync your first batch of data from Zendesk.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              const result = await syncData();
+              if (result.success) {
+                console.log('Initial sync completed successfully:', result);
+              } else {
+                console.error('Initial sync failed:', result.errors);
+              }
+            }}
+            disabled={isSyncing}
+            className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 mx-auto"
+          >
+            <RefreshCw
+              className={cn(
+                "w-4 h-4 text-white",
+                isSyncing && "animate-spin",
+              )}
+            />
+            <span>{isSyncing ? 'Syncing from Zendesk...' : 'Pull Data from Zendesk'}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Show error state
   if (error) {
@@ -325,12 +391,30 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Loading Overlay */}
-      {isLoading && (
+      {/* Loading/Syncing Overlay */}
+      {(isLoading || isSyncing) && (
         <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 flex items-center space-x-3">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="text-gray-700">Loading Zendesk data...</span>
+          <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center space-y-3 min-w-[300px]">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <span className="text-gray-700">
+                {isSyncing ? 'Syncing data from Zendesk...' : 'Loading data...'}
+              </span>
+            </div>
+            {syncProgress && (
+              <div className="w-full">
+                <div className="text-sm text-gray-600 mb-1">{syncProgress.message}</div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${syncProgress.current}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {syncProgress.current.toFixed(0)}% complete
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -367,10 +451,13 @@ export default function Index() {
 
               {/* Refresh Button */}
               <button
-                onClick={() => refetch(selectedPeriod)}
-                disabled={isLoading}
-                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
-                title="Pull latest data from Zendesk"
+                onClick={async () => {
+                  console.log('🔄 Manual refresh triggered with current period:', selectedPeriod.label);
+                  await refetch(selectedPeriod);
+                }}
+                disabled={isLoading || isSyncing}
+                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white hover:bg-green-700 rounded-md disabled:opacity-50 mr-2"
+                title="Refresh data from database with current date range"
               >
                 <RefreshCw
                   className={cn(
@@ -378,7 +465,32 @@ export default function Index() {
                     isLoading && "animate-spin",
                   )}
                 />
-                <span className="text-sm font-medium">Pull Data</span>
+                <span className="text-sm font-medium">Refresh</span>
+              </button>
+
+              {/* Sync Button */}
+              <button
+                onClick={async () => {
+                  const result = await syncData();
+                  if (result.success) {
+                    console.log('Sync completed successfully:', result);
+                  } else {
+                    console.error('Sync failed:', result.errors);
+                  }
+                }}
+                disabled={isLoading || isSyncing}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
+                title="Pull latest data from Zendesk and sync to database"
+              >
+                <RefreshCw
+                  className={cn(
+                    "w-4 h-4 text-white",
+                    (isLoading || isSyncing) && "animate-spin",
+                  )}
+                />
+                <span className="text-sm font-medium">
+                {isSyncing ? 'Syncing...' : 'Pull Data'}
+              </span>
               </button>
             </div>
           </div>
@@ -399,10 +511,16 @@ export default function Index() {
                   Average metrics: {averageMetrics ? "✅ Loaded" : "❌ Missing"}
                 </div>
                 <div>Loading: {isLoading ? "⏳ Yes" : "✅ Complete"}</div>
+                <div>Syncing: {isSyncing ? "⏳ Yes" : "✅ Complete"}</div>
                 <div>Error: {error || "None"}</div>
                 <div>
                   Last updated: {lastUpdated?.toLocaleString() || "Never"}
                 </div>
+                <div>Database state: {engineerData.length > 0 ? "✅ Has data" : "❌ Empty"}</div>
+                <div>Selected period: {selectedPeriod.label}</div>
+                <div>Date range: {selectedPeriod.start.toISOString().split('T')[0]} to {selectedPeriod.end.toISOString().split('T')[0]}</div>
+                <div>Period value: {selectedPeriod.value}</div>
+                <div>Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Never'}</div>
                 {engineerData.length > 0 && (
                   <div>
                     Sample engineer: {engineerData[0].name} - Closed:{" "}
@@ -411,20 +529,7 @@ export default function Index() {
                   </div>
                 )}
                 <div className="mt-3 flex space-x-2">
-                  <button
-                    onClick={async () => {
-                      console.log("🔬 Testing Zendesk API...");
-                      try {
-                        const result = await testZendeskConnection();
-                        console.log("Test result:", result);
-                      } catch (error) {
-                        console.error("Test failed:", error);
-                      }
-                    }}
-                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                  >
-                    🔬 Test Zendesk API
-                  </button>
+
                   <button
                     onClick={() => {
                       console.log("🔄 Refetching data...");
@@ -433,6 +538,36 @@ export default function Index() {
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                   >
                     🔄 Refetch Data
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log('📊 Testing database connection...');
+                      try {
+                        const { getLatestMetricsFromDatabase } = await import('../lib/data-sync');
+                        const result = await getLatestMetricsFromDatabase();
+                        console.log('📊 Database test result:', result);
+                      } catch (error) {
+                        console.error('❌ Database test failed:', error);
+                      }
+                    }}
+                    className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                  >
+                    📊 Test Database
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log('📅 Testing date filtering with current period:', selectedPeriod);
+                      try {
+                        const { getLatestMetricsFromDatabase } = await import('../lib/data-sync');
+                        const result = await getLatestMetricsFromDatabase(selectedPeriod.start, selectedPeriod.end);
+                        console.log('📅 Date-filtered result:', result);
+                      } catch (error) {
+                        console.error('❌ Date filter test failed:', error);
+                      }
+                    }}
+                    className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                  >
+                    📅 Test Date Filter
                   </button>
                   <button
                     onClick={async () => {
@@ -580,12 +715,15 @@ export default function Index() {
             <h2 className="text-lg font-semibold text-gray-900">
               Team Performance Overview
             </h2>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 space-y-1">
+              <div>
+                Period: {selectedPeriod.label} ({selectedPeriod.start.toLocaleDateString()} - {selectedPeriod.end.toLocaleDateString()})
+              </div>
               {lastUpdated && (
-                <span>
+                <div>
                   Last Updated: {lastUpdated.toLocaleDateString()} at{" "}
                   {lastUpdated.toLocaleTimeString()}
-                </span>
+                </div>
               )}
             </div>
           </div>
