@@ -90,37 +90,28 @@ async function apiRequest<T>(
 
     console.log(`Response status: ${response.status}`);
 
-    // Handle response body reading with complete safety
-    let responseData: any;
-    let isBodyRead = false;
-
-    // First, safely determine if we can read the body
+    // Simple, safe response handling - no cloning or double reading
+    let responseText: string;
     try {
-      const contentType = response.headers.get("content-type") || "";
+      responseText = await response.text();
+    } catch (readError) {
+      console.error("Failed to read response as text:", readError);
+      throw new Error("Failed to read response from server");
+    }
 
-      // Try to read the response body
-      if (contentType.includes("application/json")) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
-      isBodyRead = true;
-    } catch (parseError) {
-      console.error("Failed to read response body:", parseError);
-      isBodyRead = false;
+    // Parse response based on content type
+    let responseData: any;
+    const contentType = response.headers.get("content-type") || "";
 
-      // Create fallback based on response status
-      if (response.status >= 400) {
-        responseData = {
-          error: `HTTP ${response.status} ${response.statusText}`,
-          details: parseError.message,
-        };
-      } else {
-        responseData = {
-          error: "Failed to parse response",
-          details: parseError.message,
-        };
+    if (contentType.includes("application/json") && responseText.trim()) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.warn("Failed to parse JSON, using raw text:", jsonError);
+        responseData = { error: responseText };
       }
+    } else {
+      responseData = responseText;
     }
 
     if (!response.ok) {
