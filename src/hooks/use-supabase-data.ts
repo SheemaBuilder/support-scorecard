@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 // Supabase data hook for Zendesk dashboard
-import { supabase } from "../lib/supabase";
+import { supabase, testSupabaseConnection } from "../lib/supabase";
 import { EngineerMetrics, DateRange, AlertItem } from "../lib/types";
 import {
   getLatestMetricsFromDatabase,
@@ -9,93 +9,7 @@ import {
   SyncResult
 } from "../lib/data-sync";
 
-// Mock data function to test date filtering
-function createMockDataForDateRange(dateRange?: DateRange) {
-  const periodLabel = dateRange?.label || 'No Filter';
-  const periodValue = dateRange?.value || 'none';
 
-  // Create different data based on the selected period
-  let baseTickets = 100;
-  let cesMultiplier = 1;
-
-  switch (periodValue) {
-    case 'last-7-days':
-      baseTickets = 50;
-      cesMultiplier = 0.9;
-      break;
-    case 'last-30-days':
-      baseTickets = 200;
-      cesMultiplier = 1.1;
-      break;
-    case 'this-month':
-      baseTickets = 150;
-      cesMultiplier = 1.0;
-      break;
-    case 'last-month':
-      baseTickets = 300;
-      cesMultiplier = 1.2;
-      break;
-    case 'all-2025':
-      baseTickets = 500;
-      cesMultiplier = 1.3;
-      break;
-    default:
-      baseTickets = 100;
-      cesMultiplier = 1.0;
-  }
-
-  const engineers = [
-    'Jared Beckler',
-    'Rahul Joshi',
-    'Parth Sharma',
-    'Fernando Duran',
-    'Alex Bridgeman',
-    'Sheema Parwaz',
-    'Manish Sharma',
-    'Akash Singh'
-  ];
-
-  const engineerData: EngineerMetrics[] = engineers.map((name, index) => {
-    const variance = (index + 1) * 0.1;
-    return {
-      name: `${name} (${periodLabel})`,
-      cesPercent: Math.round((75 + variance * 20) * cesMultiplier),
-      avgPcc: Math.round((20 + variance * 10) * 100) / 100,
-      closed: Math.round((baseTickets / 8) + variance * 20),
-      open: Math.round((10 + variance * 5)),
-      openGreaterThan14: Math.round(variance * 3),
-      closedLessThan7: Math.round((80 + variance * 15) * cesMultiplier),
-      closedEqual1: Math.round((60 + variance * 20) * cesMultiplier),
-      participationRate: Math.round((3 + variance * 2) * 100) / 100,
-      linkCount: Math.round((3 + variance * 2) * 100) / 100,
-      citationCount: Math.round(variance * 10),
-      creationCount: Math.round((3 + variance * 2) * 100) / 100,
-      enterprisePercent: Math.round((25 + variance * 20) * cesMultiplier),
-      technicalPercent: Math.round((70 + variance * 25) * cesMultiplier),
-      surveyCount: Math.round((8 + variance * 10)),
-    };
-  });
-
-  const averageMetrics: EngineerMetrics = {
-    name: `Team Average (${periodLabel})`,
-    cesPercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.cesPercent, 0) / engineerData.length),
-    avgPcc: Math.round(engineerData.reduce((sum, eng) => sum + eng.avgPcc, 0) / engineerData.length * 100) / 100,
-    closed: Math.round(engineerData.reduce((sum, eng) => sum + eng.closed, 0) / engineerData.length),
-    open: Math.round(engineerData.reduce((sum, eng) => sum + eng.open, 0) / engineerData.length),
-    openGreaterThan14: Math.round(engineerData.reduce((sum, eng) => sum + eng.openGreaterThan14, 0) / engineerData.length),
-    closedLessThan7: Math.round(engineerData.reduce((sum, eng) => sum + eng.closedLessThan7, 0) / engineerData.length),
-    closedEqual1: Math.round(engineerData.reduce((sum, eng) => sum + eng.closedEqual1, 0) / engineerData.length),
-    participationRate: Math.round(engineerData.reduce((sum, eng) => sum + eng.participationRate, 0) / engineerData.length * 100) / 100,
-    linkCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.linkCount, 0) / engineerData.length * 100) / 100,
-    citationCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.citationCount, 0) / engineerData.length),
-    creationCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.creationCount, 0) / engineerData.length * 100) / 100,
-    enterprisePercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.enterprisePercent, 0) / engineerData.length),
-    technicalPercent: Math.round(engineerData.reduce((sum, eng) => sum + eng.technicalPercent, 0) / engineerData.length),
-    surveyCount: Math.round(engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0) / engineerData.length),
-  };
-
-  return { engineerData, averageMetrics };
-}
 
 interface UseSupabaseDataState {
   engineerData: EngineerMetrics[];
@@ -127,6 +41,8 @@ export function useSupabaseData(
     isSyncing: false,
     syncProgress: null,
   });
+
+
 
   const generateAlerts = useCallback(
     (engineerData: EngineerMetrics[], averageMetrics: EngineerMetrics) => {
@@ -205,105 +121,8 @@ export function useSupabaseData(
       });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // Add a timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
-        console.error('⏰ Database query timed out after 10 seconds');
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: 'Database query timed out. Please check your connection and try again.',
-        }));
-      }, 10000); // 10 second timeout
-
       try {
-        // Test Supabase connection first
-        console.log('🔗 Testing Supabase connection...');
-        console.log('🔗 Supabase client type:', typeof supabase);
-        console.log('🔗 Supabase from method:', typeof supabase.from);
-
-        // Check if Supabase is properly configured
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        console.log('🔗 Environment check:', {
-          hasUrl: !!supabaseUrl,
-          hasKey: !!supabaseKey,
-          urlPreview: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'MISSING'
-        });
-
-        if (!supabaseUrl || !supabaseKey) {
-          console.warn('⚠️ Supabase not configured, creating mock data to test date filtering');
-          clearTimeout(timeoutId);
-
-          // Create different mock data based on selected date range
-          const mockData = createMockDataForDateRange(dateRange);
-
-          setState({
-            engineerData: mockData.engineerData,
-            averageMetrics: mockData.averageMetrics,
-            alerts: [],
-            isLoading: false,
-            error: null, // Don't show error, show mock data instead
-            lastUpdated: new Date(),
-            isSyncing: false,
-            syncProgress: null,
-          });
-          return;
-        }
-
-        let connectionTest, connectionError;
-        try {
-          const result = await supabase
-            .from('engineers')
-            .select('count')
-            .limit(1);
-          connectionTest = result.data;
-          connectionError = result.error;
-        } catch (fetchError) {
-          console.error('❌ Supabase fetch failed:', fetchError);
-          console.log('📋 Supabase not available, using mock data for date range testing');
-          const mockData = createMockDataForDateRange(dateRange);
-
-          clearTimeout(timeoutId);
-          setState({
-            engineerData: mockData.engineerData,
-            averageMetrics: mockData.averageMetrics,
-            alerts: [],
-            isLoading: false,
-            error: null,
-            lastUpdated: new Date(),
-            isSyncing: false,
-            syncProgress: null,
-          });
-          return;
-        }
-
-        console.log('🔗 Connection test result:', { data: connectionTest, error: connectionError });
-
-        if (connectionError) {
-          console.error('❌ Supabase connection failed:', {
-            message: connectionError?.message || 'No message',
-            code: connectionError?.code || 'No code',
-            details: connectionError?.details || 'No details',
-            hint: connectionError?.hint || 'No hint'
-          });
-          console.log('📋 Database error, using mock data for date range testing');
-          const mockData = createMockDataForDateRange(dateRange);
-
-          clearTimeout(timeoutId);
-          setState({
-            engineerData: mockData.engineerData,
-            averageMetrics: mockData.averageMetrics,
-            alerts: [],
-            isLoading: false,
-            error: null,
-            lastUpdated: new Date(),
-            isSyncing: false,
-            syncProgress: null,
-          });
-          return;
-        }
-
-        console.log('✅ Supabase connection successful');
+        console.log('📊 About to call getLatestMetricsFromDatabase...');
 
         const startDate = dateRange?.start;
         const endDate = dateRange?.end;
@@ -311,73 +130,30 @@ export function useSupabaseData(
         console.log("🔄 Fetching engineer metrics from database with date range:", {
           startDate: startDate?.toISOString(),
           endDate: endDate?.toISOString(),
-          startDateFormatted: startDate?.toISOString().split('T')[0],
-          endDateFormatted: endDate?.toISOString().split('T')[0],
           dateRange: dateRange ? {
             label: dateRange.label,
             value: dateRange.value,
             start: dateRange.start.toISOString(),
-            end: dateRange.end.toISOString(),
-            startFormatted: dateRange.start.toISOString().split('T')[0],
-            endFormatted: dateRange.end.toISOString().split('T')[0]
-          } : null,
-          willApplyDateFilter: !!(startDate && endDate)
+            end: dateRange.end.toISOString()
+          } : null
         });
 
-        console.log('📊 About to call getLatestMetricsFromDatabase...');
+        const { engineerData, averageMetrics } = await getLatestMetricsFromDatabase(startDate, endDate);
 
-        let engineerData, averageMetrics;
-        try {
-          // Add a race condition with timeout for the database call
-          const databasePromise = getLatestMetricsFromDatabase(startDate, endDate);
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Database call timed out after 5 seconds')), 5000);
-          });
-
-          const result = await Promise.race([
-            databasePromise,
-            timeoutPromise
-          ]) as { engineerData: any[], averageMetrics: any };
-
-          engineerData = result.engineerData;
-          averageMetrics = result.averageMetrics;
-
-          console.log('📊 getLatestMetricsFromDatabase completed successfully');
-          console.log("📊 Database metrics:", {
-            engineerDataCount: engineerData?.length || 0,
-            hasAverageMetrics: !!averageMetrics,
-            sampleEngineer: engineerData?.[0]
-          });
-        } catch (dbError) {
-          console.error('❌ Database call failed:', dbError);
-          console.log('📋 Database call failed, using mock data for date range testing');
-          const mockData = createMockDataForDateRange(dateRange);
-
-          clearTimeout(timeoutId);
-          setState({
-            engineerData: mockData.engineerData,
-            averageMetrics: mockData.averageMetrics,
-            alerts: [],
-            isLoading: false,
-            error: null,
-            lastUpdated: new Date(),
-            isSyncing: false,
-            syncProgress: null,
-          });
-          return;
-        }
+        console.log("📊 Database metrics:", {
+          engineerDataCount: engineerData?.length || 0,
+          hasAverageMetrics: !!averageMetrics,
+          sampleEngineer: engineerData?.[0]
+        });
 
         if (!averageMetrics || engineerData.length === 0) {
-          console.log('📋 No metrics found in database, using mock data for date range testing');
-          const mockData = createMockDataForDateRange(dateRange);
-
-          clearTimeout(timeoutId);
+          console.log('📋 No metrics found in database');
           setState({
-            engineerData: mockData.engineerData,
-            averageMetrics: mockData.averageMetrics,
+            engineerData: [],
+            averageMetrics: null,
             alerts: [],
             isLoading: false,
-            error: null,
+            error: 'No data available for the selected period',
             lastUpdated: new Date(),
             isSyncing: false,
             syncProgress: null,
@@ -387,9 +163,6 @@ export function useSupabaseData(
 
         const alerts = generateAlerts(engineerData, averageMetrics);
         console.log("🚨 Generated alerts:", alerts);
-
-        // Clear timeout first
-        clearTimeout(timeoutId);
 
         setState({
           engineerData,
@@ -410,21 +183,32 @@ export function useSupabaseData(
         });
       } catch (error) {
         console.error("❌ Error fetching data from database:", error);
-        console.log('📋 Main catch block - using mock data as final fallback');
+        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error('❌ Error details:', {
+          message: errorMessage,
+          type: typeof error,
+          stack: error instanceof Error ? error.stack : 'No stack trace'
+        });
 
-        // Clear timeout in error case too
-        clearTimeout(timeoutId);
-
-        // Always fall back to mock data instead of showing errors
-        const mockData = createMockDataForDateRange(dateRange);
+        // Provide more user-friendly error messages
+        let userFriendlyError = "Failed to fetch data";
+        if (errorMessage.includes('Failed to fetch')) {
+          userFriendlyError = "Unable to connect to database. Please check your internet connection and try again.";
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('abort')) {
+          userFriendlyError = "Connection timeout. The database may be temporarily unavailable.";
+        } else if (errorMessage.includes('CORS')) {
+          userFriendlyError = "Database access denied. Please check configuration.";
+        } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
+          userFriendlyError = "Database authentication failed. Please check credentials.";
+        }
 
         setState({
-          engineerData: mockData.engineerData,
-          averageMetrics: mockData.averageMetrics,
+          engineerData: [],
+          averageMetrics: null,
           alerts: [],
           isLoading: false,
-          error: null, // Don't show errors, just use mock data
-          lastUpdated: new Date(),
+          error: userFriendlyError,
+          lastUpdated: null,
           isSyncing: false,
           syncProgress: null,
         });

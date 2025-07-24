@@ -60,6 +60,7 @@ async function apiRequest<T>(
   params?: URLSearchParams,
 ): Promise<T> {
   const baseUrl = getApiBaseUrl();
+  const requestId = Math.random().toString(36).substring(7);
 
   // Construct relative URL for proxy
   let urlString = `${baseUrl}${endpoint}`;
@@ -67,62 +68,91 @@ async function apiRequest<T>(
     urlString += `?${params.toString()}`;
   }
 
-  console.log(`🌐 Making API request to: ${urlString}`);
-  console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
+  console.log(`🌐 [${requestId}] Making API request to: ${urlString}`);
+  console.log(`🌐 [${requestId}] Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
-    const response = await fetch(urlString);
+    // Use XMLHttpRequest instead of fetch to avoid browser dev tools interference
+    const responseData = await new Promise<{status: number, statusText: string, responseText: string}>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    console.log(`📋 Response status: ${response.status}`);
-    console.log(
-      `📋 Response headers:`,
-      Object.fromEntries(response.headers.entries()),
-    );
+      xhr.open('GET', urlString, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'application/json');
 
-    // Read response text once, regardless of status
-    let responseText: string;
-    try {
-      // Check if the body has already been read
-      if (response.bodyUsed) {
-        console.error('❌ Response body has already been consumed');
-        throw new Error('Response body has already been read');
-      }
-      responseText = await response.text();
-    } catch (streamError) {
-      console.error("❌ Failed to read response stream:", streamError);
-      throw new Error("Failed to read response from server");
-    }
+      xhr.onload = function() {
+        console.log(`📋 [${requestId}] XHR Response status: ${xhr.status}`);
+        console.log(`📋 [${requestId}] XHR Response length: ${xhr.responseText.length} chars`);
 
-    console.log(`📄 Raw response length: ${responseText.length} characters`);
-    console.log(`📄 Raw response preview: ${responseText.substring(0, 300)}`);
+        resolve({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+      };
+
+      xhr.onerror = function() {
+        console.error(`❌ [${requestId}] XHR request failed`);
+        reject(new Error(`[${requestId}] Network request failed`));
+      };
+
+      xhr.ontimeout = function() {
+        console.error(`❌ [${requestId}] XHR request timed out`);
+        reject(new Error(`[${requestId}] Request timed out`));
+      };
+
+      // Set a 30 second timeout
+      xhr.timeout = 30000;
+
+      console.log(`🌐 [${requestId}] Making XHR request to avoid dev tools interference: ${urlString}`);
+      xhr.send();
+    });
+
+    const { status, statusText, responseText } = responseData;
+    console.log(`📖 [${requestId}] Response body read successfully via XHR (${responseText.length} chars)`);
+
+    console.log(`📄 [${requestId}] Raw response length: ${responseText.length} characters`);
+    console.log(`📄 [${requestId}] Raw response preview: ${responseText.substring(0, 300)}`);
 
     // Check if response was not ok AFTER reading the text
-    if (!response.ok) {
-      console.error(`❌ API error response:`, responseText);
-      throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${errorText}`,
-      );
+    if (status < 200 || status >= 300) {
+      console.error(`❌ [${requestId}] API error response:`, responseText);
+
+      // Provide user-friendly error messages based on status code
+      let userFriendlyMessage = '';
+      if (status === 500) {
+        userFriendlyMessage = 'Backend server error. The Zendesk API proxy is having issues.';
+      } else if (status === 404) {
+        userFriendlyMessage = 'API endpoint not found. Backend server may not be running.';
+      } else if (status >= 400 && status < 500) {
+        userFriendlyMessage = 'Client error. Check API configuration.';
+      } else {
+        userFriendlyMessage = `Server returned ${status} ${statusText}`;
+      }
+
+      throw new Error(`${userFriendlyMessage} (${status})`);
     }
 
     // Parse as JSON
     try {
+      console.log(`🔄 [${requestId}] Parsing JSON...`);
       const jsonData = JSON.parse(responseText);
-      console.log(`✅ Parsed JSON successfully:`, {
+      console.log(`✅ [${requestId}] Parsed JSON successfully:`, {
         keys: Object.keys(jsonData),
-        dataPreview: jsonData,
+        dataPreview: Object.keys(jsonData).length > 10 ? "Large object" : jsonData,
       });
       return jsonData;
     } catch (jsonError) {
-      console.error(`❌ Failed to parse JSON:`, responseText.substring(0, 500));
-      throw new Error(`Invalid JSON response: ${jsonError}`);
+      console.error(`❌ [${requestId}] Failed to parse JSON:`, responseText.substring(0, 500));
+      throw new Error(`[${requestId}] Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`��� API request failed for ${urlString}:`, error);
+    console.error(`🚨 [${requestId}] API request failed for ${urlString}:`, error);
 
     // Handle specific error types
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(
-        `Request timeout after 2 minutes (likely due to rate limits): ${url.toString()}`,
+        `Request timeout after 2 minutes (likely due to rate limits): ${urlString}`,
       );
     }
 
@@ -192,6 +222,13 @@ interface ZendeskTicketsResponse {
   next_page: string | null;
   previous_page: string | null;
   count: number;
+}
+
+interface ZendeskSatisfactionRating {
+  id: number;
+  score: "good" | "bad";
+  ticket_id: number;
+  created_at: string;
 }
 
 // API functions
@@ -270,6 +307,8 @@ export async function getTickets(
 export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
+  startDate?: Date,
+  endDate?: Date,
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
@@ -528,7 +567,7 @@ function calculateCESStats(userTickets: ZendeskTicket[]) {
         console.log(`✅ Valid CES score ${score} from ticket ${ticket.id}`);
         cesScores.push(score);
       } else {
-        console.log(`❌ Invalid CES score from ticket ${ticket.id}:`, score);
+        console.log(`��� Invalid CES score from ticket ${ticket.id}:`, score);
       }
     }
   });
@@ -808,7 +847,7 @@ export async function fetchAllEngineerMetrics(
           })),
         });
 
-        const metrics = calculateEngineerMetrics(user, tickets);
+        const metrics = calculateEngineerMetrics(user, tickets, startDate, endDate);
 
         console.log(`📈 ${user.name} calculated metrics:`, {
           closed: metrics.closed,
