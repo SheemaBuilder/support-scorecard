@@ -1,5 +1,6 @@
 import { EngineerMetrics } from "./types";
 import { nameToIdMap } from "./engineerMap.js";
+import { getBulkUsers } from "./bulk-users.js";
 
 // Backend proxy URL - always use relative URLs for Vite proxy
 const getApiBaseUrl = () => {
