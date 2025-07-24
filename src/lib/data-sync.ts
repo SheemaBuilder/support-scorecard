@@ -323,7 +323,8 @@ export async function getLatestMetricsFromDatabase(
       console.error('Please create a .env file with:');
       console.error('VITE_SUPABASE_URL=https://your-project.supabase.co');
       console.error('VITE_SUPABASE_ANON_KEY=your-anon-key');
-      throw new Error('Supabase not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.');
+      console.log('❌ Environment not configured, returning empty data for hook fallback');
+      return { engineerData: [], averageMetrics: null };
     }
 
     // First, test basic Supabase connectivity with a very simple query
@@ -353,11 +354,9 @@ export async function getLatestMetricsFromDatabase(
       console.error('❌ Error name:', error?.name);
       console.error('❌ Error message:', error?.message);
 
-      if (error?.name === 'TypeError' && error?.message?.includes('fetch')) {
-        throw new Error('Network error: Cannot connect to Supabase. Check your internet connection and Supabase URL.');
-      }
-
-      throw new Error(`Cannot connect to Supabase: ${error?.message || error}`);
+      // Return empty data instead of throwing to allow hook fallback
+      console.log('❌ Connection test failed, returning empty data for hook fallback');
+      return { engineerData: [], averageMetrics: null };
     }
 
     // Now check if we have ANY metrics data at all
@@ -401,7 +400,16 @@ export async function getLatestMetricsFromDatabase(
 
     if (engineersError) {
       console.error('❌ Engineers query failed:', engineersError);
-      throw new Error(`Failed to fetch engineers: ${engineersError.message}`);
+      console.error('❌ Engineers error details:', {
+        message: engineersError?.message || 'No message',
+        details: engineersError?.details || 'No details',
+        hint: engineersError?.hint || 'No hint',
+        code: engineersError?.code || 'No code'
+      });
+
+      // Return empty data instead of throwing to allow hook fallback
+      console.log('❌ Returning empty data due to engineers query failure');
+      return { engineerData: [], averageMetrics: null };
     }
 
     if (!engineers || engineers.length === 0) {
@@ -489,14 +497,18 @@ export async function getLatestMetricsFromDatabase(
       .limit(500); // Increased limit to ensure we get data across different periods
 
     if (metricsError) {
-      console.error('❌ Metrics query failed:', {
-        message: metricsError.message,
-        details: metricsError.details,
-        hint: metricsError.hint,
-        code: metricsError.code,
-        fullError: metricsError
+      console.error('❌ Metrics query failed:', metricsError);
+      console.error('❌ Metrics error details:', {
+        message: metricsError?.message || 'No message',
+        details: metricsError?.details || 'No details',
+        hint: metricsError?.hint || 'No hint',
+        code: metricsError?.code || 'No code',
+        stack: metricsError?.stack || 'No stack'
       });
-      throw new Error(`Failed to fetch metrics: ${metricsError.message || metricsError}`);
+
+      // Return empty data instead of throwing to allow hook fallback
+      console.log('❌ Returning empty data due to metrics query failure');
+      return { engineerData: [], averageMetrics: null };
     }
 
     if (!metrics || metrics.length === 0) {
