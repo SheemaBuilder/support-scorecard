@@ -3,7 +3,7 @@ import { nameToIdMap } from "./engineerMap.js";
 
 // Backend proxy URL - always use relative URLs for Vite proxy
 const getApiBaseUrl = () => {
-  console.log("🔄 Using relative URLs for API requests");
+  // Always use relative URLs - this will work with proxy configuration
   return "/api/zendesk";
 };
 
@@ -20,25 +20,21 @@ const isCloudEnvironment = () => {
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    console.log("🏥 Checking backend health...");
-    // Create timeout signal for fetch request
+    const healthUrl = "/api/health";
+    console.log("Checking backend health at:", healthUrl);
+
+    // Add timeout to prevent hanging
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
-    const response = await fetch("/api/health", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-    });
-
+    const response = await fetch(healthUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.warn(
-        "❌ Backend health check failed - response not ok:",
+        "Health check failed:",
         response.status,
+        response.statusText,
       );
       return false;
     }
@@ -46,12 +42,14 @@ async function checkBackendHealth(): Promise<boolean> {
     const responseText = await response.text();
     const data = JSON.parse(responseText);
     const isHealthy = data.status === "OK";
-    console.log(
-      isHealthy ? "✅ Backend is healthy" : "❌ Backend is not healthy",
-    );
+    console.log("Backend health check result:", isHealthy);
     return isHealthy;
   } catch (error) {
-    console.warn("❌ Backend health check failed with error:", error);
+    if (error.name === "AbortError") {
+      console.warn("Backend health check timed out");
+    } else {
+      console.warn("Backend health check failed:", error);
+    }
     return false;
   }
 }
@@ -63,88 +61,63 @@ async function apiRequest<T>(
 ): Promise<T> {
   const baseUrl = getApiBaseUrl();
 
-  // Construct URL properly - if baseUrl is absolute, don't use window.location.origin
-  let url: URL;
-  if (baseUrl.startsWith("http")) {
-    url = new URL(`${baseUrl}${endpoint}`);
-  } else {
-    url = new URL(`${baseUrl}${endpoint}`, window.location.origin);
-  }
-
+  // Construct relative URL for proxy
+  let urlString = `${baseUrl}${endpoint}`;
   if (params) {
-    url.search = params.toString();
+    urlString += `?${params.toString()}`;
   }
 
-  console.log(`Making API request to: ${url.toString()}`);
+  console.log(`🌐 Making API request to: ${urlString}`);
+  console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
-    // Add timeout to prevent hanging on rate limits - increased for rate limit handling
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for rate limits
+    const response = await fetch(urlString);
 
-    const response = await fetch(url.toString(), {
-      signal: controller.signal,
-    });
+    console.log(`📋 Response status: ${response.status}`);
+    console.log(
+      `📋 Response headers:`,
+      Object.fromEntries(response.headers.entries()),
+    );
 
-    clearTimeout(timeoutId);
+    // Read response text once, regardless of status
+    let responseText: string;
+    try {
+      // Check if the body has already been read
+      if (response.bodyUsed) {
+        console.error('❌ Response body has already been consumed');
+        throw new Error('Response body has already been read');
+      }
+      responseText = await response.text();
+    } catch (streamError) {
+      console.error("❌ Failed to read response stream:", streamError);
+      throw new Error("Failed to read response from server");
+    }
 
-    console.log(`Response status: ${response.status}`);
-    console.log(`Response headers:`, response.headers);
+    console.log(`📄 Raw response length: ${responseText.length} characters`);
+    console.log(`📄 Raw response preview: ${responseText.substring(0, 300)}`);
 
+    // Check if response was not ok AFTER reading the text
     if (!response.ok) {
-      // For error responses, try to read the error details
-      let errorText: string = `HTTP ${response.status} ${response.statusText}`;
-
-      try {
-        // Read as text first to avoid stream consumption issues
-        const responseText = await response.text();
-        console.log("📄 Raw error response:", responseText);
-
-        if (responseText) {
-          try {
-            // Try to parse as JSON
-            const errorData = JSON.parse(responseText);
-            errorText = errorData.error || errorData.message || responseText;
-            console.log("📄 Parsed error JSON:", errorData);
-          } catch (jsonParseError) {
-            // If not valid JSON, use the raw text
-            errorText = responseText;
-            console.log("📄 Using raw text as error");
-          }
-        }
-      } catch (readError) {
-        console.warn("⚠️ Could not read error response:", readError);
-      }
-
-      console.error(`API error response:`, errorText);
-
-      // Handle specific backend errors
-      if (errorText.includes("Rate limit protection active")) {
-        throw new Error(errorText);
-      }
-
+      console.error(`❌ API error response:`, responseText);
       throw new Error(
         `API error: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
-    // For successful responses, read as JSON directly
-    const contentType = response.headers.get("content-type");
+    // Parse as JSON
     try {
-      if (contentType && contentType.includes("application/json")) {
-        return await response.json();
-      } else {
-        // For non-JSON responses, read as text
-        const responseText = await response.text();
-        console.warn("Non-JSON response received:", contentType);
-        return responseText as T;
-      }
-    } catch (parseError) {
-      console.error("Failed to parse response:", parseError);
-      throw new Error("Failed to parse response from server");
+      const jsonData = JSON.parse(responseText);
+      console.log(`✅ Parsed JSON successfully:`, {
+        keys: Object.keys(jsonData),
+        dataPreview: jsonData,
+      });
+      return jsonData;
+    } catch (jsonError) {
+      console.error(`❌ Failed to parse JSON:`, responseText.substring(0, 500));
+      throw new Error(`Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`API request failed for ${url.toString()}:`, error);
+    console.error(`��� API request failed for ${urlString}:`, error);
 
     // Handle specific error types
     if (error instanceof Error && error.name === "AbortError") {
@@ -221,162 +194,85 @@ interface ZendeskTicketsResponse {
   count: number;
 }
 
-interface ZendeskSatisfactionRating {
-  id: number;
-  score: "offered" | "unoffered" | "received" | "good" | "bad";
-  ticket_id: number;
-  assignee_id: number;
-  requester_id: number;
-  comment: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ZendeskSatisfactionRatingsResponse {
-  satisfaction_ratings: ZendeskSatisfactionRating[];
-  next_page: string | null;
-  previous_page: string | null;
-  count: number;
-}
-
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
-  console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
-  const engineerEntries = Array.from(nameToIdMap.entries());
-  console.log("📋 Engineer entries:", engineerEntries);
-  console.log(
-    `⏱️  Processing ${engineerEntries.length} engineers sequentially to avoid rate limits...`,
-  );
-
-  const users: ZendeskUser[] = [];
-  let processed = 0;
-
-  for (const [name, id] of engineerEntries) {
-    processed++;
-    console.log(
-      `[${processed}/${engineerEntries.length}] Processing engineer: ${name}`,
+  try {
+    const response = await apiRequest<ZendeskUsersResponse>("/users");
+    console.log("🔍 getUsers() success:", response.users.length, "users");
+    return response.users;
+  } catch (error) {
+    console.warn(
+      "Failed to fetch users, returning empty array:",
+      error.message,
     );
-
-    // Add a longer delay every few requests
-    if (processed % 3 === 0) {
-      console.log("��� Taking a longer break to avoid rate limits...");
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second break every 3 requests
-    }
-    try {
-      console.log(`👤 Fetching engineer: ${name} (ID: ${id})`);
-      const response = await apiRequest<{ user: ZendeskUser }>(`/users/${id}`);
-      users.push(response.user);
-      console.log(
-        `✅ Successfully fetched: ${response.user.name} (actual name: ${response.user.name})`,
-      );
-
-      // Add longer delay between requests to avoid rate limits
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
-    } catch (error) {
-      console.warn(`❌ Failed to fetch engineer ${name} (ID: ${id}):`, error);
-
-      // Handle AbortError specifically
-      if (error instanceof Error && error.name === "AbortError") {
-        console.warn(`⏰ Request timeout for ${name}, creating placeholder`);
-      }
-
-      // Create a placeholder user if the ID doesn't exist or request failed
-      const placeholderUser: ZendeskUser = {
-        id: id,
-        name: name,
-        email: `${name.toLowerCase().replace(" ", ".")}@placeholder.com`,
-        role: "agent",
-        active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      users.push(placeholderUser);
-      console.log(`📝 Created placeholder for: ${name}`);
-    }
+    return [];
   }
-
-  console.log(`📊 Total engineers: ${users.length}/${nameToIdMap.size}`);
-  return users;
 }
 
 export async function getTickets(
   startDate?: Date,
   endDate?: Date,
 ): Promise<ZendeskTicket[]> {
-  const params = new URLSearchParams();
+  try {
+    const params = new URLSearchParams();
 
-  if (startDate && endDate) {
-    params.append("start_date", startDate.toISOString());
-    params.append("end_date", endDate.toISOString());
-    console.log(
-      `🔍 Date filter - Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`,
-    );
-  }
-
-  const response = await apiRequest<ZendeskTicketsResponse>("/tickets", params);
-
-  // Debug ticket 20225 specifically
-  const ticket20225 = response.tickets.find((t) => t.id === 20225);
-  if (ticket20225) {
-    console.log(`🎫 Found ticket 20225 in API response:`, {
-      id: ticket20225.id,
-      status: ticket20225.status,
-      created_at: ticket20225.created_at,
-      assignee_id: ticket20225.assignee_id,
-      subject: ticket20225.subject.substring(0, 50) + "...",
+    console.log("📅 getTickets() called with dates:", {
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+      startDateLocal: startDate?.toLocaleDateString(),
+      endDateLocal: endDate?.toLocaleDateString(),
     });
-  } else {
-    console.log(
-      `❌ Ticket 20225 NOT found in API response (total tickets: ${response.tickets.length})`,
+
+    if (startDate && endDate) {
+      params.append("start_date", startDate.toISOString());
+      params.append("end_date", endDate.toISOString());
+      console.log("📅 Date params added to API call:", params.toString());
+    } else {
+      console.log("⚠️ No date filters applied - fetching all tickets");
+    }
+
+    const response = await apiRequest<ZendeskTicketsResponse>(
+      "/tickets",
+      params,
     );
-  }
+    console.log("🔍 getTickets() success:", response.tickets.length, "tickets");
 
-  return response.tickets;
-}
+    // Check if ticket 19934 is in the response
+    const ticket19934 = response.tickets.find((t) => t.id === 19934);
+    if (ticket19934) {
+      console.log("🎯 Ticket 19934 found in API response!");
+      console.log("🎯 Ticket 19934 details:", {
+        id: ticket19934.id,
+        assignee_id: ticket19934.assignee_id,
+        status: ticket19934.status,
+        created_at: ticket19934.created_at,
+        custom_fields_count: ticket19934.custom_fields?.length || 0,
+      });
+    } else {
+      console.log("❌ Ticket 19934 NOT found in API response");
+      console.log(
+        "📝 Sample ticket IDs:",
+        response.tickets.slice(0, 10).map((t) => t.id),
+      );
+    }
 
-export async function getTicketById(ticketId: number): Promise<ZendeskTicket> {
-  console.log(`🎫 Fetching ticket by ID: ${ticketId}`);
-  const response = await apiRequest<{ ticket: ZendeskTicket }>(
-    `/tickets/${ticketId}`,
-  );
-  console.log(`✅ Successfully fetched ticket ${ticketId}:`, response.ticket);
-  return response.ticket;
-}
-
-export async function getSatisfactionRatings(
-  startDate?: Date,
-  endDate?: Date,
-): Promise<ZendeskSatisfactionRating[]> {
-  const params = new URLSearchParams();
-
-  if (startDate && endDate) {
-    params.append(
-      "start_time",
-      Math.floor(startDate.getTime() / 1000).toString(),
+    return response.tickets;
+  } catch (error) {
+    console.warn(
+      "Failed to fetch tickets, returning empty array:",
+      error.message,
     );
-    params.append("end_time", Math.floor(endDate.getTime() / 1000).toString());
+    return [];
   }
-
-  const response = await apiRequest<ZendeskSatisfactionRatingsResponse>(
-    "/satisfaction_ratings",
-    params,
-  );
-  return response.satisfaction_ratings;
 }
 
 // Data transformation functions
 export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
-  satisfactionRatings: ZendeskSatisfactionRating[],
-  startDate?: Date,
-  endDate?: Date,
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
-  );
-  const userRatings = satisfactionRatings.filter(
-    (rating) => rating.assignee_id === user.id,
   );
 
   // Debug ticket 20225 for this user
@@ -439,14 +335,30 @@ export function calculateEngineerMetrics(
       ticket.status === "pending",
   );
 
+  console.log(`🔍 ${user.name} ticket breakdown:`, {
+    total: userTickets.length,
+    closed: closedTickets.length,
+    open: openTickets.length,
+    statusBreakdown: userTickets.reduce(
+      (acc, t) => {
+        acc[t.status] = (acc[t.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  });
+
   // Calculate response times
   const avgPcc = calculateAverageResponseTime(userTickets);
 
-  // Calculate closure times
-  const closureStats = calculateClosureStats(closedTickets);
+  // Calculate closure times - temporarily use all tickets for debugging
+  console.log(
+    `🔍 ${user.name}: Using ${userTickets.length} total tickets for closure stats (${closedTickets.length} closed)`,
+  );
+  const closureStats = calculateClosureStats(userTickets);
 
-  // Calculate satisfaction scores
-  const cesStats = calculateCESStats(userRatings);
+  // Calculate CES scores from custom field
+  const cesStats = calculateCESStats(userTickets);
 
   // Calculate technical percentages from tags
   const technicalStats = calculateTechnicalStats(userTickets);
@@ -460,13 +372,20 @@ export function calculateEngineerMetrics(
     openGreaterThan14: calculateOpenGreaterThan14Days(openTickets),
     closedLessThan7: closureStats.closedLessThan7Percent,
     closedEqual1: closureStats.closedEqual1Percent,
-    participationRate: calculateOverallQuality(userTickets, userRatings),
+    participationRate: 0, // Deferred - will be calculated later
     linkCount: calculateCommunicationScore(userTickets),
-    citationCount: calculateResponseQuality(userTickets, userRatings),
+    citationCount: 0, // Deferred - will be calculated later
     creationCount: calculateTechnicalAccuracy(userTickets),
     enterprisePercent: technicalStats.enterprisePercent,
     technicalPercent: technicalStats.technicalPercent,
-    surveyCount: userRatings.length,
+    surveyCount:
+      cesStats.cesPercent > 0
+        ? userTickets.filter((ticket) =>
+            ticket.custom_fields?.find(
+              (field) => field.id === 31797439524887 && field.value !== null,
+            ),
+          ).length
+        : 0,
   };
 }
 
@@ -486,40 +405,154 @@ function calculateAverageResponseTime(tickets: ZendeskTicket[]): number {
 }
 
 function calculateClosureStats(closedTickets: ZendeskTicket[]) {
+  console.log(
+    `🔍 calculateClosureStats: Processing ${closedTickets.length} closed tickets`,
+  );
+
   if (closedTickets.length === 0) {
+    console.log(`⚠️ No closed tickets to process`);
     return { closedLessThan7Percent: 0, closedEqual1Percent: 0 };
   }
 
-  let closedLessThan7 = 0;
-  let closedEqual1 = 0;
+  let closedIn3Days = 0; // CL_3: 0-72 hours (0-3 days)
+  let closedIn14Days = 0; // CL_14: 0-336 hours (0-14 days)
+  let ticketsWithSolvedAt = 0;
+  let ticketsWithoutSolvedAt = 0;
 
-  closedTickets.forEach((ticket) => {
-    if (ticket.solved_at) {
+  closedTickets.forEach((ticket, index) => {
+    // Use solved_at if available, otherwise fall back to updated_at for debugging
+    const resolvedDate = ticket.solved_at || ticket.updated_at;
+
+    if (resolvedDate) {
+      ticketsWithSolvedAt++;
       const created = new Date(ticket.created_at);
-      const solved = new Date(ticket.solved_at);
-      const daysDiff =
-        (solved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+      const resolved = new Date(resolvedDate);
+      const hoursDiff =
+        (resolved.getTime() - created.getTime()) / (1000 * 60 * 60);
 
-      if (daysDiff <= 7) closedLessThan7++;
-      if (daysDiff <= 1) closedEqual1++;
+      if (index < 3) {
+        // Log first 3 tickets for debugging
+        console.log(
+          `📊 Ticket ${ticket.id}: created=${ticket.created_at}, resolved=${resolvedDate} (${ticket.solved_at ? "solved_at" : "updated_at"}), hours=${hoursDiff.toFixed(1)}, status=${ticket.status}`,
+        );
+      }
+
+      // CL_3: 0-72 hours (0-3 days)
+      if (hoursDiff <= 72) {
+        closedIn3Days++;
+      }
+
+      // CL_14: 0-336 hours (0-14 days)
+      if (hoursDiff <= 336) {
+        closedIn14Days++;
+      }
+    } else {
+      ticketsWithoutSolvedAt++;
+      if (index < 3) {
+        // Log first 3 tickets without resolved date
+        console.log(
+          `⚠️ Ticket ${ticket.id}: status=${ticket.status}, no resolved date`,
+        );
+      }
     }
   });
 
+  console.log(`📈 Closure stats summary:`, {
+    totalClosed: closedTickets.length,
+    withSolvedAt: ticketsWithSolvedAt,
+    withoutSolvedAt: ticketsWithoutSolvedAt,
+    closedIn3Days,
+    closedIn14Days,
+    cl3Percent: (closedIn3Days / closedTickets.length) * 100,
+    cl14Percent: (closedIn14Days / closedTickets.length) * 100,
+  });
+
   return {
-    closedLessThan7Percent: (closedLessThan7 / closedTickets.length) * 100,
-    closedEqual1Percent: (closedEqual1 / closedTickets.length) * 100,
+    closedLessThan7Percent: (closedIn14Days / closedTickets.length) * 100, // CL_14 column
+    closedEqual1Percent: (closedIn3Days / closedTickets.length) * 100, // CL_3 column
   };
 }
 
-function calculateCESStats(ratings: ZendeskSatisfactionRating[]) {
-  if (ratings.length === 0) return { cesPercent: 0 };
+function calculateCESStats(userTickets: ZendeskTicket[]) {
+  // Get CES scores from custom field 31797439524887
+  const CES_FIELD_ID = 31797439524887;
 
-  const goodRatings = ratings.filter(
-    (rating) => rating.score === "good",
-  ).length;
-  return {
-    cesPercent: (goodRatings / ratings.length) * 100,
-  };
+  console.log(
+    `🔍 CES Debug: Processing ${userTickets.length} tickets for CES field ${CES_FIELD_ID}`,
+  );
+
+  // Check if we have the specific ticket 19934 mentioned by user
+  const ticket19934 = userTickets.find((t) => t.id === 19934);
+  if (ticket19934) {
+    console.log(
+      `🎯 Found ticket 19934! Custom fields:`,
+      ticket19934.custom_fields,
+    );
+    const cesField19934 = ticket19934.custom_fields?.find(
+      (field) => field.id === CES_FIELD_ID,
+    );
+    console.log(`🎯 Ticket 19934 CES field:`, cesField19934);
+  } else {
+    console.log(`❌ Ticket 19934 not found in user tickets`);
+    console.log(
+      `📝 Available ticket IDs:`,
+      userTickets.map((t) => t.id).slice(0, 10),
+    );
+  }
+
+  const cesScores: number[] = [];
+
+  userTickets.forEach((ticket) => {
+    // Log all custom fields for first few tickets to debug structure
+    if (ticket.id === 19934 || cesScores.length < 3) {
+      console.log(
+        `🔍 Ticket ${ticket.id} custom fields:`,
+        ticket.custom_fields?.map((cf) => ({
+          id: cf.id,
+          value: cf.value,
+          type: typeof cf.value,
+        })),
+      );
+    }
+
+    const cesField = ticket.custom_fields?.find(
+      (field) => field.id === CES_FIELD_ID,
+    );
+    if (cesField && cesField.value !== null && cesField.value !== undefined) {
+      console.log(`✅ Found CES field in ticket ${ticket.id}:`, cesField);
+      const score =
+        typeof cesField.value === "string"
+          ? parseFloat(cesField.value)
+          : Number(cesField.value);
+      if (!isNaN(score) && score >= 1 && score <= 7) {
+        console.log(`✅ Valid CES score ${score} from ticket ${ticket.id}`);
+        cesScores.push(score);
+      } else {
+        console.log(`❌ Invalid CES score from ticket ${ticket.id}:`, score);
+      }
+    }
+  });
+
+  console.log(
+    `🔍 CES calculation: found ${cesScores.length} CES scores in ${userTickets.length} tickets`,
+  );
+  console.log(`🔍 CES scores:`, cesScores);
+
+  if (cesScores.length === 0) {
+    console.log("⚠️ No CES scores found in custom fields, returning 0");
+    return { cesPercent: 0 };
+  }
+
+  // Calculate percentage of scores that are 5 or above (good scores)
+  // Assuming 5-7 are "good" scores on a 1-7 scale
+  const goodScores = cesScores.filter((score) => score >= 5).length;
+  const cesPercent = (goodScores / cesScores.length) * 100;
+
+  console.log(
+    `🔍 CES result: ${goodScores}/${cesScores.length} good scores = ${cesPercent.toFixed(1)}%`,
+  );
+
+  return { cesPercent };
 }
 
 function calculateOpenGreaterThan14Days(openTickets: ZendeskTicket[]): number {
@@ -537,34 +570,55 @@ function calculateTechnicalStats(tickets: ZendeskTicket[]) {
     return { enterprisePercent: 0, technicalPercent: 0 };
   }
 
-  const enterpriseTickets = tickets.filter((ticket) =>
-    ticket.tags.some((tag) => tag.toLowerCase().includes("enterprise")),
-  ).length;
+  const enterpriseTickets = tickets.filter((ticket) => {
+    // Check if "sla_enterprise" is in the tags
+    const hasEnterpriseTag = ticket.tags.some(
+      (tag) => tag.toLowerCase() === "sla_enterprise",
+    );
 
-  const technicalTickets = tickets.filter((ticket) =>
-    ticket.tags.some((tag) =>
-      ["technical", "api", "integration", "development", "bug"].some(
-        (keyword) => tag.toLowerCase().includes(keyword),
-      ),
-    ),
-  ).length;
+    // Check if custom field 9207050192535 is equal to "Enterprise"
+    const hasEnterpriseCustomField = ticket.custom_fields?.some(
+      (field) => field.id === 9207050192535 && field.value === "Enterprise",
+    );
+
+    return hasEnterpriseTag || hasEnterpriseCustomField;
+  }).length;
+
+  const technicalTickets = tickets.filter((ticket) => {
+    // Find the root cause custom field (ID: 6527031427095)
+    const rootCauseField = ticket.custom_fields?.find(
+      (field) => field.id === 6527031427095,
+    );
+
+    // If no root cause field, not technical
+    if (!rootCauseField || !rootCauseField.value) {
+      return false;
+    }
+
+    const rootCause = String(rootCauseField.value).toLowerCase();
+
+    // Non-technical root causes start with these prefixes
+    const nonTechnicalPrefixes = [
+      "service",
+      "account",
+      "miscellaneous",
+      "styling",
+      "fusion",
+    ];
+
+    // Check if root cause starts with any non-technical prefix
+    const isNonTechnical = nonTechnicalPrefixes.some((prefix) =>
+      rootCause.startsWith(prefix),
+    );
+
+    // Technical if it doesn't start with non-technical prefixes
+    return !isNonTechnical;
+  }).length;
 
   return {
     enterprisePercent: (enterpriseTickets / tickets.length) * 100,
     technicalPercent: (technicalTickets / tickets.length) * 100,
   };
-}
-
-function calculateOverallQuality(
-  tickets: ZendeskTicket[],
-  ratings: ZendeskSatisfactionRating[],
-): number {
-  // Calculate based on resolution time, customer satisfaction, and ticket handling
-  const avgResolutionScore = calculateResolutionScore(tickets);
-  const satisfactionScore = calculateSatisfactionScore(ratings);
-  const handlingScore = calculateHandlingScore(tickets);
-
-  return (avgResolutionScore + satisfactionScore + handlingScore) / 3;
 }
 
 function calculateCommunicationScore(tickets: ZendeskTicket[]): number {
@@ -586,14 +640,15 @@ function calculateResponseQuality(
   tickets: ZendeskTicket[],
   ratings: ZendeskSatisfactionRating[],
 ): number {
-  if (ratings.length === 0) return 3; // Default score
+  if (ratings.length === 0) {
+    // Return 0 when no ratings available - no dummy data
+    return 0;
+  }
 
   const goodRatings = ratings.filter(
     (rating) => rating.score === "good",
   ).length;
   const badRatings = ratings.filter((rating) => rating.score === "bad").length;
-
-  if (ratings.length === 0) return 3;
 
   const score = (goodRatings * 5 + badRatings * 1) / ratings.length;
   return Math.max(1, Math.min(5, score));
@@ -674,6 +729,18 @@ function calculateHandlingScore(tickets: ZendeskTicket[]): number {
   return Math.max(1, Math.min(5, handlingRatio * 5));
 }
 
+// Define the specific engineers we want to show (hardcoded list)
+const TARGET_ENGINEERS = new Map([
+  ["Jared Beckler", 29215234714775],
+  ["Rahul Joshi", 29092423638935],
+  ["Parth Sharma", 29092389569431],
+  ["Fernando Duran", 24100359866391],
+  ["Alex Bridgeman", 19347232342679],
+  ["Sheema Parwaz", 16211207272855],
+  ["Manish Sharma", 5773445002519],
+  ["Akash Singh", 26396676511767],
+]);
+
 // Main data fetching function
 export async function fetchAllEngineerMetrics(
   startDate?: Date,
@@ -682,44 +749,93 @@ export async function fetchAllEngineerMetrics(
   console.log("🚀 Starting fetchAllEngineerMetrics...");
 
   try {
-    console.log("✅ Attempting to fetch real Zendesk data...");
-    // Make requests sequentially to avoid rate limits
-    console.log("🧑‍💻 Fetching users...");
-    const users = await getUsers(); // This now fetches only engineers from nameToIdMap
-    console.log("🎫 Fetching tickets...");
-    const tickets = await getTickets(startDate, endDate);
-    console.log("⭐ Fetching satisfaction ratings...");
-    const ratings = await getSatisfactionRatings(startDate, endDate);
+    console.log("🔄 Fetching engineer metrics from API endpoints");
+    console.log("📅 Date range:", { startDate, endDate });
 
-    console.log("📊 Raw data received:");
-    console.log("- Engineers:", users.length);
-    console.log("- Tickets:", tickets.length);
-    console.log("- Ratings:", ratings.length);
+    const [users, tickets] = await Promise.all([
+      getUsers(),
+      getTickets(startDate, endDate),
+    ]);
 
+    console.log("📦 Raw API data:", {
+      usersCount: users.length,
+      ticketsCount: tickets.length,
+      userSample: users.slice(0, 3).map((u) => ({ id: u.id, name: u.name })),
+    });
+
+    // Debug the filtering process
+    console.log("🔍 Engineer filtering debug:");
+    console.log("  Expected engineers:", Array.from(TARGET_ENGINEERS.keys()));
     console.log(
-      "👥 Engineers fetched:",
-      users.map((u) => u.name),
+      "  API returned users:",
+      users.map((u) => ({ id: u.id, name: u.name })),
     );
 
-    if (users.length === 0) {
-      console.error(
-        "❌ No engineers found from API - this should not happen with real data",
+    // Filter users to only include engineers from our hardcoded list
+    const filteredUsers = users.filter((user) => {
+      const hasName = TARGET_ENGINEERS.has(user.name);
+      const hasCorrectId = TARGET_ENGINEERS.get(user.name) === user.id;
+      console.log(
+        `  ${user.name} (${user.id}): hasName=${hasName}, hasCorrectId=${hasCorrectId}`,
       );
-      throw new Error("No engineers found in API response");
-    }
-
-    const engineerMetrics = users.map((user) =>
-      calculateEngineerMetrics(user, tickets, ratings, startDate, endDate),
-    );
+      return hasName && hasCorrectId;
+    });
 
     console.log(
-      "📈 Generated metrics for:",
-      engineerMetrics.map((e) => e.name),
+      "👥 Filtered engineers:",
+      filteredUsers.map((u) => ({ id: u.id, name: u.name })),
     );
-    return engineerMetrics;
+
+    // If we found engineers in the API, calculate real metrics
+    if (filteredUsers.length > 0) {
+      const engineerMetrics = filteredUsers.map((user) => {
+        console.log(`🔍 Calculating metrics for ${user.name} (ID: ${user.id})`);
+
+        const userTickets = tickets.filter(
+          (ticket) => ticket.assignee_id === user.id,
+        );
+        console.log(`📊 ${user.name} raw data:`, {
+          ticketsCount: userTickets.length,
+          ticketStatuses: userTickets.reduce((acc, t) => {
+            acc[t.status] = (acc[t.status] || 0) + 1;
+            return acc;
+          }, {}),
+          sampleCustomFields: userTickets.slice(0, 2).map((t) => ({
+            ticketId: t.id,
+            customFields:
+              t.custom_fields?.map((cf) => ({ id: cf.id, value: cf.value })) ||
+              [],
+          })),
+        });
+
+        const metrics = calculateEngineerMetrics(user, tickets);
+
+        console.log(`📈 ${user.name} calculated metrics:`, {
+          closed: metrics.closed,
+          open: metrics.open,
+          cesPercent: metrics.cesPercent,
+          surveyCount: metrics.surveyCount,
+        });
+
+        return metrics;
+      });
+
+      console.log(
+        "��� All engineer metrics calculated:",
+        engineerMetrics.length,
+      );
+      return engineerMetrics;
+    } else {
+      // If no engineers found in API, return empty array
+      console.log("⚠️ No engineers found in API, returning empty array");
+      return [];
+    }
   } catch (error) {
-    console.error("❌ Failed to fetch real data:", error);
-    throw error; // Don't fall back to mock data - always use real data
+    console.error("❌ Error fetching engineer metrics:", error);
+
+    // On error, return empty array - no dummy data
+    console.log("🔄 Returning empty array due to API error");
+    return [];
   }
 
   console.log(
@@ -731,24 +847,11 @@ export async function fetchAllEngineerMetrics(
 
 export async function calculateTeamAverages(
   engineerMetrics: EngineerMetrics[],
-): Promise<EngineerMetrics> {
-  console.log(
-    "📊 Calculating team averages for",
-    engineerMetrics.length,
-    "engineers",
-  );
-  console.log(
-    "👥 Engineers:",
-    engineerMetrics.map((e) => e.name),
-  );
-
+): Promise<EngineerMetrics | null> {
   if (engineerMetrics.length === 0) {
-    console.error(
-      "❌ No engineer metrics available for team average calculation",
-    );
-    throw new Error(
-      "No engineer metrics available for team average calculation",
-    );
+    // Return null when no engineer metrics available - no dummy data
+    console.log("⚠️ No engineer metrics available, returning null");
+    return null;
   }
 
   const averages = engineerMetrics.reduce(

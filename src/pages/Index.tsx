@@ -19,7 +19,7 @@ import {
 import { PerformanceTable } from "../components/PerformanceTable";
 import { RadarChart } from "../components/RadarChart";
 import { MetricCard } from "../components/MetricCard";
-import { useZendeskData, useZendeskConfig } from "../hooks/use-zendesk-data";
+import { useSupabaseData, useSupabaseConfig } from "../hooks/use-supabase-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
 import {
@@ -39,6 +39,7 @@ import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Button } from "../components/ui/button";
 
+<<<<<<< HEAD
 // Helper function to check if a date is a weekend (Saturday or Sunday)
 const isWeekend = (date: Date): boolean => {
   const day = date.getDay();
@@ -125,17 +126,33 @@ const getDateRanges = (): DateRange[] => {
     lastMonthMonth,
   );
   const lastMonthEnd = getLastWorkingDayOfMonth(lastMonthYear, lastMonthMonth);
+=======
+
+// Add debug helper
+const DEBUG_MODE = import.meta.env.DEV;
+
+// Function to create date ranges dynamically
+const createDateRanges = (): DateRange[] => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59); // End of today
+>>>>>>> upstream/main
 
   return [
     {
       label: "Last 30 Days",
       value: "last-30-days",
+<<<<<<< HEAD
       start: thirtyDaysAgo,
+=======
+      start: new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000), // 30 days including today
+>>>>>>> upstream/main
       end: endOfToday,
     },
     {
       label: "Last 7 Days",
       value: "last-7-days",
+<<<<<<< HEAD
       start: sevenDaysAgo,
       end: endOfToday,
     },
@@ -155,17 +172,45 @@ const getDateRanges = (): DateRange[] => {
 };
 
 const dateRanges = getDateRanges();
+=======
+      start: new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000), // 7 days including today
+      end: endOfToday,
+    },
+    {
+      label: "This Month",
+      value: "this-month",
+      start: new Date(now.getFullYear(), now.getMonth(), 1), // First day of current month
+      end: endOfToday,
+    },
+    {
+      label: "Last Month",
+      value: "last-month",
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1), // First day of last month
+      end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59), // Last day of last month
+    },
+    {
+      label: "All 2025 Data",
+      value: "all-2025",
+      start: new Date(2025, 0, 1), // January 1, 2025
+      end: endOfToday,
+    },
+  ];
+};
+>>>>>>> upstream/main
 
 export default function Index() {
-  const [selectedPeriod, setSelectedPeriod] = useState(dateRanges[0]);
+  // Generate fresh date ranges on each render
+  const dateRanges = React.useMemo(() => createDateRanges(), []);
+
+  const [selectedPeriod, setSelectedPeriod] = useState(() => dateRanges[0]);
   const [selectedEngineer, setSelectedEngineer] = useState("");
   const [showAlerts, setShowAlerts] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
 
-  // Check if Zendesk is configured
-  const { isConfigured, config } = useZendeskConfig();
+  // Check if Supabase is configured
+  const { isConfigured, config } = useSupabaseConfig();
 
-  // Fetch data from Zendesk
+  // Fetch data from Supabase with sync capability
   const {
     engineerData,
     averageMetrics,
@@ -174,8 +219,11 @@ export default function Index() {
     error,
     lastUpdated,
     refetch,
+    syncData,
     clearError,
-  } = useZendeskData(selectedPeriod);
+    isSyncing,
+    syncProgress,
+  } = useSupabaseData(selectedPeriod);
 
   // Set default selected engineer when data loads
   React.useEffect(() => {
@@ -184,13 +232,41 @@ export default function Index() {
     }
   }, [engineerData, selectedEngineer]);
 
+  // Debug logging
+  React.useEffect(() => {
+    if (DEBUG_MODE) {
+      console.log("🔍 Debug data state:", {
+        engineerDataLength: engineerData.length,
+        averageMetrics: averageMetrics,
+        isLoading,
+        error,
+        lastUpdated,
+        engineerSample: engineerData.slice(0, 2).map((e) => ({
+          name: e.name,
+          cesPercent: e.cesPercent,
+          closed: e.closed,
+          open: e.open,
+        })),
+      });
+    }
+  }, [engineerData, averageMetrics, isLoading, error, lastUpdated]);
+
   const currentEngineer =
     engineerData.find((e) => e.name === selectedEngineer) || engineerData[0];
 
   // Handle period change
   const handlePeriodChange = async (newPeriod: DateRange) => {
+    console.log('📅 Period change triggered:', {
+      oldPeriod: selectedPeriod.label,
+      newPeriod: newPeriod.label,
+      newStart: newPeriod.start.toISOString(),
+      newEnd: newPeriod.end.toISOString()
+    });
+
     setSelectedPeriod(newPeriod);
+    console.log('🔄 Calling refetch with new period...');
     await refetch(newPeriod);
+    console.log('✅ Refetch completed');
   };
 
   // Show configuration error if not properly set up
@@ -203,15 +279,12 @@ export default function Index() {
             <h2 className="text-lg font-semibold">Configuration Required</h2>
           </div>
           <p className="text-gray-600 mb-4">
-            Zendesk API credentials are not configured. Please check your .env
+            Supabase credentials are not configured. Please check your .env
             file.
           </p>
           <div className="space-y-2 text-sm text-gray-500">
-            <div>✓ VITE_ZENDESK_SUBDOMAIN: {config.subdomain || "Missing"}</div>
-            <div>✓ VITE_ZENDESK_EMAIL: {config.email || "Missing"}</div>
-            <div>
-              ✓ VITE_ZENDESK_API_TOKEN: {config.hasApiToken ? "Set" : "Missing"}
-            </div>
+            <div>✓ VITE_SUPABASE_URL: {config.hasSupabaseUrl ? "Set" : "Missing"}</div>
+            <div>✓ VITE_SUPABASE_ANON_KEY: {config.hasSupabaseKey ? "Set" : "Missing"}</div>
           </div>
         </div>
       </div>
@@ -222,6 +295,110 @@ export default function Index() {
   const isCloudEnv =
     window.location.hostname !== "localhost" &&
     window.location.hostname !== "127.0.0.1";
+
+  // Show empty state when no data but no error (clean database)
+  if (!isLoading && !error && engineerData.length === 0 && !averageMetrics) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg text-center">
+          <div className="flex items-center justify-center space-x-3 text-blue-600 mb-4">
+            <Info className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">No Data Available</h2>
+          </div>
+          <div className="text-gray-600 mb-6">
+            <p className="mb-3">
+              Your database is set up but doesn't contain any metrics yet.
+            </p>
+            <p className="mb-3">
+              Click "Pull Data" to sync your first batch of data from Zendesk.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              const result = await syncData();
+              if (result.success) {
+                console.log('Initial sync completed successfully:', result);
+              } else {
+                console.error('Initial sync failed:', result.errors);
+              }
+            }}
+            disabled={isSyncing}
+            className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 mx-auto"
+          >
+            <RefreshCw
+              className={cn(
+                "w-4 h-4 text-white",
+                isSyncing && "animate-spin",
+              )}
+            />
+            <span>{isSyncing ? 'Syncing from Zendesk...' : 'Pull Data from Zendesk'}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    const isCloudError =
+      error.includes("cloud environment") ||
+      error.includes("Backend server required");
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg">
+          <div className="flex items-center space-x-3 text-blue-600 mb-4">
+            <Info className="w-6 h-6" />
+            <h2 className="text-lg font-semibold">
+              {isCloudError ? "Demo Mode" : "Error Loading Data"}
+            </h2>
+          </div>
+          <div className="text-gray-600 mb-4">
+            {isCloudError ? (
+              <div>
+                <p className="mb-3">
+                  This is a live demo of the Zendesk Performance Dashboard.
+                </p>
+                <p className="mb-3">To see real data, you would need to:</p>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Run the backend server locally</li>
+                  <li>Configure Zendesk API credentials</li>
+                  <li>Connect to your Zendesk instance</li>
+                </ul>
+              </div>
+            ) : (
+              <p>{error}</p>
+            )}
+          </div>
+          {!isCloudError && (
+            <div className="flex space-x-3">
+              <button
+                onClick={() => refetch(selectedPeriod)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Retry</span>
+              </button>
+              <button
+                onClick={clearError}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+          {isCloudError && (
+            <button
+              onClick={clearError}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Continue to Demo (Empty States)
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Generate radar chart data based on selected engineer
   const generateRadarData = (engineer: typeof currentEngineer) => {
@@ -352,12 +529,30 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Loading Overlay */}
-      {isLoading && (
+      {/* Loading/Syncing Overlay */}
+      {(isLoading || isSyncing) && (
         <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 flex items-center space-x-3">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="text-gray-700">Loading Zendesk data...</span>
+          <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center space-y-3 min-w-[300px]">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <span className="text-gray-700">
+                {isSyncing ? 'Syncing data from Zendesk...' : 'Loading data...'}
+              </span>
+            </div>
+            {syncProgress && (
+              <div className="w-full">
+                <div className="text-sm text-gray-600 mb-1">{syncProgress.message}</div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${syncProgress.current}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {syncProgress.current.toFixed(0)}% complete
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -394,10 +589,13 @@ export default function Index() {
 
               {/* Refresh Button */}
               <button
-                onClick={() => refetch(selectedPeriod)}
-                disabled={isLoading}
-                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
-                title="Pull latest data from Zendesk"
+                onClick={async () => {
+                  console.log('🔄 Manual refresh triggered with current period:', selectedPeriod.label);
+                  await refetch(selectedPeriod);
+                }}
+                disabled={isLoading || isSyncing}
+                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white hover:bg-green-700 rounded-md disabled:opacity-50 mr-2"
+                title="Refresh data from database with current date range"
               >
                 <RefreshCw
                   className={cn(
@@ -405,322 +603,159 @@ export default function Index() {
                     isLoading && "animate-spin",
                   )}
                 />
-                <span className="text-sm font-medium">Pull Data</span>
+                <span className="text-sm font-medium">Refresh</span>
+              </button>
+
+              {/* Sync Button */}
+              <button
+                onClick={async () => {
+                  const result = await syncData();
+                  if (result.success) {
+                    console.log('Sync completed successfully:', result);
+                  } else {
+                    console.error('Sync failed:', result.errors);
+                  }
+                }}
+                disabled={isLoading || isSyncing}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
+                title="Pull latest data from Zendesk and sync to database"
+              >
+                <RefreshCw
+                  className={cn(
+                    "w-4 h-4 text-white",
+                    (isLoading || isSyncing) && "animate-spin",
+                  )}
+                />
+                <span className="text-sm font-medium">
+                {isSyncing ? 'Syncing...' : 'Pull Data'}
+              </span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Debug Section */}
-      <div className="bg-orange-50 border-b border-orange-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center space-x-2 text-orange-800 hover:text-orange-900"
-          >
-            <span className="text-red-600">◀</span>
-            <span className="text-sm font-medium">
-              Debug Info (Click to expand)
-            </span>
-          </button>
-
-          {showDebug && (
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="text-orange-800">
-                <span className="font-medium">Engineers loaded:</span>{" "}
-                {engineerData.length}
-              </div>
-              <div className="text-orange-800">
-                <span className="font-medium">Average metrics:</span>{" "}
-                {averageMetrics ? "✅ Loaded" : "❌ Not loaded"}
-              </div>
-              <div className="text-orange-800">
-                <span className="font-medium">Loading:</span>{" "}
-                {isLoading ? "🔄 In progress" : "✅ Complete"}
-              </div>
-              <div className="text-orange-800">
-                <span className="font-medium">Error:</span> {error || "None"}
-              </div>
-              <div className="text-orange-800">
-                <span className="font-medium">Last updated:</span>{" "}
-                {lastUpdated ? lastUpdated.toLocaleString() : "Never"}
-              </div>
-              {engineerData.length > 0 && (
-                <div className="text-orange-800">
-                  <span className="font-medium">Sample engineer:</span>{" "}
-                  {engineerData[0].name} - Closed: {engineerData[0].closed},
-                  CES: {engineerData[0].cesPercent.toFixed(1)}%
+      {/* Debug Panel - only in development */}
+      {DEBUG_MODE && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <details className="text-sm">
+              <summary className="cursor-pointer text-yellow-800 font-medium">
+                🔍 Debug Info (Click to expand)
+              </summary>
+              <div className="mt-2 space-y-1 text-yellow-700">
+                <div>Engineers loaded: {engineerData.length}</div>
+                <div>
+                  Average metrics: {averageMetrics ? "✅ Loaded" : "❌ Missing"}
                 </div>
-              )}
+                <div>Loading: {isLoading ? "⏳ Yes" : "✅ Complete"}</div>
+                <div>Syncing: {isSyncing ? "⏳ Yes" : "✅ Complete"}</div>
+                <div>Error: {error || "None"}</div>
+                <div>
+                  Last updated: {lastUpdated?.toLocaleString() || "Never"}
+                </div>
+                <div>Database state: {engineerData.length > 0 ? "✅ Has data" : "❌ Empty"}</div>
+                <div>Selected period: {selectedPeriod.label}</div>
+                <div>Date range: {selectedPeriod.start.toISOString().split('T')[0]} to {selectedPeriod.end.toISOString().split('T')[0]}</div>
+                <div>Period value: {selectedPeriod.value}</div>
+                <div>Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Never'}</div>
+                {engineerData.length > 0 && (
+                  <div>
+                    Sample engineer: {engineerData[0].name} - Closed:{" "}
+                    {engineerData[0].closed}, CES:{" "}
+                    {engineerData[0].cesPercent.toFixed(1)}%
+                  </div>
+                )}
+                <div className="mt-3 flex space-x-2">
 
-              <div className="flex flex-wrap gap-2 mt-4">
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch("/api/test-zendesk");
-                      const data = await response.json();
-                      alert(
-                        data.success
-                          ? `✅ Connected! User: ${data.user.name}`
-                          : `❌ Failed: ${data.error}`,
-                      );
-                    } catch (error) {
-                      alert(`❌ Connection failed: ${error}`);
-                    }
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                >
-                  <span>🔧</span>
-                  <span>Test Zendesk API</span>
-                </button>
-
-                <button
-                  onClick={() => refetch(selectedPeriod)}
-                  className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                >
-                  <span>🔄</span>
-                  <span>Reload Data</span>
-                </button>
-
-                <button
-                  onClick={async () => {
-                    const totalClosed = engineerData.reduce(
-                      (sum, eng) => sum + eng.closed,
-                      0,
-                    );
-                    const dateInfo =
-                      `📅 Current Period: ${selectedPeriod.label}\n` +
-                      `Start: ${selectedPeriod.start.toISOString()}\n` +
-                      `End: ${selectedPeriod.end.toISOString()}\n\n` +
-                      `📊 Data Summary:\n` +
-                      `Engineers: ${engineerData.length}\n` +
-                      `Total Closed Tickets: ${totalClosed}\n` +
-                      `Team Avg CES: ${averageMetrics?.cesPercent.toFixed(1) || "N/A"}%\n\n` +
-                      `💡 Try fetching tickets directly using these dates...`;
-
-                    try {
-                      // Test actual API call with current date range
-                      const params = new URLSearchParams({
-                        start_date: selectedPeriod.start.toISOString(),
-                        end_date: selectedPeriod.end.toISOString(),
-                      });
-                      const response = await fetch(
-                        `/api/zendesk/tickets?${params}`,
-                      );
-                      const data = await response.json();
-
-                      if (response.ok) {
-                        alert(
-                          dateInfo +
-                            `\n\n✅ API Test: Found ${data.tickets?.length || 0} tickets in this period`,
-                        );
-                      } else {
-                        alert(
-                          dateInfo + `\n\n❌ API Test Failed: ${data.error}`,
-                        );
+                  <button
+                    onClick={() => {
+                      console.log("🔄 Refetching data...");
+                      refetch(selectedPeriod);
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  >
+                    🔄 Refetch Data
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log('📊 Testing database connection...');
+                      try {
+                        const { getLatestMetricsFromDatabase } = await import('../lib/data-sync');
+                        const result = await getLatestMetricsFromDatabase();
+                        console.log('📊 Database test result:', result);
+                      } catch (error) {
+                        console.error('❌ Database test failed:', error);
                       }
-                    } catch (error) {
-                      alert(dateInfo + `\n\n❌ API Test Error: ${error}`);
-                    }
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
-                >
-                  <span>📊</span>
-                  <span>Debug Date Range</span>
-                </button>
-
-                <button
-                  onClick={async () => {
-                    const alexId = 19347232342679;
-                    try {
-                      // Fetch tickets using current date range
-                      const params = new URLSearchParams({
-                        start_date: selectedPeriod.start.toISOString(),
-                        end_date: selectedPeriod.end.toISOString(),
-                      });
-                      const ticketsResponse = await fetch(
-                        `/api/zendesk/tickets?${params}`,
-                      );
-                      const ticketsData = await ticketsResponse.json();
-
-                      if (ticketsResponse.ok) {
-                        const allTickets = ticketsData.tickets || [];
-                        console.log(
-                          "🔍 Debug - All tickets:",
-                          allTickets.length,
-                        );
-                        console.log(
-                          "🔍 Debug - First few tickets:",
-                          allTickets.slice(0, 3),
-                        );
-
-                        // Filter tickets for Alex
-                        const alexTickets = allTickets.filter(
-                          (ticket) => ticket.assignee_id === alexId,
-                        );
-
-                        // Filter closed/solved tickets
-                        const alexClosedTickets = alexTickets.filter(
-                          (ticket) =>
-                            ticket.status === "closed" ||
-                            ticket.status === "solved",
-                        );
-
-                        console.log(
-                          "🔍 Debug - Alex's total tickets:",
-                          alexTickets.length,
-                        );
-                        console.log(
-                          "🔍 Debug - Alex's closed tickets:",
-                          alexClosedTickets.length,
-                        );
-
-                        // Get the current engineer data from state to compare
-                        const alexFromTable = engineerData.find(
-                          (eng) => eng.name === "Alex Bridgeman",
-                        );
-                        console.log(
-                          "��� Debug - Alex from performance table:",
-                          alexFromTable?.closed,
-                        );
-
-                        // Get status breakdown
-                        const statusBreakdown = alexTickets.reduce(
-                          (acc, ticket) => {
-                            acc[ticket.status] = (acc[ticket.status] || 0) + 1;
-                            return acc;
-                          },
-                          {} as Record<string, number>,
-                        );
-
-                        const ticketInfo =
-                          `🎯 Alex Bridgeman's Closed Tickets Analysis\n\n` +
-                          `🔍 Debug Info:\n` +
-                          `Total API tickets: ${allTickets.length}\n` +
-                          `Date Range: ${selectedPeriod.label}\n` +
-                          `Table shows: ${alexFromTable?.closed || "N/A"} closed\n\n` +
-                          `📊 Alex's Tickets:\n` +
-                          `Total Assigned: ${alexTickets.length}\n` +
-                          `Closed/Solved: ${alexClosedTickets.length}\n\n` +
-                          `📋 Status Breakdown:\n` +
-                          Object.entries(statusBreakdown)
-                            .map(([status, count]) => `• ${status}: ${count}`)
-                            .join("\n") +
-                          `\n\n📋 Recent Closed Tickets:\n` +
-                          alexClosedTickets
-                            .slice(0, 5)
-                            .map(
-                              (ticket) =>
-                                `• #${ticket.id}: ${ticket.status} (${new Date(ticket.updated_at).toLocaleDateString()})`,
-                            )
-                            .join("\n") +
-                          (alexClosedTickets.length > 5
-                            ? `\n... and ${alexClosedTickets.length - 5} more`
-                            : "") +
-                          `\n\n💡 Check browser console for detailed debug info`;
-
-                        alert(ticketInfo);
-                      } else {
-                        alert(
-                          `❌ Failed to fetch tickets: ${ticketsData.error}`,
-                        );
+                    }}
+                    className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                  >
+                    📊 Test Database
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log('📅 Testing date filtering with current period:', selectedPeriod);
+                      try {
+                        const { getLatestMetricsFromDatabase } = await import('../lib/data-sync');
+                        const result = await getLatestMetricsFromDatabase(selectedPeriod.start, selectedPeriod.end);
+                        console.log('📅 Date-filtered result:', result);
+                      } catch (error) {
+                        console.error('❌ Date filter test failed:', error);
                       }
-                    } catch (error) {
-                      alert(
-                        `❌ Error fetching Alex's closed tickets: ${error}`,
-                      );
-                    }
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                >
-                  <span>🎫</span>
-                  <span>Alex's Closed Tickets</span>
-                </button>
+                    }}
+                    className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                  >
+                    📅 Test Date Filter
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log("🎯 Checking ticket 19934...");
+                      try {
+                        // Add timestamp to prevent caching issues
+                        const url = `/api/debug/ticket/19934?t=${Date.now()}`;
+                        const response = await fetch(url);
 
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch(
-                        "/api/zendesk/tickets/20225",
-                      );
-                      const data = await response.json();
-                      if (response.ok) {
-                        // Check if assignee is in our engineer list
-                        const engineerMap = new Map([
-                          ["Jared Beckler", 29215234714775],
-                          ["Rahul Joshi", 29092423638935],
-                          ["Parth Sharma", 29092389569431],
-                          ["Fernando Duran", 24100359866391],
-                          ["Alex Bridgeman", 19347232342679],
-                          ["Sheema Parwaz", 16211207272855],
-                          ["Manish Sharma", 5773445002519],
-                          ["Akash Singh", 26396676511767],
-                        ]);
+                        // Check if response is ok before reading
+                        if (!response.ok) {
+                          console.error(
+                            "🎯 API Error:",
+                            response.status,
+                            response.statusText,
+                          );
+                          return;
+                        }
 
-                        const assigneeInList = Array.from(
-                          engineerMap.values(),
-                        ).includes(data.ticket.assignee_id);
-                        const assigneeInfo = assigneeInList
-                          ? "✅ In tracked engineers"
-                          : "❌ NOT in tracked engineers";
+                        // Read response as JSON directly
+                        const data = await response.json();
+                        console.log("🎯 Ticket 19934 details:", data);
 
-                        // Check date range using both created_at and updated_at
-                        const createdDate = new Date(data.ticket.created_at);
-                        const updatedDate = new Date(data.ticket.updated_at);
-                        const currentRange = selectedPeriod;
-
-                        const createdInRange =
-                          createdDate >= currentRange.start &&
-                          createdDate <= currentRange.end;
-                        const updatedInRange =
-                          updatedDate >= currentRange.start &&
-                          updatedDate <= currentRange.end;
-
-                        const dateInfo =
-                          `Created: ${createdInRange ? "✅" : "❌"} (${createdDate.toISOString()})\n` +
-                          `Updated: ${updatedInRange ? "✅" : "❌"} (${updatedDate.toISOString()})\n` +
-                          `Should count: ${updatedInRange ? "YES (updated in range)" : "NO (updated outside range)"}`;
-
-                        // Fix the solved display logic
-                        const isSolved =
-                          data.ticket.status === "solved" ||
-                          data.ticket.status === "closed";
-                        const solvedDisplay = isSolved
-                          ? `Yes (Status: ${data.ticket.status})${data.ticket.solved_at ? ` at ${data.ticket.solved_at}` : " - timestamp missing"}`
-                          : "No";
-
-                        alert(
-                          `🎫 Ticket 20225 Analysis:\n\n` +
-                            `ID: ${data.ticket.id}\n` +
-                            `Subject: ${data.ticket.subject}\n` +
-                            `Status: ${data.ticket.status}\n` +
-                            `Created: ${data.ticket.created_at}\n` +
-                            `Solved: ${solvedDisplay}\n` +
-                            `Assignee ID: ${data.ticket.assignee_id || "Unassigned"}\n\n` +
-                            `📊 Analysis:\n` +
-                            `${assigneeInfo}\n` +
-                            `${dateInfo}\n` +
-                            `Range: ${currentRange.start.toISOString()} to ${currentRange.end.toISOString()}\n\n` +
-                            `💡 Note: Status '${data.ticket.status}' ${isSolved ? "SHOULD" : "should NOT"} count as closed ticket`,
+                        // Specific logging for CES field
+                        const cesField = data.custom_fields?.find(
+                          (cf) => cf.id === 31797439524887,
                         );
-                      } else {
-                        alert(`❌ Failed to fetch ticket 20225: ${data.error}`);
+                        if (cesField) {
+                          console.log("✅ Found CES field:", cesField);
+                        } else {
+                          console.log("❌ CES field not found");
+                          console.log(
+                            "📝 Available custom field IDs:",
+                            data.custom_fields?.map((cf) => cf.id) || [],
+                          );
+                        }
+                      } catch (error) {
+                        console.error("🎯 Ticket check error:", error.message);
                       }
-                    } catch (error) {
-                      alert(`❌ Error fetching ticket 20225: ${error}`);
-                    }
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
-                >
-                  <span>🎫</span>
-                  <span>Debug Ticket 20225</span>
-                </button>
+                    }}
+                    className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                  >
+                    🎯 Check Ticket 19934
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            </details>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Alerts Panel */}
       {showAlerts && (
@@ -821,6 +856,158 @@ export default function Index() {
                   value={engineerData.length}
                   subtitle="Currently tracked"
                   color="yellow"
+        {/* Summary Cards */}
+        {averageMetrics ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <MetricCard
+              title="Team Average CES"
+              value={`${averageMetrics.cesPercent.toFixed(1)}%`}
+              subtitle={selectedPeriod.label}
+              trend={averageMetrics.cesPercent >= 80 ? "up" : "down"}
+              trendValue={`${averageMetrics.cesPercent >= 80 ? "+" : ""}${(averageMetrics.cesPercent - 80).toFixed(1)}%`}
+              color={
+                averageMetrics.cesPercent >= 85
+                  ? "green"
+                  : averageMetrics.cesPercent >= 75
+                    ? "yellow"
+                    : "red"
+              }
+            />
+            <MetricCard
+              title="Total Tickets Closed"
+              value={engineerData.reduce((sum, eng) => sum + eng.closed, 0)}
+              subtitle={selectedPeriod.label}
+              color="blue"
+            />
+            <MetricCard
+              title="Avg RESOLUTION Time"
+              value={`${averageMetrics.avgPcc.toFixed(1)}h`}
+              subtitle="Hours"
+              color="purple"
+            />
+            <MetricCard
+              title="Active Engineers"
+              value={engineerData.length}
+              subtitle="Currently tracked"
+              color="yellow"
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-center h-20">
+                  <div className="text-center">
+                    <div className="text-gray-400 mb-2">No Data</div>
+                    <div className="text-sm text-gray-500">
+                      Backend required
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Performance Table */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Team Performance Overview
+            </h2>
+            <div className="text-sm text-gray-500 space-y-1">
+              <div>
+                Period: {selectedPeriod.label} ({selectedPeriod.start.toLocaleDateString()} - {selectedPeriod.end.toLocaleDateString()})
+              </div>
+              {lastUpdated && (
+                <div>
+                  Last Updated: {lastUpdated.toLocaleDateString()} at{" "}
+                  {lastUpdated.toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          </div>
+          {averageMetrics ? (
+            <PerformanceTable
+              data={engineerData}
+              averageData={averageMetrics}
+            />
+          ) : (
+            <div className="bg-white rounded-lg shadow p-8">
+              <div className="text-center">
+                <div className="text-gray-400 mb-2">
+                  No Performance Data Available
+                </div>
+                <div className="text-sm text-gray-500">
+                  Start the backend server to load Zendesk data
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Performance Charts Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Individual Performance Analysis
+            </h2>
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium text-gray-700">
+                Engineer:
+              </label>
+              {engineerData.length > 0 ? (
+                <select
+                  value={selectedEngineer}
+                  onChange={(e) => setSelectedEngineer(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {engineerData.map((engineer) => (
+                    <option key={engineer.name} value={engineer.name}>
+                      {engineer.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                  {isLoading ? "Loading engineers..." : "No engineers found"}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Current Period Chart */}
+            {currentEngineer && currentRadarData.metrics.length > 0 ? (
+              <div>
+                <RadarChart data={currentRadarData} size={320} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-80 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Loading engineer data...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Previous Period Chart */}
+            {currentEngineer && currentRadarData.metrics.length > 0 ? (
+              <div>
+                <RadarChart
+                  data={{
+                    title: selectedEngineer,
+                    subtitle: "Previous Period",
+                    metrics: currentRadarData.metrics.map((metric) => ({
+                      ...metric,
+                      value: Math.max(
+                        0,
+                        metric.value + (Math.random() - 0.5) * 0.6,
+                      ),
+                      color: "#64748b",
+                    })),
+                  }}
+                  size={320}
                 />
               </div>
             ) : (
