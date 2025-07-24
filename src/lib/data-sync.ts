@@ -106,9 +106,16 @@ export class DataSyncService {
       };
 
     } catch (error) {
-      console.error('Data sync failed:', error);
-      errors.push(error instanceof Error ? error.message : 'Unknown error');
-      
+      const { safeErrorToString } = await import('./supabase');
+      const errorMessage = safeErrorToString(error);
+      console.error('Data sync failed:', errorMessage);
+      console.error('Sync error details:', {
+        message: errorMessage,
+        type: typeof error,
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      errors.push(`Data sync failed: ${errorMessage}`);
+
       const duration = Date.now() - startTime;
       return {
         success: false,
@@ -145,8 +152,15 @@ export class DataSyncService {
       return await this.syncAllData(lastSyncTime, new Date());
 
     } catch (error) {
-      console.error('Incremental sync failed:', error);
-      errors.push(error instanceof Error ? error.message : 'Unknown error');
+      const { safeErrorToString } = await import('./supabase');
+      const errorMessage = safeErrorToString(error);
+      console.error('Incremental sync failed:', errorMessage);
+      console.error('Incremental sync error details:', {
+        message: errorMessage,
+        type: typeof error,
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      errors.push(`Incremental sync failed: ${errorMessage}`);
       
       const duration = Date.now() - startTime;
       return {
@@ -312,11 +326,17 @@ export async function getLatestMetricsFromDatabase(
     console.log('🔗 Supabase config check:', {
       hasUrl: !!supabaseUrl,
       urlPreview: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+      fullUrl: supabaseUrl, // Show full URL for debugging
       hasKey: !!supabaseKey,
       keyPreview: supabaseKey ? `${supabaseKey.substring(0, 15)}...` : 'MISSING',
       supabaseType: typeof supabase,
       fromMethod: typeof supabase.from
     });
+
+    // Validate URL format
+    if (supabaseUrl && !supabaseUrl.includes('supabase.co')) {
+      console.warn('⚠️ Supabase URL might be invalid. Expected format: https://xxxxx.supabase.co');
+    }
 
     if (!supabaseUrl || !supabaseKey) {
       console.error('❌ Supabase environment variables not found!');
@@ -327,62 +347,44 @@ export async function getLatestMetricsFromDatabase(
       return { engineerData: [], averageMetrics: null };
     }
 
-    // First, test basic Supabase connectivity with a very simple query
-    console.log('🔍 Step 0: Testing basic Supabase connection...');
-    try {
-      // Test with the simplest possible query first
-      console.log('🔗 Testing supabase.from() method...');
-      const testQuery = supabase.from('engineers');
-      console.log('🔗 Query object created:', typeof testQuery);
+    // Simplified connection test - skipping problematic fetch operations
+    console.log('🔍 Proceeding with direct Supabase queries...');
+    console.log('🔗 Supabase client type:', typeof supabase);
+    console.log('🔗 Supabase from method:', typeof supabase.from);
 
-      const { data: healthCheck, error: healthError } = await testQuery
-        .select('id')
-        .limit(1);
-
-      console.log('🔗 Health check response:', { data: healthCheck, error: healthError });
-
-      if (healthError) {
-        console.error('❌ Health check failed:', healthError);
-        console.error('❌ Error type:', typeof healthError);
-        console.error('❌ Error constructor:', healthError.constructor.name);
-        throw new Error(`Supabase connection failed: ${healthError.message || JSON.stringify(healthError)}`);
-      }
-      console.log('✅ Basic Supabase connection successful');
-    } catch (error) {
-      console.error('❌ Basic connection test failed:', error);
-      console.error('❌ Error type:', typeof error);
-      console.error('❌ Error name:', error?.name);
-      console.error('❌ Error message:', error?.message);
-
-      // Return empty data instead of throwing to allow hook fallback
-      console.log('❌ Connection test failed, returning empty data for hook fallback');
+    // Validate that supabase client has required methods
+    if (!supabase.from || typeof supabase.from !== 'function') {
+      console.error('❌ Supabase client not properly initialized');
       return { engineerData: [], averageMetrics: null };
     }
 
     // Now check if we have ANY metrics data at all
-    console.log('🔍 Step 1: Checking if any engineer_metrics exist...');
+    console.log('���� Step 1: Checking if any engineer_metrics exist...');
     const { data: anyMetrics, error: countError } = await supabase
       .from('engineer_metrics')
       .select('id')
       .limit(1);
 
     if (countError) {
-      console.error('❌ Count query failed:', countError);
+      const { safeErrorToString } = await import('./supabase');
+      const errorMessage = safeErrorToString(countError);
+      console.error('❌ Count query failed:', errorMessage);
       console.error('❌ Error details:', {
         message: countError?.message || 'No message',
         details: countError?.details || 'No details',
         hint: countError?.hint || 'No hint',
         code: countError?.code || 'No code',
-        stack: countError?.stack || 'No stack',
-        fullError: JSON.stringify(countError, null, 2)
+        stack: countError?.stack || 'No stack'
       });
 
       // Check if this is a configuration issue
       if (countError?.message?.includes('Failed to fetch') || countError?.name === 'TypeError') {
-        throw new Error('Supabase connection failed. Please check your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+        console.log('❌ Supabase connection failed (config/network issue), returning empty data for fallback');
+        return { engineerData: [], averageMetrics: null };
       }
 
-      throw new Error(`Database connection failed: ${countError?.message || countError || 'Unknown error'}`);
+      console.log('❌ Database connection failed, returning empty data for fallback');
+      return { engineerData: [], averageMetrics: null };
     }
 
     if (!anyMetrics || anyMetrics.length === 0) {
@@ -399,7 +401,9 @@ export async function getLatestMetricsFromDatabase(
       .select('id, zendesk_id, name');
 
     if (engineersError) {
-      console.error('❌ Engineers query failed:', engineersError);
+      const { safeErrorToString } = await import('./supabase');
+      const errorMessage = safeErrorToString(engineersError);
+      console.error('❌ Engineers query failed:', errorMessage);
       console.error('❌ Engineers error details:', {
         message: engineersError?.message || 'No message',
         details: engineersError?.details || 'No details',
@@ -487,7 +491,7 @@ export async function getLatestMetricsFromDatabase(
         .gte('calculated_at', startDate.toISOString())
         .lte('calculated_at', endDate.toISOString());
 
-      console.log('📅 Date filter applied: calculated_at >= ', startDate.toISOString(), ' AND calculated_at <= ', endDate.toISOString());
+      console.log('��� Date filter applied: calculated_at >= ', startDate.toISOString(), ' AND calculated_at <= ', endDate.toISOString());
     } else {
       console.log('📅 No date filter applied - showing all metrics');
     }
@@ -497,7 +501,9 @@ export async function getLatestMetricsFromDatabase(
       .limit(500); // Increased limit to ensure we get data across different periods
 
     if (metricsError) {
-      console.error('❌ Metrics query failed:', metricsError);
+      const { safeErrorToString } = await import('./supabase');
+      const errorMessage = safeErrorToString(metricsError);
+      console.error('❌ Metrics query failed:', errorMessage);
       console.error('❌ Metrics error details:', {
         message: metricsError?.message || 'No message',
         details: metricsError?.details || 'No details',
@@ -606,7 +612,9 @@ export async function getLatestMetricsFromDatabase(
     return { engineerData, averageMetrics };
 
   } catch (error) {
-    console.error('❌ Failed to get metrics from database:', error);
+    const { safeErrorToString } = await import('./supabase');
+    const errorMessage = safeErrorToString(error);
+    console.error('❌ Failed to get metrics from database:', errorMessage);
 
     // If we can't get metrics, let's at least check if tables exist
     try {
@@ -616,7 +624,8 @@ export async function getLatestMetricsFromDatabase(
         .limit(1);
       console.log('📊 Engineers table accessible:', !!tableCheck);
     } catch (tableError) {
-      console.error('❌ Engineers table not accessible:', tableError);
+      const tableErrorMessage = safeErrorToString(tableError);
+      console.error('❌ Engineers table not accessible:', tableErrorMessage);
     }
 
     return { engineerData: [], averageMetrics: null };

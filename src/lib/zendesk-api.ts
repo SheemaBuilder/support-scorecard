@@ -1,6 +1,7 @@
 import { EngineerMetrics } from "./types";
+import { nameToIdMap } from "./engineerMap.js";
 
-// Backend proxy URL - use relative URLs that Vite will proxy
+// Backend proxy URL - always use relative URLs for Vite proxy
 const getApiBaseUrl = () => {
   // Always use relative URLs - this will work with proxy configuration
   return "/api/zendesk";
@@ -13,6 +14,8 @@ const isCloudEnvironment = () => {
     window.location.hostname !== "127.0.0.1"
   );
 };
+
+// NOTE: All mock data functionality has been removed - only real-time Zendesk data is used
 
 // Check if backend is available
 async function checkBackendHealth(): Promise<boolean> {
@@ -57,6 +60,7 @@ async function apiRequest<T>(
   params?: URLSearchParams,
 ): Promise<T> {
   const baseUrl = getApiBaseUrl();
+  const requestId = Math.random().toString(36).substring(7);
 
   // Construct relative URL for proxy
   let urlString = `${baseUrl}${endpoint}`;
@@ -64,70 +68,110 @@ async function apiRequest<T>(
     urlString += `?${params.toString()}`;
   }
 
-  console.log(`🌐 Making API request to: ${urlString}`);
-  console.log(`🌐 Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
+  console.log(`🌐 [${requestId}] Making API request to: ${urlString}`);
+  console.log(`🌐 [${requestId}] Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
 
   try {
-    const response = await fetch(urlString);
+    // Use XMLHttpRequest instead of fetch to avoid browser dev tools interference
+    const responseData = await new Promise<{status: number, statusText: string, responseText: string}>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    console.log(`📋 Response status: ${response.status}`);
-    console.log(
-      `📋 Response headers:`,
-      Object.fromEntries(response.headers.entries()),
-    );
+      xhr.open('GET', urlString, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'application/json');
 
-    // Read response text once, regardless of status
-    let responseText: string;
-    try {
-      // Check if the body has already been read
-      if (response.bodyUsed) {
-        console.error('❌ Response body has already been consumed');
-        throw new Error('Response body has already been read');
-      }
-      responseText = await response.text();
-    } catch (streamError) {
-      console.error("❌ Failed to read response stream:", streamError);
-      throw new Error("Failed to read response from server");
-    }
+      xhr.onload = function() {
+        console.log(`📋 [${requestId}] XHR Response status: ${xhr.status}`);
+        console.log(`📋 [${requestId}] XHR Response length: ${xhr.responseText.length} chars`);
 
-    console.log(`📄 Raw response length: ${responseText.length} characters`);
-    console.log(`📄 Raw response preview: ${responseText.substring(0, 300)}`);
+        resolve({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+      };
+
+      xhr.onerror = function() {
+        console.error(`❌ [${requestId}] XHR request failed`);
+        reject(new Error(`[${requestId}] Network request failed`));
+      };
+
+      xhr.ontimeout = function() {
+        console.error(`❌ [${requestId}] XHR request timed out`);
+        reject(new Error(`[${requestId}] Request timed out`));
+      };
+
+      // Set a 30 second timeout
+      xhr.timeout = 30000;
+
+      console.log(`🌐 [${requestId}] Making XHR request to avoid dev tools interference: ${urlString}`);
+      xhr.send();
+    });
+
+    const { status, statusText, responseText } = responseData;
+    console.log(`📖 [${requestId}] Response body read successfully via XHR (${responseText.length} chars)`);
+
+    console.log(`📄 [${requestId}] Raw response length: ${responseText.length} characters`);
+    console.log(`📄 [${requestId}] Raw response preview: ${responseText.substring(0, 300)}`);
 
     // Check if response was not ok AFTER reading the text
-    if (!response.ok) {
-      console.error(`❌ API error response:`, responseText);
-      throw new Error(
-        `API error: ${response.status} ${response.statusText} - ${responseText}`,
-      );
+    if (status < 200 || status >= 300) {
+      console.error(`❌ [${requestId}] API error response:`, responseText);
+
+      // Provide user-friendly error messages based on status code
+      let userFriendlyMessage = '';
+      if (status === 500) {
+        userFriendlyMessage = 'Backend server error. The Zendesk API proxy is having issues.';
+      } else if (status === 404) {
+        userFriendlyMessage = 'API endpoint not found. Backend server may not be running.';
+      } else if (status >= 400 && status < 500) {
+        userFriendlyMessage = 'Client error. Check API configuration.';
+      } else {
+        userFriendlyMessage = `Server returned ${status} ${statusText}`;
+      }
+
+      throw new Error(`${userFriendlyMessage} (${status})`);
     }
 
     // Parse as JSON
     try {
+      console.log(`🔄 [${requestId}] Parsing JSON...`);
       const jsonData = JSON.parse(responseText);
-      console.log(`✅ Parsed JSON successfully:`, {
+      console.log(`✅ [${requestId}] Parsed JSON successfully:`, {
         keys: Object.keys(jsonData),
-        dataPreview: jsonData,
+        dataPreview: Object.keys(jsonData).length > 10 ? "Large object" : jsonData,
       });
       return jsonData;
     } catch (jsonError) {
-      console.error(`❌ Failed to parse JSON:`, responseText.substring(0, 500));
-      throw new Error(`Invalid JSON response: ${jsonError}`);
+      console.error(`❌ [${requestId}] Failed to parse JSON:`, responseText.substring(0, 500));
+      throw new Error(`[${requestId}] Invalid JSON response: ${jsonError}`);
     }
   } catch (error) {
-    console.error(`��� API request failed for ${urlString}:`, error);
+    console.error(`🚨 [${requestId}] API request failed for ${urlString}:`, error);
 
-    // Provide more helpful error messages for common issues
-    if (
-      error instanceof TypeError &&
-      error.message.includes("Failed to fetch")
-    ) {
-      if (isCloudEnvironment()) {
+    // Handle specific error types
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Request timeout after 2 minutes (likely due to rate limits): ${urlString}`,
+      );
+    }
+
+    // Handle specific error types
+    if (error instanceof Error) {
+      // Check for rate limit errors from backend
+      if (error.message.includes("Rate limit protection active")) {
+        // Extract wait time if possible
+        const waitMatch = error.message.match(/(\d+) seconds/);
+        const waitTime = waitMatch ? waitMatch[1] : "2-3 minutes";
         throw new Error(
-          "Cannot connect to backend server in cloud environment. Backend required for real data.",
+          `Rate limit active. Please wait ${waitTime} seconds before trying again.`,
         );
-      } else {
+      }
+
+      // Handle fetch failures
+      if (error.message.includes("Failed to fetch")) {
         throw new Error(
-          "Cannot connect to backend server. Make sure it's running on port 3001.",
+          "Network connection issue. Please wait 30 seconds and try 'Pull Data' again.",
         );
       }
     }
@@ -178,6 +222,13 @@ interface ZendeskTicketsResponse {
   next_page: string | null;
   previous_page: string | null;
   count: number;
+}
+
+interface ZendeskSatisfactionRating {
+  id: number;
+  score: "good" | "bad";
+  ticket_id: number;
+  created_at: string;
 }
 
 // API functions
@@ -256,15 +307,65 @@ export async function getTickets(
 export function calculateEngineerMetrics(
   user: ZendeskUser,
   tickets: ZendeskTicket[],
+  startDate?: Date,
+  endDate?: Date,
 ): EngineerMetrics {
   const userTickets = tickets.filter(
     (ticket) => ticket.assignee_id === user.id,
   );
 
-  // Calculate metrics
-  const closedTickets = userTickets.filter(
+  // Debug ticket 20225 for this user
+  const ticket20225 = userTickets.find((t) => t.id === 20225);
+  if (ticket20225) {
+    console.log(`🎯 Ticket 20225 assigned to ${user.name} (ID: ${user.id}):`, {
+      status: ticket20225.status,
+      created_at: ticket20225.created_at,
+      solved_at: ticket20225.solved_at,
+    });
+  }
+
+  // Calculate metrics with proper date filtering for solved tickets
+  let closedTickets = userTickets.filter(
     (ticket) => ticket.status === "closed" || ticket.status === "solved",
   );
+
+  // Apply date filtering based on when tickets were actually solved
+  if (startDate && endDate) {
+    console.log(
+      `🔍 Filtering ${user.name}'s closed tickets by solved date: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+    );
+
+    const originalCount = closedTickets.length;
+    closedTickets = closedTickets.filter((ticket) => {
+      // For solved tickets, use solved_at date; for closed tickets without solved_at, use updated_at
+      const solvedDate = ticket.solved_at
+        ? new Date(ticket.solved_at)
+        : new Date(ticket.updated_at);
+      const isInRange = solvedDate >= startDate && solvedDate <= endDate;
+
+      if (!isInRange && ticket.id === 20225) {
+        console.log(
+          `❌ Ticket 20225 excluded - solved: ${ticket.solved_at}, updated: ${ticket.updated_at}, range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+        );
+      }
+
+      return isInRange;
+    });
+
+    console.log(
+      `📊 ${user.name}: ${originalCount} total closed → ${closedTickets.length} in date range`,
+    );
+  }
+
+  // Debug closed tickets for users with ticket 20225
+  if (ticket20225) {
+    console.log(
+      `📊 ${user.name} total tickets: ${userTickets.length}, closed: ${closedTickets.length}`,
+    );
+    console.log(
+      `🔍 Ticket 20225 counted as closed: ${closedTickets.some((t) => t.id === 20225)}`,
+    );
+  }
 
   const openTickets = userTickets.filter(
     (ticket) =>
@@ -466,7 +567,7 @@ function calculateCESStats(userTickets: ZendeskTicket[]) {
         console.log(`✅ Valid CES score ${score} from ticket ${ticket.id}`);
         cesScores.push(score);
       } else {
-        console.log(`❌ Invalid CES score from ticket ${ticket.id}:`, score);
+        console.log(`��� Invalid CES score from ticket ${ticket.id}:`, score);
       }
     }
   });
@@ -684,6 +785,8 @@ export async function fetchAllEngineerMetrics(
   startDate?: Date,
   endDate?: Date,
 ): Promise<EngineerMetrics[]> {
+  console.log("🚀 Starting fetchAllEngineerMetrics...");
+
   try {
     console.log("🔄 Fetching engineer metrics from API endpoints");
     console.log("📅 Date range:", { startDate, endDate });
@@ -744,7 +847,7 @@ export async function fetchAllEngineerMetrics(
           })),
         });
 
-        const metrics = calculateEngineerMetrics(user, tickets);
+        const metrics = calculateEngineerMetrics(user, tickets, startDate, endDate);
 
         console.log(`📈 ${user.name} calculated metrics:`, {
           closed: metrics.closed,
@@ -773,6 +876,12 @@ export async function fetchAllEngineerMetrics(
     console.log("🔄 Returning empty array due to API error");
     return [];
   }
+
+  console.log(
+    "📈 Generated metrics for:",
+    engineerMetrics.map((e) => e.name),
+  );
+  return engineerMetrics;
 }
 
 export async function calculateTeamAverages(
