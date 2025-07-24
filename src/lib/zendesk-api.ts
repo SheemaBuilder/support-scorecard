@@ -260,6 +260,11 @@ interface ZendeskSatisfactionRatingsResponse {
 
 // API functions
 export async function getUsers(): Promise<ZendeskUser[]> {
+  // Use bulk fetching to avoid rate limits completely
+  return await getBulkUsers();
+}
+
+export async function getUsersOLD(): Promise<ZendeskUser[]> {
   console.log("🎯 Fetching engineers by specific IDs from nameToIdMap");
   const engineerEntries = Array.from(nameToIdMap.entries());
   console.log("���� Engineer entries:", engineerEntries);
