@@ -1,0 +1,32 @@
+// Mapping of Zendesk custom field names to their IDs
+export const customFieldIds = {
+  Assignee: "360048454974",
+  BuilderContentLink: "1500015760641",
+  BuilderIOAssistantAI: "23525784228247",
+  CES_Comments: "32228158239767",
+  CES_Score: "31797439524887",
+  CSMOwner: "14492020721175",
+  CustomerEngineerOwner: "14492030773143",
+  CustomerStage: "28132383884311",
+  Description: "360048454874",
+  DetailsOfYourTechStack: "1900007395945",
+  EngineeringYN: "24950126870039",
+  Escalated: "11470512006551",
+  ForumYN: "24225063742359",
+  Group: "360048454954",
+  IntegratedFrontendFramework: "19223341517591",
+  JIRATicketLink: "31289220305943",
+  Priority: "360048454934",
+  Product: "360052096733",
+  RootOrgId: "26513819824919",
+  RootCauseTheme: "6527031427095",
+  SpaceID: "1500015826882",
+  Subject: "360048454854",
+  TechStack: "26513659371415",
+  TicketSLAAgreement: "9207050192535",
+  TicketStatus: "9191510931479",
+  Topic: "1500015741741",
+  URL: "360051382374",
+};
+
+export type CustomFieldKey = keyof typeof customFieldIds; 
