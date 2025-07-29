@@ -135,7 +135,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   }) => (
     <th
       className={cn(
-        "px-0.5 py-0.5 text-left text-xs font-medium text-gray-700 uppercase tracking-tighter bg-gray-100 border-b border-gray-200 leading-tight",
+        "px-0.5 py-0.5 text-center text-xs font-medium text-gray-700 uppercase tracking-tighter bg-gray-100 border-b border-gray-200 leading-tight",
         key && "cursor-pointer hover:bg-gray-200 select-none",
         className,
       )}
