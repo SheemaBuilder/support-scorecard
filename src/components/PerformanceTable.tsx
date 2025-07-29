@@ -207,26 +207,26 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </TableHeader>
 
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Overall Quality Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Overall Quality Score"
               >
                 QA
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Communication Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Communication Score"
               >
                 Cm
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Quality of Responses Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Quality of Responses Score"
               >
                 Rs
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Technical Accuracy Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Technical Accuracy Score"
               >
                 Tc
               </TableHeader>
