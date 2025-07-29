@@ -112,15 +112,15 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
       // For metrics where higher values are better
       if (ratio >= 1.15) return "bg-green-100 text-green-800"; // 15%+ above average
       if (ratio >= 1.05) return "bg-green-50 text-green-700"; // 5-15% above average
-      if (ratio >= 0.95) return "bg-yellow-50 text-yellow-700"; // Within 5% of average
-      if (ratio >= 0.85) return "bg-orange-50 text-orange-700"; // 5-15% below average
+      if (ratio >= 0.95) return "bg-white text-gray-900"; // Within 5% of average
+      if (ratio >= 0.85) return "bg-red-50 text-red-700"; // 5-15% below average
       return "bg-red-100 text-red-800"; // 15%+ below average
     } else {
       // For metrics where lower values are better (invert the logic)
       if (ratio <= 0.85) return "bg-green-100 text-green-800"; // 15%+ below average (good)
       if (ratio <= 0.95) return "bg-green-50 text-green-700"; // 5-15% below average (good)
-      if (ratio <= 1.05) return "bg-yellow-50 text-yellow-700"; // Within 5% of average
-      if (ratio <= 1.15) return "bg-orange-50 text-orange-700"; // 5-15% above average (bad)
+      if (ratio <= 1.05) return "bg-white text-gray-900"; // Within 5% of average
+      if (ratio <= 1.15) return "bg-red-50 text-red-700"; // 5-15% above average (bad)
       return "bg-red-100 text-red-800"; // 15%+ above average (bad)
     }
   };
