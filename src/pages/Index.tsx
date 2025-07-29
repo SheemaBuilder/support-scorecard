@@ -3135,7 +3135,7 @@ Builder.io Support Team Performance Report`;
                           </div>
                           <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-200">
                             <div className="text-6xl font-bold text-purple-600 mb-3">
-                              {selectedEngineerData.avgPcc.toFixed(1)}h
+                              {(selectedEngineerData.avgPcc / 24).toFixed(1)}d
                             </div>
                             <div className="text-lg font-medium text-gray-700">
                               Avg Response Time
