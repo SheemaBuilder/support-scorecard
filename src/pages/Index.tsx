@@ -1621,7 +1621,7 @@ Builder.io Support Team Performance Report`;
                           report += `• 19339: ${hasTicket19339 ? "✅ Found" : "❌ Missing"}\n\n`;
                         }
 
-                        report += `🚨 ISSUE: Tickets 19650 and 19339 don't exist in database\n`;
+                        report += `�� ISSUE: Tickets 19650 and 19339 don't exist in database\n`;
                         report += `This indicates a data sync problem - not all Zendesk tickets are being imported.\n\n`;
                         report += `Recommendation: Run a full data sync from Zendesk to ensure all tickets are imported.`;
 
@@ -2877,9 +2877,9 @@ Builder.io Support Team Performance Report`;
                     <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-200">
                       <div className="text-6xl font-bold text-purple-600 mb-3">
                         {averageMetrics
-                          ? averageMetrics.avgPcc.toFixed(1)
+                          ? (averageMetrics.avgPcc / 24).toFixed(1)
                           : "0.0"}
-                        h
+                        d
                       </div>
                       <div className="text-lg font-medium text-gray-700">
                         Avg Response Time
