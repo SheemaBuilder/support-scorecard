@@ -205,10 +205,10 @@ export default function Index() {
           </div>
           <div className="text-gray-600 mb-6">
             <p className="mb-3">
-              Your database is set up but doesn't contain any metrics yet.
+              Your database is set up but doesn't contain any metrics for the selected period.
             </p>
             <p className="mb-3">
-              Click "Pull Data" to sync your first batch of data from Zendesk.
+              Try selecting a different date range, or click "Pull Data" to sync from Zendesk.
             </p>
           </div>
           <button
