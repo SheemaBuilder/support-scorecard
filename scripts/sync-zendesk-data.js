@@ -135,7 +135,7 @@ async function fetchAllTickets(startDate, endDate) {
     
     console.log(`   📄 Page ${++pageCount}: ${response.tickets?.length || 0} tickets`);
     
-    nextPage = response.next_page ? new URL(response.next_page).pathname + new URL(response.next_page).search : null;
+    nextPage = response.next_page ? response.next_page.replace(zendeskBaseUrl, '') : null;
     
     if (response.end_of_stream) {
       break;
