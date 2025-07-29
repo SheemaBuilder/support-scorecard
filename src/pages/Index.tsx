@@ -154,7 +154,7 @@ export default function Index() {
 
   // Handle period change
   const handlePeriodChange = async (newPeriod: DateRange) => {
-    console.log('📅 Period change triggered:', {
+    console.log('�� Period change triggered:', {
       oldPeriod: selectedPeriod.label,
       newPeriod: newPeriod.label,
       newStart: newPeriod.start.toISOString(),
@@ -1559,8 +1559,8 @@ Builder.io Support Team Performance Report`;
               />
               <MetricCard
                 title="Avg Resolution Time"
-                value={averageMetrics ? `${averageMetrics.avgPcc.toFixed(1)}h` : "-"}
-                subtitle="Hours"
+                value={averageMetrics ? `${(averageMetrics.avgPcc / 24).toFixed(1)}d` : "-"}
+                subtitle="Days"
                 color="purple"
               />
               <MetricCard
