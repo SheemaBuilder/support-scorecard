@@ -438,7 +438,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.avgPcc)}
+                {formatValue(averageData.avgPcc / 24)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
