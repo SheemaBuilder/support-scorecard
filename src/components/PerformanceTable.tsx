@@ -125,13 +125,16 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
     }
   };
 
-  // Specialized color function for QA, CM, RS, TC scores (range 7.6-9.2)
-  const getScoreColor = (score: number) => {
-    if (score >= 8.7) return "bg-emerald-100 text-emerald-800"; // Excellent (8.7+)
-    if (score >= 8.4) return "bg-green-100 text-green-800"; // Very Good (8.4-8.6)
-    if (score >= 8.1) return "bg-blue-100 text-blue-800"; // Good (8.1-8.3)
-    if (score >= 7.8) return "bg-yellow-100 text-yellow-800"; // Average (7.8-8.0)
-    return "bg-orange-100 text-orange-800"; // Below Average (7.6-7.7)
+  // Specialized color function for QA, CM, RS, TC scores - relative to team average
+  const getScoreColorRelativeToAverage = (score: number, teamAverage: number) => {
+    const difference = score - teamAverage;
+    const percentDiff = (difference / teamAverage) * 100;
+
+    if (percentDiff >= 4) return "bg-emerald-100 text-emerald-800"; // 4%+ above average
+    if (percentDiff >= 1.5) return "bg-green-100 text-green-800"; // 1.5-4% above average
+    if (percentDiff >= -1.5) return "bg-blue-100 text-blue-800"; // Within 1.5% of average
+    if (percentDiff >= -4) return "bg-yellow-100 text-yellow-800"; // 1.5-4% below average
+    return "bg-orange-100 text-orange-800"; // 4%+ below average
   };
 
   const TableHeader = ({
