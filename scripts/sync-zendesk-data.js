@@ -12,6 +12,9 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// TODO: remove end date from incremental api call
+// https://chatgpt.com/share/6882580a-9b64-800f-82e5-ffd00384aafa
+
 // Parse command line arguments
 const args = process.argv.slice(2);
 const isFullSync = args.includes('--full');
