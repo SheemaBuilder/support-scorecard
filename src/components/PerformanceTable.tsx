@@ -143,7 +143,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
       title={title}
       onClick={key ? () => handleSort(key) : undefined}
     >
-      <div className="flex items-center space-x-0.5">
+      <div className="flex items-center justify-center space-x-0.5">
         <span>{children}</span>
         {key && getSortIcon(key)}
       </div>
