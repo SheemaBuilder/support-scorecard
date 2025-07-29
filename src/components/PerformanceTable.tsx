@@ -330,28 +330,56 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 </td>
 
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    getCellColor(
+                      hardcodedScores[engineer.name]?.qa || 0,
+                      hardcodedScores["Team Average"]?.qa || 8.3,
+                      true
+                    )
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.qa ? formatValue(hardcodedScores[engineer.name].qa) : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    getCellColor(
+                      hardcodedScores[engineer.name]?.cm || 0,
+                      hardcodedScores["Team Average"]?.cm || 8.4,
+                      true
+                    )
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.cm ? formatValue(hardcodedScores[engineer.name].cm) : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    getCellColor(
+                      hardcodedScores[engineer.name]?.rs || 0,
+                      hardcodedScores["Team Average"]?.rs || 8.2,
+                      true
+                    )
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.rs ? formatValue(hardcodedScores[engineer.name].rs) : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    getCellColor(
+                      hardcodedScores[engineer.name]?.tc || 0,
+                      hardcodedScores["Team Average"]?.tc || 8.2,
+                      true
+                    )
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.tc ? formatValue(hardcodedScores[engineer.name].tc) : "-"}
                 </td>
                 <td
                   className={cn(
