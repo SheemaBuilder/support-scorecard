@@ -187,7 +187,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               <TableHeader
                 sortKey="avgPcc"
                 className="w-8 bg-purple-100"
-                title="Average Resolution Time"
+                title="Average Resolution Time (Days)"
               >
                 Tm
               </TableHeader>
