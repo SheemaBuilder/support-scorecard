@@ -348,11 +348,9 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getCellColor(
-                      hardcodedScores[engineer.name]?.qa || 0,
-                      hardcodedScores["Team Average"]?.qa || 8.3,
-                      true,
-                    ),
+                    hardcodedScores[engineer.name]?.qa
+                      ? getScoreColor(hardcodedScores[engineer.name].qa)
+                      : "bg-gray-100 text-gray-500",
                   )}
                   style={{ fontSize: "10px" }}
                 >
