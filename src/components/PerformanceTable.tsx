@@ -16,7 +16,10 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
   // Hardcoded QA, CM, RS, TC values for July 2025
-  const hardcodedScores: Record<string, { qa: number; cm: number; rs: number; tc: number }> = {
+  const hardcodedScores: Record<
+    string,
+    { qa: number; cm: number; rs: number; tc: number }
+  > = {
     "Akash Singh": { qa: 7.9, cm: 8.2, rs: 8.0, tc: 7.6 },
     "Jared Beckler": { qa: 8.2, cm: 8.2, rs: 8.2, tc: 8.2 },
     "Parth Sharma": { qa: 8.1, cm: 8.4, rs: 7.9, tc: 8.1 },
@@ -25,7 +28,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
     "Alex Bridgeman": { qa: 8.9, cm: 8.8, rs: 8.8, tc: 9.2 },
     "Sheema Parwaz": { qa: 8.5, cm: 8.2, rs: 8.8, tc: 8.6 },
     "Manish Sharma": { qa: 8.3, cm: 8.8, rs: 8.2, tc: 8.0 },
-    "Team Average": { qa: 8.3, cm: 8.4, rs: 8.2, tc: 8.2 }
+    "Team Average": { qa: 8.3, cm: 8.4, rs: 8.2, tc: 8.2 },
   };
 
   const handleSort = (key: SortKey) => {
@@ -296,7 +299,11 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getCellColor(engineer.avgPcc / 24, averageData.avgPcc / 24, false),
+                    getCellColor(
+                      engineer.avgPcc / 24,
+                      averageData.avgPcc / 24,
+                      false,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
@@ -335,12 +342,14 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     getCellColor(
                       hardcodedScores[engineer.name]?.qa || 0,
                       hardcodedScores["Team Average"]?.qa || 8.3,
-                      true
-                    )
+                      true,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {hardcodedScores[engineer.name]?.qa ? formatValue(hardcodedScores[engineer.name].qa) : "-"}
+                  {hardcodedScores[engineer.name]?.qa
+                    ? formatValue(hardcodedScores[engineer.name].qa)
+                    : "-"}
                 </td>
                 <td
                   className={cn(
@@ -348,12 +357,14 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     getCellColor(
                       hardcodedScores[engineer.name]?.cm || 0,
                       hardcodedScores["Team Average"]?.cm || 8.4,
-                      true
-                    )
+                      true,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {hardcodedScores[engineer.name]?.cm ? formatValue(hardcodedScores[engineer.name].cm) : "-"}
+                  {hardcodedScores[engineer.name]?.cm
+                    ? formatValue(hardcodedScores[engineer.name].cm)
+                    : "-"}
                 </td>
                 <td
                   className={cn(
@@ -361,12 +372,14 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     getCellColor(
                       hardcodedScores[engineer.name]?.rs || 0,
                       hardcodedScores["Team Average"]?.rs || 8.2,
-                      true
-                    )
+                      true,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {hardcodedScores[engineer.name]?.rs ? formatValue(hardcodedScores[engineer.name].rs) : "-"}
+                  {hardcodedScores[engineer.name]?.rs
+                    ? formatValue(hardcodedScores[engineer.name].rs)
+                    : "-"}
                 </td>
                 <td
                   className={cn(
@@ -374,12 +387,14 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     getCellColor(
                       hardcodedScores[engineer.name]?.tc || 0,
                       hardcodedScores["Team Average"]?.tc || 8.2,
-                      true
-                    )
+                      true,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {hardcodedScores[engineer.name]?.tc ? formatValue(hardcodedScores[engineer.name].tc) : "-"}
+                  {hardcodedScores[engineer.name]?.tc
+                    ? formatValue(hardcodedScores[engineer.name].tc)
+                    : "-"}
                 </td>
                 <td
                   className={cn(
