@@ -912,7 +912,7 @@ Builder.io Support Team Performance Report`;
                   )}
                 />
                 <span className="text-sm font-medium">
-                {isSyncing ? 'Syncing...' : 'Pull Data'}
+                {isSyncing ? 'Syncing...' : 'Sync (CLI)'}
               </span>
               </button>
             </div>
