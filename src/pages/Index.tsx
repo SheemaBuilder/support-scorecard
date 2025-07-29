@@ -229,7 +229,7 @@ export default function Index() {
                 isSyncing && "animate-spin",
               )}
             />
-            <span>{isSyncing ? 'Syncing from Zendesk...' : 'Pull Data from Zendesk'}</span>
+            <span>{isSyncing ? 'Syncing from Zendesk...' : 'Sync Data (Use CLI)'}</span>
           </button>
         </div>
       </div>
