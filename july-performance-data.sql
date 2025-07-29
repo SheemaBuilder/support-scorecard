@@ -1,23 +1,9 @@
 -- July 2025 Performance Metrics Data
--- QA = Quality Assurance Score, CM = Customer Management Score  
+-- QA = Quality Assurance Score, CM = Customer Management Score
 -- RS = Response Score, TC = Team Collaboration Score
 
--- First, ensure engineers exist in the engineers table
--- Insert engineers if they don't exist (using ON CONFLICT to avoid duplicates)
-INSERT INTO engineers (name, email, role, active, zendesk_id) VALUES
-('Akash Singh', 'akash@builder.io', 'Support Engineer', true, 1001),
-('Jared Beckler', 'jared@builder.io', 'Support Engineer', true, 1002),
-('Parth Sharma', 'parth@builder.io', 'Support Engineer', true, 1003),
-('Rahul Joshi', 'rahul@builder.io', 'Support Engineer', true, 1004),
-('Fernando Duran', 'fernando@builder.io', 'Support Engineer', true, 1005),
-('Alex Bridgeman', 'alexander@builder.io', 'Support Engineer', true, 1006),
-('Sheema Parwaz', 'sheema@builder.io', 'Support Engineer', true, 1007),
-('Manish Sharma', 'manish@builder.io', 'Support Engineer', true, 1008)
-ON CONFLICT (name) DO UPDATE SET
-  email = EXCLUDED.email,
-  role = EXCLUDED.role,
-  active = EXCLUDED.active,
-  updated_at = NOW();
+-- Engineers already exist in the database with their actual Zendesk IDs
+-- No need to insert them again as they're already in the schema
 
 -- Insert July 2025 performance metrics
 -- Using the performance scores as percentages (multiplied by 10 to convert to 0-100 scale)
