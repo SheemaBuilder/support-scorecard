@@ -15,6 +15,19 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
+  // Hardcoded QA, CM, RS, TC values for July 2025
+  const hardcodedScores: Record<string, { qa: number; cm: number; rs: number; tc: number }> = {
+    "Akash Singh": { qa: 7.9, cm: 8.2, rs: 8.0, tc: 7.6 },
+    "Jared Beckler": { qa: 8.2, cm: 8.2, rs: 8.2, tc: 8.2 },
+    "Parth Sharma": { qa: 8.1, cm: 8.4, rs: 7.9, tc: 8.1 },
+    "Rahul Joshi": { qa: 8.1, cm: 8.5, rs: 7.8, tc: 8.1 },
+    "Fernando Duran": { qa: 8.1, cm: 8.3, rs: 8.0, tc: 8.0 },
+    "Alex Bridgeman": { qa: 8.9, cm: 8.8, rs: 8.8, tc: 9.2 },
+    "Sheema Parwaz": { qa: 8.5, cm: 8.2, rs: 8.8, tc: 8.6 },
+    "Manish Sharma": { qa: 8.3, cm: 8.8, rs: 8.2, tc: 8.0 },
+    "Team Average": { qa: 8.3, cm: 8.4, rs: 8.2, tc: 8.2 }
+  };
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortOrder(
