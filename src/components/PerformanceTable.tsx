@@ -296,11 +296,11 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getCellColor(engineer.avgPcc, averageData.avgPcc, false),
+                    getCellColor(engineer.avgPcc / 24, averageData.avgPcc / 24, false),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.avgPcc)}
+                  {formatValue(engineer.avgPcc / 24)}
                 </td>
                 <td
                   className={cn(
