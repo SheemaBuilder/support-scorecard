@@ -2,12 +2,24 @@ import { useState, useEffect, useCallback } from "react";
 // Supabase data hook for Zendesk dashboard
 import { supabase, testSupabaseConnection } from "../lib/supabase";
 import { EngineerMetrics, DateRange, AlertItem } from "../lib/types";
-import {
-  getLatestMetricsFromDatabase,
-  syncIncrementalDataFromZendesk,
-  SyncProgress,
-  SyncResult
-} from "../lib/data-sync";
+import { getLatestMetricsFromDatabase } from "../lib/database";
+
+// Sync types (kept for compatibility but sync functions removed from frontend)
+export interface SyncProgress {
+  step: string;
+  current: number;
+  total: number;
+  message: string;
+}
+
+export interface SyncResult {
+  success: boolean;
+  engineersProcessed: number;
+  ticketsProcessed: number;
+  metricsCalculated: number;
+  errors: string[];
+  duration: number;
+}
 
 
 

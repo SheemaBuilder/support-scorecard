@@ -1,5 +1,5 @@
 {
-  "command": "sudo npm run dev:full",
+  "command": "npm run dev",
   "serverUrl": "http://localhost:8080",
   "authenticateProxy": false,
   "commitMode": "commits"

@@ -1,3 +1,6 @@
+// Backend/CLI data synchronization functions
+// Contains Zendesk API calls - should only be used by sync scripts, NOT frontend
+
 import { supabase, Engineer, Ticket, EngineerMetric } from './supabase';
 import { fetchAllEngineerMetrics, getUsers, getTickets, calculateEngineerMetrics } from './zendesk-api';
 import { EngineerMetrics } from './types';
@@ -106,16 +109,10 @@ export class DataSyncService {
       };
 
     } catch (error) {
-      const { safeErrorToString } = await import('./supabase');
-      const errorMessage = safeErrorToString(error);
-      console.error('Data sync failed:', errorMessage);
-      console.error('Sync error details:', {
-        message: errorMessage,
-        type: typeof error,
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
-      errors.push(`Data sync failed: ${errorMessage}`);
-
+      console.error('Data sync failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      errors.push(errorMessage);
+      
       const duration = Date.now() - startTime;
       return {
         success: false,
@@ -129,58 +126,23 @@ export class DataSyncService {
   }
 
   async syncIncrementalData(): Promise<SyncResult> {
-    const startTime = Date.now();
-    const errors: string[] = [];
-
-    try {
-      this.reportProgress('incremental', 0, 100, 'Starting incremental sync...');
-
-      // Get the last sync time
-      const { data: lastMetrics } = await supabase
-        .from('engineer_metrics')
-        .select('calculated_at')
-        .order('calculated_at', { ascending: false })
-        .limit(1);
-
-      const lastSyncTime = lastMetrics && lastMetrics.length > 0 
-        ? new Date(lastMetrics[0].calculated_at)
-        : new Date('2025-01-01'); // Default to start of 2025
-
-      this.reportProgress('incremental', 20, 100, `Syncing data since ${lastSyncTime.toISOString()}...`);
-
-      // Sync data from last sync time to now
-      return await this.syncAllData(lastSyncTime, new Date());
-
-    } catch (error) {
-      const { safeErrorToString } = await import('./supabase');
-      const errorMessage = safeErrorToString(error);
-      console.error('Incremental sync failed:', errorMessage);
-      console.error('Incremental sync error details:', {
-        message: errorMessage,
-        type: typeof error,
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
-      errors.push(`Incremental sync failed: ${errorMessage}`);
-      
-      const duration = Date.now() - startTime;
-      return {
-        success: false,
-        engineersProcessed: 0,
-        ticketsProcessed: 0,
-        metricsCalculated: 0,
-        errors,
-        duration
-      };
-    }
+    // Sync data from the last 30 days
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    return this.syncAllData(startDate, endDate);
   }
 
-  private async upsertEngineer(zendeskUser: any): Promise<void> {
-    const engineer: Omit<Engineer, 'id' | 'created_at' | 'updated_at'> = {
-      zendesk_id: zendeskUser.id,
-      name: zendeskUser.name,
-      email: zendeskUser.email,
-      role: zendeskUser.role || 'engineer',
-      active: zendeskUser.active ?? true,
+  private async upsertEngineer(user: any): Promise<void> {
+    const engineer: Engineer = {
+      zendesk_id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      created_at: user.created_at,
+      updated_at: user.updated_at
     };
 
     const { error } = await supabase
@@ -191,15 +153,13 @@ export class DataSyncService {
       });
 
     if (error) {
-      if (error.message.includes('row-level security policy')) {
-        throw new Error(`Failed to upsert engineer ${engineer.name}: Row Level Security policy error. Please run the fix-rls-policies.sql script in your Supabase dashboard, or disable RLS for development using disable-rls-for-dev.sql. Error: ${error.message}`);
-      }
-      throw new Error(`Failed to upsert engineer ${engineer.name}: ${error.message}`);
+      console.error('Failed to upsert engineer:', error);
+      throw error;
     }
   }
 
-  private async upsertTicketsBatch(zendeskTickets: any[]): Promise<void> {
-    const tickets = zendeskTickets.map(ticket => ({
+  private async upsertTicketsBatch(tickets: any[]): Promise<void> {
+    const ticketData: Ticket[] = tickets.map(ticket => ({
       zendesk_id: ticket.id,
       subject: ticket.subject,
       status: ticket.status,
@@ -211,93 +171,96 @@ export class DataSyncService {
       created_at: ticket.created_at,
       updated_at: ticket.updated_at,
       solved_at: ticket.solved_at,
-      tags: ticket.tags || [],
-      custom_fields: ticket.custom_fields || []
+      tags: ticket.tags,
+      custom_fields: ticket.custom_fields
     }));
 
     const { error } = await supabase
       .from('tickets')
-      .upsert(tickets, { 
+      .upsert(ticketData, { 
         onConflict: 'zendesk_id',
         ignoreDuplicates: false 
       });
 
     if (error) {
-      if (error.message.includes('row-level security policy')) {
-        throw new Error(`Failed to upsert tickets batch: Row Level Security policy error. Please run the fix-rls-policies.sql script in your Supabase dashboard. Error: ${error.message}`);
-      }
-      throw new Error(`Failed to upsert tickets batch: ${error.message}`);
+      console.error('Failed to upsert tickets batch:', error);
+      throw error;
     }
   }
 
   private async calculateAndStoreMetrics(
-    engineers: any[], 
-    allTickets: any[], 
+    users: any[], 
+    tickets: any[], 
     startDate?: Date, 
     endDate?: Date
   ): Promise<EngineerMetrics[]> {
-    const metrics: EngineerMetrics[] = [];
+    const engineerMetrics: EngineerMetrics[] = [];
 
-    // Get engineer IDs from database
-    const { data: dbEngineers } = await supabase
-      .from('engineers')
-      .select('id, zendesk_id, name')
-      .in('zendesk_id', engineers.map(e => e.id));
-
-    if (!dbEngineers) {
-      throw new Error('Failed to fetch engineers from database');
-    }
-
-    for (const engineer of engineers) {
-      const dbEngineer = dbEngineers.find(e => e.zendesk_id === engineer.id);
-      if (!dbEngineer) continue;
-
-      // Calculate metrics using existing logic
-      const engineerMetrics = calculateEngineerMetrics(engineer, allTickets);
-      metrics.push(engineerMetrics);
+    for (const user of users) {
+      const metrics = calculateEngineerMetrics(user, tickets, startDate, endDate);
+      engineerMetrics.push(metrics);
 
       // Store in database
-      const metricRecord: Omit<EngineerMetric, 'id' | 'calculated_at'> = {
-        engineer_id: dbEngineer.id,
-        period_start: (startDate || new Date('2025-01-01')).toISOString().split('T')[0],
-        period_end: (endDate || new Date()).toISOString().split('T')[0],
-        ces_percent: engineerMetrics.cesPercent,
-        avg_pcc: engineerMetrics.avgPcc,
-        closed: engineerMetrics.closed,
-        open: engineerMetrics.open,
-        open_greater_than_14: engineerMetrics.openGreaterThan14,
-        closed_less_than_7: engineerMetrics.closedLessThan7,
-        closed_equal_1: engineerMetrics.closedEqual1,
-        participation_rate: engineerMetrics.participationRate,
-        link_count: engineerMetrics.linkCount,
-        citation_count: engineerMetrics.citationCount,
-        creation_count: engineerMetrics.creationCount,
-        enterprise_percent: engineerMetrics.enterprisePercent,
-        technical_percent: engineerMetrics.technicalPercent,
-        survey_count: engineerMetrics.surveyCount,
-      };
-
-      const { error } = await supabase
-        .from('engineer_metrics')
-        .upsert(metricRecord, {
-          onConflict: 'engineer_id,period_start,period_end',
-          ignoreDuplicates: false
-        });
-
-      if (error) {
-        if (error.message.includes('row-level security policy')) {
-          throw new Error(`Failed to store metrics for ${engineer.name}: Row Level Security policy error. Please run the fix-rls-policies.sql script in your Supabase dashboard. Error: ${error.message}`);
-        }
-        throw new Error(`Failed to store metrics for ${engineer.name}: ${error.message}`);
-      }
+      await this.storeEngineerMetrics(user.id, metrics, startDate, endDate);
     }
 
-    return metrics;
+    return engineerMetrics;
+  }
+
+  private async storeEngineerMetrics(
+    userId: number, 
+    metrics: EngineerMetrics, 
+    startDate?: Date, 
+    endDate?: Date
+  ): Promise<void> {
+    // First, get the engineer's database ID
+    const { data: engineer } = await supabase
+      .from('engineers')
+      .select('id')
+      .eq('zendesk_id', userId)
+      .single();
+
+    if (!engineer) {
+      throw new Error(`Engineer with Zendesk ID ${userId} not found in database`);
+    }
+
+    const metricData: EngineerMetric = {
+      engineer_id: engineer.id,
+      ces_percent: metrics.cesPercent,
+      avg_pcc: metrics.avgPcc,
+      closed: metrics.closed,
+      open: metrics.open,
+      open_greater_than_14: metrics.openGreaterThan14,
+      closed_less_than_7: metrics.closedLessThan7,
+      closed_equal_1: metrics.closedEqual1,
+      participation_rate: metrics.participationRate,
+      link_count: metrics.linkCount,
+      citation_count: metrics.citationCount,
+      creation_count: metrics.creationCount,
+      enterprise_percent: metrics.enterprisePercent,
+      technical_percent: metrics.technicalPercent,
+      survey_count: metrics.surveyCount,
+      period_start: startDate?.toISOString() || null,
+      period_end: endDate?.toISOString() || null,
+      calculated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('engineer_metrics')
+      .upsert(metricData, { 
+        onConflict: 'engineer_id,calculated_at',
+        ignoreDuplicates: false 
+      });
+
+    if (error) {
+      console.error('Failed to store engineer metrics:', error);
+      throw error;
+    }
   }
 }
 
-// Standalone functions for use in components
-export async function syncAllDataFromZendesk(
+// Backend/CLI sync functions - these call Zendesk API and should not be used by frontend
+export async function syncFullDataFromZendesk(
   onProgress?: (progress: SyncProgress) => void
 ): Promise<SyncResult> {
   const syncService = new DataSyncService(onProgress);
@@ -310,384 +273,4 @@ export async function syncIncrementalDataFromZendesk(
 ): Promise<SyncResult> {
   const syncService = new DataSyncService(onProgress);
   return await syncService.syncIncrementalData();
-}
-
-// Function to get latest metrics from database
-export async function getLatestMetricsFromDatabase(
-  startDate?: Date,
-  endDate?: Date
-): Promise<{ engineerData: EngineerMetrics[], averageMetrics: EngineerMetrics | null }> {
-  try {
-    console.log('🔍 Fetching metrics from database...', { startDate, endDate });
-
-    // Debug Supabase configuration
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    console.log('🔗 Supabase config check:', {
-      hasUrl: !!supabaseUrl,
-      urlPreview: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
-      fullUrl: supabaseUrl, // Show full URL for debugging
-      hasKey: !!supabaseKey,
-      keyPreview: supabaseKey ? `${supabaseKey.substring(0, 15)}...` : 'MISSING',
-      supabaseType: typeof supabase,
-      fromMethod: typeof supabase.from
-    });
-
-    // Validate URL format
-    if (supabaseUrl && !supabaseUrl.includes('supabase.co')) {
-      console.warn('⚠️ Supabase URL might be invalid. Expected format: https://xxxxx.supabase.co');
-    }
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('❌ Supabase environment variables not found!');
-      console.error('Please create a .env file with:');
-      console.error('VITE_SUPABASE_URL=https://your-project.supabase.co');
-      console.error('VITE_SUPABASE_ANON_KEY=your-anon-key');
-      console.log('❌ Environment not configured, returning empty data for hook fallback');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    // Simplified connection test - skipping problematic fetch operations
-    console.log('🔍 Proceeding with direct Supabase queries...');
-    console.log('🔗 Supabase client type:', typeof supabase);
-    console.log('🔗 Supabase from method:', typeof supabase.from);
-
-    // Validate that supabase client has required methods
-    if (!supabase.from || typeof supabase.from !== 'function') {
-      console.error('❌ Supabase client not properly initialized');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    // Now check if we have ANY metrics data at all
-    console.log('���� Step 1: Checking if any engineer_metrics exist...');
-    const { data: anyMetrics, error: countError } = await supabase
-      .from('engineer_metrics')
-      .select('id')
-      .limit(1);
-
-    if (countError) {
-      const { safeErrorToString } = await import('./supabase');
-      const errorMessage = safeErrorToString(countError);
-      console.error('❌ Count query failed:', errorMessage);
-      console.error('❌ Error details:', {
-        message: countError?.message || 'No message',
-        details: countError?.details || 'No details',
-        hint: countError?.hint || 'No hint',
-        code: countError?.code || 'No code',
-        stack: countError?.stack || 'No stack'
-      });
-
-      // Check if this is a configuration issue
-      if (countError?.message?.includes('Failed to fetch') || countError?.name === 'TypeError') {
-        console.log('❌ Supabase connection failed (config/network issue), returning empty data for fallback');
-        return { engineerData: [], averageMetrics: null };
-      }
-
-      console.log('❌ Database connection failed, returning empty data for fallback');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    if (!anyMetrics || anyMetrics.length === 0) {
-      console.log('⚠️ No engineer_metrics found in database at all');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    console.log('✅ Found engineer_metrics in database, proceeding with full query...');
-
-    // Step 2: Get engineers first
-    console.log('🔍 Step 2a: Fetching engineers...');
-    const { data: engineers, error: engineersError } = await supabase
-      .from('engineers')
-      .select('id, zendesk_id, name');
-
-    if (engineersError) {
-      const { safeErrorToString } = await import('./supabase');
-      const errorMessage = safeErrorToString(engineersError);
-      console.error('❌ Engineers query failed:', errorMessage);
-      console.error('❌ Engineers error details:', {
-        message: engineersError?.message || 'No message',
-        details: engineersError?.details || 'No details',
-        hint: engineersError?.hint || 'No hint',
-        code: engineersError?.code || 'No code'
-      });
-
-      // Return empty data instead of throwing to allow hook fallback
-      console.log('❌ Returning empty data due to engineers query failure');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    if (!engineers || engineers.length === 0) {
-      console.log('⚠️ No engineers found in database');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    console.log(`✅ Found ${engineers.length} engineers`);
-
-    // Debug: Show what calculated_at dates are available
-    console.log('🔍 Step 2a-debug: Checking what dates are available in database...');
-    const { data: dateCheck } = await supabase
-      .from('engineer_metrics')
-      .select('calculated_at, period_start, period_end')
-      .order('calculated_at', { ascending: false })
-      .limit(10);
-
-    if (dateCheck && dateCheck.length > 0) {
-      console.log('📅 Available dates in database:', dateCheck.map(d => ({
-        calculated_at: d.calculated_at,
-        period_start: d.period_start,
-        period_end: d.period_end
-      })));
-
-      const latestDate = dateCheck[0].calculated_at;
-      const oldestDate = dateCheck[dateCheck.length - 1].calculated_at;
-      console.log('📅 Date range in database:', {
-        latest: latestDate,
-        oldest: oldestDate,
-        totalRecords: dateCheck.length
-      });
-    } else {
-      console.log('⚠️ No dates found in database');
-    }
-
-    // Step 2b: Get metrics with proper date filtering
-    console.log('🔍 Step 2b: Fetching engineer_metrics...');
-    let metricsQuery = supabase
-      .from('engineer_metrics')
-      .select(`
-        engineer_id,
-        ces_percent,
-        avg_pcc,
-        closed,
-        open,
-        open_greater_than_14,
-        closed_less_than_7,
-        closed_equal_1,
-        participation_rate,
-        link_count,
-        citation_count,
-        creation_count,
-        enterprise_percent,
-        technical_percent,
-        survey_count,
-        period_start,
-        period_end,
-        calculated_at
-      `);
-
-    // Apply date filtering if provided
-    if (startDate && endDate) {
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-      console.log('📅 Applying date filter to metrics query:', {
-        startDateStr,
-        endDateStr,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        filterDescription: `Looking for metrics where calculated_at is between ${startDateStr} and ${endDateStr}`
-      });
-
-      // Filter by when the metrics were calculated (more direct approach)
-      metricsQuery = metricsQuery
-        .gte('calculated_at', startDate.toISOString())
-        .lte('calculated_at', endDate.toISOString());
-
-      console.log('��� Date filter applied: calculated_at >= ', startDate.toISOString(), ' AND calculated_at <= ', endDate.toISOString());
-    } else {
-      console.log('📅 No date filter applied - showing all metrics');
-    }
-
-    const { data: metrics, error: metricsError } = await metricsQuery
-      .order('calculated_at', { ascending: false })
-      .limit(500); // Increased limit to ensure we get data across different periods
-
-    if (metricsError) {
-      const { safeErrorToString } = await import('./supabase');
-      const errorMessage = safeErrorToString(metricsError);
-      console.error('❌ Metrics query failed:', errorMessage);
-      console.error('❌ Metrics error details:', {
-        message: metricsError?.message || 'No message',
-        details: metricsError?.details || 'No details',
-        hint: metricsError?.hint || 'No hint',
-        code: metricsError?.code || 'No code',
-        stack: metricsError?.stack || 'No stack'
-      });
-
-      // Return empty data instead of throwing to allow hook fallback
-      console.log('❌ Returning empty data due to metrics query failure');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    if (!metrics || metrics.length === 0) {
-      console.log('⚠️ No metrics found for the selected date range');
-      if (startDate && endDate) {
-        console.log('📅 Date range that returned no results:', {
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          startFormatted: startDate.toISOString().split('T')[0],
-          endFormatted: endDate.toISOString().split('T')[0]
-        });
-      }
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    console.log(`✅ Found ${metrics.length} metric records for date range`);
-    if (startDate && endDate) {
-      console.log('📅 Successful date filter:', {
-        start: startDate.toISOString().split('T')[0],
-        end: endDate.toISOString().split('T')[0],
-        metricsFound: metrics.length
-      });
-    }
-
-    // Create a map of engineer_id to engineer name
-    const engineerMap = new Map();
-    engineers.forEach(eng => {
-      engineerMap.set(eng.id, eng.name);
-    });
-
-    // Group by engineer_id and take the most recent for each
-    const latestByEngineerId = new Map();
-    metrics.forEach(item => {
-      if (!latestByEngineerId.has(item.engineer_id) ||
-          new Date(item.calculated_at) > new Date(latestByEngineerId.get(item.engineer_id).calculated_at)) {
-        latestByEngineerId.set(item.engineer_id, item);
-      }
-    });
-
-    // Transform the data, joining with engineer names
-    const data = Array.from(latestByEngineerId.values())
-      .filter(item => engineerMap.has(item.engineer_id)) // Only include metrics for known engineers
-      .map(item => ({
-        name: engineerMap.get(item.engineer_id),
-        ces_percent: item.ces_percent,
-        avg_pcc: item.avg_pcc,
-        closed: item.closed,
-        open: item.open,
-        open_greater_than_14: item.open_greater_than_14,
-        closed_less_than_7: item.closed_less_than_7,
-        closed_equal_1: item.closed_equal_1,
-        participation_rate: item.participation_rate,
-        link_count: item.link_count,
-        citation_count: item.citation_count,
-        creation_count: item.creation_count,
-        enterprise_percent: item.enterprise_percent,
-        technical_percent: item.technical_percent,
-        survey_count: item.survey_count,
-      }));
-
-    console.log(`📊 Final data: ${data.length} unique engineers with metrics`);
-    console.log('📊 Sample data:', data[0]);
-
-    if (!data || data.length === 0) {
-      console.log('⚠️ No metrics found after filtering');
-      return { engineerData: [], averageMetrics: null };
-    }
-
-    // Convert to EngineerMetrics format
-    const engineerData: EngineerMetrics[] = data.map(metric => ({
-      name: metric.name,
-      cesPercent: metric.ces_percent || 0,
-      avgPcc: metric.avg_pcc || 0,
-      closed: metric.closed || 0,
-      open: metric.open || 0,
-      openGreaterThan14: metric.open_greater_than_14 || 0,
-      closedLessThan7: metric.closed_less_than_7 || 0,
-      closedEqual1: metric.closed_equal_1 || 0,
-      participationRate: metric.participation_rate || 0,
-      linkCount: metric.link_count || 0,
-      citationCount: metric.citation_count || 0,
-      creationCount: metric.creation_count || 0,
-      enterprisePercent: metric.enterprise_percent || 0,
-      technicalPercent: metric.technical_percent || 0,
-      surveyCount: metric.survey_count || 0,
-    }));
-
-    console.log('📊 Final engineerData:', { count: engineerData.length, sample: engineerData[0] });
-
-    // Calculate team averages
-    const averageMetrics = calculateTeamAverages(engineerData);
-
-    console.log('📊 Team averages calculated:', averageMetrics);
-
-    return { engineerData, averageMetrics };
-
-  } catch (error) {
-    const { safeErrorToString } = await import('./supabase');
-    const errorMessage = safeErrorToString(error);
-    console.error('❌ Failed to get metrics from database:', errorMessage);
-
-    // If we can't get metrics, let's at least check if tables exist
-    try {
-      const { data: tableCheck } = await supabase
-        .from('engineers')
-        .select('count')
-        .limit(1);
-      console.log('📊 Engineers table accessible:', !!tableCheck);
-    } catch (tableError) {
-      const tableErrorMessage = safeErrorToString(tableError);
-      console.error('❌ Engineers table not accessible:', tableErrorMessage);
-    }
-
-    return { engineerData: [], averageMetrics: null };
-  }
-}
-
-// Helper function to calculate team averages
-function calculateTeamAverages(engineerMetrics: EngineerMetrics[]): EngineerMetrics | null {
-  if (engineerMetrics.length === 0) return null;
-
-  const averages = engineerMetrics.reduce(
-    (acc, engineer) => ({
-      cesPercent: acc.cesPercent + engineer.cesPercent,
-      avgPcc: acc.avgPcc + engineer.avgPcc,
-      closed: acc.closed + engineer.closed,
-      open: acc.open + engineer.open,
-      openGreaterThan14: acc.openGreaterThan14 + engineer.openGreaterThan14,
-      closedLessThan7: acc.closedLessThan7 + engineer.closedLessThan7,
-      closedEqual1: acc.closedEqual1 + engineer.closedEqual1,
-      participationRate: acc.participationRate + engineer.participationRate,
-      linkCount: acc.linkCount + engineer.linkCount,
-      citationCount: acc.citationCount + engineer.citationCount,
-      creationCount: acc.creationCount + engineer.creationCount,
-      enterprisePercent: acc.enterprisePercent + engineer.enterprisePercent,
-      technicalPercent: acc.technicalPercent + engineer.technicalPercent,
-      surveyCount: acc.surveyCount + engineer.surveyCount,
-    }),
-    {
-      cesPercent: 0,
-      avgPcc: 0,
-      closed: 0,
-      open: 0,
-      openGreaterThan14: 0,
-      closedLessThan7: 0,
-      closedEqual1: 0,
-      participationRate: 0,
-      linkCount: 0,
-      citationCount: 0,
-      creationCount: 0,
-      enterprisePercent: 0,
-      technicalPercent: 0,
-      surveyCount: 0,
-    },
-  );
-
-  const count = engineerMetrics.length;
-
-  return {
-    name: "Team Average",
-    cesPercent: averages.cesPercent / count,
-    avgPcc: averages.avgPcc / count,
-    closed: Math.round(averages.closed / count),
-    open: averages.open / count,
-    openGreaterThan14: averages.openGreaterThan14 / count,
-    closedLessThan7: averages.closedLessThan7 / count,
-    closedEqual1: averages.closedEqual1 / count,
-    participationRate: averages.participationRate / count,
-    linkCount: averages.linkCount / count,
-    citationCount: averages.citationCount / count,
-    creationCount: averages.creationCount / count,
-    enterprisePercent: averages.enterprisePercent / count,
-    technicalPercent: averages.technicalPercent / count,
-    surveyCount: averages.surveyCount / count,
-  };
 }
