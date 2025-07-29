@@ -454,28 +454,28 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </td>
 
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.qa || 8.3)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.cm || 8.4)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.rs || 8.2)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.tc || 8.2)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
