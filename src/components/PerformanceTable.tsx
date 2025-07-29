@@ -126,7 +126,10 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   };
 
   // Specialized color function for QA, CM, RS, TC scores - relative to team average
-  const getScoreColorRelativeToAverage = (score: number, teamAverage: number) => {
+  const getScoreColorRelativeToAverage = (
+    score: number,
+    teamAverage: number,
+  ) => {
     const difference = score - teamAverage;
     const percentDiff = (difference / teamAverage) * 100;
 
@@ -354,7 +357,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     hardcodedScores[engineer.name]?.qa
                       ? getScoreColorRelativeToAverage(
                           hardcodedScores[engineer.name].qa,
-                          hardcodedScores["Team Average"].qa
+                          hardcodedScores["Team Average"].qa,
                         )
                       : "bg-gray-100 text-gray-500",
                   )}
@@ -370,7 +373,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     hardcodedScores[engineer.name]?.cm
                       ? getScoreColorRelativeToAverage(
                           hardcodedScores[engineer.name].cm,
-                          hardcodedScores["Team Average"].cm
+                          hardcodedScores["Team Average"].cm,
                         )
                       : "bg-gray-100 text-gray-500",
                   )}
@@ -386,7 +389,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     hardcodedScores[engineer.name]?.rs
                       ? getScoreColorRelativeToAverage(
                           hardcodedScores[engineer.name].rs,
-                          hardcodedScores["Team Average"].rs
+                          hardcodedScores["Team Average"].rs,
                         )
                       : "bg-gray-100 text-gray-500",
                   )}
@@ -402,7 +405,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                     hardcodedScores[engineer.name]?.tc
                       ? getScoreColorRelativeToAverage(
                           hardcodedScores[engineer.name].tc,
-                          hardcodedScores["Team Average"].tc
+                          hardcodedScores["Team Average"].tc,
                         )
                       : "bg-gray-100 text-gray-500",
                   )}
