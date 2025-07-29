@@ -15,6 +15,22 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
+  // Hardcoded QA, CM, RS, TC values for July 2025
+  const hardcodedScores: Record<
+    string,
+    { qa: number; cm: number; rs: number; tc: number }
+  > = {
+    "Akash Singh": { qa: 7.9, cm: 8.2, rs: 8.0, tc: 7.6 },
+    "Jared Beckler": { qa: 8.2, cm: 8.2, rs: 8.2, tc: 8.2 },
+    "Parth Sharma": { qa: 8.1, cm: 8.4, rs: 7.9, tc: 8.1 },
+    "Rahul Joshi": { qa: 8.1, cm: 8.5, rs: 7.8, tc: 8.1 },
+    "Fernando Duran": { qa: 8.1, cm: 8.3, rs: 8.0, tc: 8.0 },
+    "Alex Bridgeman": { qa: 8.9, cm: 8.8, rs: 8.8, tc: 9.2 },
+    "Sheema Parwaz": { qa: 8.5, cm: 8.2, rs: 8.8, tc: 8.6 },
+    "Manish Sharma": { qa: 8.3, cm: 8.8, rs: 8.2, tc: 8.0 },
+    "Team Average": { qa: 8.3, cm: 8.4, rs: 8.2, tc: 8.2 },
+  };
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortOrder(
@@ -96,17 +112,32 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
       // For metrics where higher values are better
       if (ratio >= 1.15) return "bg-green-100 text-green-800"; // 15%+ above average
       if (ratio >= 1.05) return "bg-green-50 text-green-700"; // 5-15% above average
-      if (ratio >= 0.95) return "bg-yellow-50 text-yellow-700"; // Within 5% of average
-      if (ratio >= 0.85) return "bg-orange-50 text-orange-700"; // 5-15% below average
+      if (ratio >= 0.95) return "bg-white text-gray-900"; // Within 5% of average
+      if (ratio >= 0.85) return "bg-red-50 text-red-700"; // 5-15% below average
       return "bg-red-100 text-red-800"; // 15%+ below average
     } else {
       // For metrics where lower values are better (invert the logic)
       if (ratio <= 0.85) return "bg-green-100 text-green-800"; // 15%+ below average (good)
       if (ratio <= 0.95) return "bg-green-50 text-green-700"; // 5-15% below average (good)
-      if (ratio <= 1.05) return "bg-yellow-50 text-yellow-700"; // Within 5% of average
-      if (ratio <= 1.15) return "bg-orange-50 text-orange-700"; // 5-15% above average (bad)
+      if (ratio <= 1.05) return "bg-white text-gray-900"; // Within 5% of average
+      if (ratio <= 1.15) return "bg-red-50 text-red-700"; // 5-15% above average (bad)
       return "bg-red-100 text-red-800"; // 15%+ above average (bad)
     }
+  };
+
+  // Specialized color function for QA, CM, RS, TC scores - relative to team average
+  const getScoreColorRelativeToAverage = (
+    score: number,
+    teamAverage: number,
+  ) => {
+    const difference = score - teamAverage;
+    const percentDiff = (difference / teamAverage) * 100;
+
+    if (percentDiff >= 4) return "bg-green-100 text-green-800"; // 4%+ above average
+    if (percentDiff >= 1.5) return "bg-green-50 text-green-700"; // 1.5-4% above average
+    if (percentDiff >= -1.5) return "bg-white text-gray-900"; // Within 1.5% of average
+    if (percentDiff >= -4) return "bg-red-50 text-red-700"; // 1.5-4% below average
+    return "bg-red-100 text-red-800"; // 4%+ below average
   };
 
   const TableHeader = ({
@@ -122,7 +153,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
   }) => (
     <th
       className={cn(
-        "px-0.5 py-0.5 text-left text-xs font-medium text-gray-700 uppercase tracking-tighter bg-gray-100 border-b border-gray-200 leading-tight",
+        "px-0.5 py-0.5 text-center text-xs font-medium text-gray-700 uppercase tracking-tighter bg-gray-100 border-b border-gray-200 leading-tight",
         key && "cursor-pointer hover:bg-gray-200 select-none",
         className,
       )}
@@ -130,7 +161,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
       title={title}
       onClick={key ? () => handleSort(key) : undefined}
     >
-      <div className="flex items-center space-x-0.5">
+      <div className="flex items-center justify-center space-x-0.5">
         <span>{children}</span>
         {key && getSortIcon(key)}
       </div>
@@ -174,7 +205,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               <TableHeader
                 sortKey="avgPcc"
                 className="w-8 bg-purple-100"
-                title="Average Resolution Time"
+                title="Average Resolution Time (Days)"
               >
                 Tm
               </TableHeader>
@@ -194,26 +225,26 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </TableHeader>
 
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Overall Quality Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Overall Quality Score"
               >
                 QA
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Communication Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Communication Score"
               >
                 Cm
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Quality of Responses Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Quality of Responses Score"
               >
                 Rs
               </TableHeader>
               <TableHeader
-                className="w-8 bg-gray-200 text-gray-400"
-                title="Technical Accuracy Score (Coming Soon)"
+                className="w-8 bg-green-100"
+                title="Technical Accuracy Score"
               >
                 Tc
               </TableHeader>
@@ -283,11 +314,15 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 <td
                   className={cn(
                     "px-0.5 py-0.5 text-xs text-center font-medium",
-                    getCellColor(engineer.avgPcc, averageData.avgPcc, false),
+                    getCellColor(
+                      engineer.avgPcc / 24,
+                      averageData.avgPcc / 24,
+                      false,
+                    ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.avgPcc)}
+                  {formatValue(engineer.avgPcc / 24)}
                 </td>
                 <td
                   className={cn(
@@ -317,28 +352,68 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 </td>
 
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    hardcodedScores[engineer.name]?.qa
+                      ? getScoreColorRelativeToAverage(
+                          hardcodedScores[engineer.name].qa,
+                          hardcodedScores["Team Average"].qa,
+                        )
+                      : "bg-gray-100 text-gray-500",
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.qa
+                    ? formatValue(hardcodedScores[engineer.name].qa)
+                    : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    hardcodedScores[engineer.name]?.cm
+                      ? getScoreColorRelativeToAverage(
+                          hardcodedScores[engineer.name].cm,
+                          hardcodedScores["Team Average"].cm,
+                        )
+                      : "bg-gray-100 text-gray-500",
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.cm
+                    ? formatValue(hardcodedScores[engineer.name].cm)
+                    : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    hardcodedScores[engineer.name]?.rs
+                      ? getScoreColorRelativeToAverage(
+                          hardcodedScores[engineer.name].rs,
+                          hardcodedScores["Team Average"].rs,
+                        )
+                      : "bg-gray-100 text-gray-500",
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.rs
+                    ? formatValue(hardcodedScores[engineer.name].rs)
+                    : "-"}
                 </td>
                 <td
-                  className="px-0.5 py-0.5 text-xs text-center font-medium bg-gray-100 text-gray-400"
+                  className={cn(
+                    "px-0.5 py-0.5 text-xs text-center font-medium",
+                    hardcodedScores[engineer.name]?.tc
+                      ? getScoreColorRelativeToAverage(
+                          hardcodedScores[engineer.name].tc,
+                          hardcodedScores["Team Average"].tc,
+                        )
+                      : "bg-gray-100 text-gray-500",
+                  )}
                   style={{ fontSize: "10px" }}
                 >
-                  -
+                  {hardcodedScores[engineer.name]?.tc
+                    ? formatValue(hardcodedScores[engineer.name].tc)
+                    : "-"}
                 </td>
                 <td
                   className={cn(
@@ -397,7 +472,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.avgPcc)}
+                {formatValue(averageData.avgPcc / 24)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
@@ -413,28 +488,28 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
               </td>
 
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.qa || 8.3)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.cm || 8.4)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.rs || 8.2)}
               </td>
               <td
-                className="px-0.5 py-0.5 text-xs text-center font-bold bg-gray-100 text-gray-400"
+                className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                -
+                {formatValue(hardcodedScores["Team Average"]?.tc || 8.2)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"

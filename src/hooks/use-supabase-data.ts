@@ -218,59 +218,22 @@ export function useSupabaseData(
   );
 
   const syncData = useCallback(async (): Promise<SyncResult> => {
-    setState((prev) => ({ 
-      ...prev, 
-      isSyncing: true, 
-      error: null,
-      syncProgress: { step: 'starting', current: 0, total: 100, message: 'Initializing sync...' }
+    console.log('⚠️ Frontend sync disabled - use CLI sync script instead');
+
+    setState((prev) => ({
+      ...prev,
+      error: 'Frontend sync is disabled. Run in terminal: npm run sync:incremental'
     }));
 
-    try {
-      const result = await syncIncrementalDataFromZendesk((progress) => {
-        setState((prev) => ({ ...prev, syncProgress: progress }));
-      });
-
-      if (result.success) {
-        // Refresh data from database after successful sync
-        await fetchDataFromDatabase();
-        
-        setState((prev) => ({ 
-          ...prev, 
-          isSyncing: false,
-          syncProgress: null,
-          error: null
-        }));
-      } else {
-        setState((prev) => ({ 
-          ...prev, 
-          isSyncing: false,
-          syncProgress: null,
-          error: `Sync failed: ${result.errors.join(', ')}`
-        }));
-      }
-
-      return result;
-    } catch (error) {
-      console.error("❌ Sync error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Sync failed";
-      
-      setState((prev) => ({ 
-        ...prev, 
-        isSyncing: false,
-        syncProgress: null,
-        error: errorMessage
-      }));
-
-      return {
-        success: false,
-        engineersProcessed: 0,
-        ticketsProcessed: 0,
-        metricsCalculated: 0,
-        errors: [errorMessage],
-        duration: 0
-      };
-    }
-  }, [fetchDataFromDatabase]);
+    return {
+      success: false,
+      engineersProcessed: 0,
+      ticketsProcessed: 0,
+      metricsCalculated: 0,
+      errors: ['Frontend sync disabled - use CLI: npm run sync:incremental'],
+      duration: 0
+    };
+  }, []);
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
