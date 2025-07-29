@@ -130,11 +130,11 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
     const difference = score - teamAverage;
     const percentDiff = (difference / teamAverage) * 100;
 
-    if (percentDiff >= 4) return "bg-emerald-100 text-emerald-800"; // 4%+ above average
-    if (percentDiff >= 1.5) return "bg-green-100 text-green-800"; // 1.5-4% above average
-    if (percentDiff >= -1.5) return "bg-blue-100 text-blue-800"; // Within 1.5% of average
-    if (percentDiff >= -4) return "bg-yellow-100 text-yellow-800"; // 1.5-4% below average
-    return "bg-orange-100 text-orange-800"; // 4%+ below average
+    if (percentDiff >= 4) return "bg-green-100 text-green-800"; // 4%+ above average
+    if (percentDiff >= 1.5) return "bg-green-50 text-green-700"; // 1.5-4% above average
+    if (percentDiff >= -1.5) return "bg-white text-gray-900"; // Within 1.5% of average
+    if (percentDiff >= -4) return "bg-red-50 text-red-700"; // 1.5-4% below average
+    return "bg-red-100 text-red-800"; // 4%+ below average
   };
 
   const TableHeader = ({
