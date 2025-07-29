@@ -208,7 +208,7 @@ export default function Index() {
               Your database is set up but doesn't contain any metrics for the selected period.
             </p>
             <p className="mb-3">
-              Try selecting a different date range, or click "Pull Data" to sync from Zendesk.
+              Try selecting a different date range, or run 'npm run sync:incremental' in terminal.
             </p>
           </div>
           <button
