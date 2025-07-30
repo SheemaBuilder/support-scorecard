@@ -39,6 +39,7 @@ export interface DateRange {
   value: string;
   start: Date;
   end: Date;
+  tableName?: string; // Optional table name for monthly tables
 }
 
 export interface AlertItem {

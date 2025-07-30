@@ -42,58 +42,48 @@ import { Button } from "../components/ui/button";
 // Add debug helper
 const DEBUG_MODE = import.meta.env.DEV;
 
-// Function to create date ranges dynamically
+// Function to create monthly date ranges for 2025
 const createDateRanges = (): DateRange[] => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
-  const endOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-  ); // End of today
-
-  return [
-    {
-      label: "Last 30 Days",
-      value: "last-30-days",
-      start: new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000), // 30 days including today
-      end: endOfToday,
-    },
-    {
-      label: "Last 7 Days",
-      value: "last-7-days",
-      start: new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000), // 7 days including today
-      end: endOfToday,
-    },
-    {
-      label: "This Month",
-      value: "this-month",
-      start: new Date(now.getFullYear(), now.getMonth(), 1), // First day of current month
-      end: endOfToday,
-    },
-    {
-      label: "Last Month",
-      value: "last-month",
-      start: new Date(now.getFullYear(), now.getMonth() - 1, 1), // First day of last month
-      end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59), // Last day of last month
-    },
-    {
-      label: "All 2025 Data",
-      value: "all-2025",
-      start: new Date(2025, 0, 1), // January 1, 2025
-      end: endOfToday,
-    },
+  const year = 2025;
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  return months.map((monthName, index) => {
+    const monthStart = new Date(year, index, 1); // First day of month
+    const monthEnd = new Date(year, index + 1, 0, 23, 59, 59); // Last day of month
+
+    return {
+      label: monthName,
+      value: `${monthName.toLowerCase()}_${year}`,
+      start: monthStart,
+      end: monthEnd,
+      tableName: `engineer_metrics_${monthName.toLowerCase()}_${year}` // Table name for this month
+    };
+  });
 };
 
 export default function Index() {
   // Generate fresh date ranges on each render
-  const dateRanges = React.useMemo(() => createDateRanges(), []);
+  const dateRanges = React.useMemo(() => {
+    const ranges = createDateRanges();
+    console.log('📅 Created date ranges:', ranges.map(r => ({ label: r.label, tableName: r.tableName })));
+    return ranges;
+  }, []);
 
-  const [selectedPeriod, setSelectedPeriod] = useState(() => dateRanges[0]);
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    // Default to July 2025 (current month) - index 6
+    const julyIndex = 6; // July is the 7th month (0-indexed = 6)
+    const defaultPeriod = dateRanges[julyIndex] || dateRanges[0];
+    console.log('🎯 Setting default period to:', {
+      label: defaultPeriod?.label,
+      tableName: defaultPeriod?.tableName,
+      julyIndex,
+      availableRanges: dateRanges.length
+    });
+    return defaultPeriod;
+  });
   const [selectedEngineer, setSelectedEngineer] = useState("");
   const [selectedComparisonEngineer, setSelectedComparisonEngineer] =
     useState("");
@@ -173,10 +163,11 @@ export default function Index() {
       newPeriod: newPeriod.label,
       newStart: newPeriod.start.toISOString(),
       newEnd: newPeriod.end.toISOString(),
+      tableName: newPeriod.tableName,
     });
 
     setSelectedPeriod(newPeriod);
-    console.log("🔄 Calling refetch with new period...");
+    console.log(`🔄 Calling refetch with new period (${newPeriod.tableName})...`);
     await refetch(newPeriod);
     console.log("✅ Refetch completed");
   };
@@ -229,7 +220,7 @@ export default function Index() {
             </p>
             <p className="mb-3">
               Try selecting a different date range, or run 'npm run
-              sync:incremental' in terminal.
+              sync:incremental' in terminal to sync last 30 days.
             </p>
           </div>
           <button
@@ -1058,7 +1049,7 @@ Builder.io Support Team Performance Report`;
                 }}
                 disabled={isLoading || isSyncing}
                 className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
-                title="Pull latest data from Zendesk and sync to database"
+                title="Sync last 30 days of data from Zendesk to database (run via CLI)"
               >
                 <RefreshCw
                   className={cn(
@@ -1067,7 +1058,7 @@ Builder.io Support Team Performance Report`;
                   )}
                 />
                 <span className="text-sm font-medium">
-                  {isSyncing ? "Syncing..." : "Sync (CLI)"}
+                  {isSyncing ? "Syncing..." : "Sync Last 30 Days (CLI)"}
                 </span>
               </button>
             </div>
@@ -1763,7 +1754,7 @@ Builder.io Support Team Performance Report`;
 
                               if (!testError && testTickets) {
                                 console.log(
-                                  `🎯 ${query.name} (${query.field}): ${testTickets.length} tickets`,
+                                  `��� ${query.name} (${query.field}): ${testTickets.length} tickets`,
                                 );
                                 if (
                                   testTickets.length > 0 &&
@@ -1929,7 +1920,15 @@ Builder.io Support Team Performance Report`;
                 title="Total Tickets Closed"
                 value={
                   engineerData.length > 0
-                    ? engineerData.reduce((sum, eng) => sum + eng.closed, 0)
+                    ? (() => {
+                        const total = engineerData.reduce((sum, eng) => sum + eng.closed, 0);
+                        console.log('🎯 Closed tickets debug:', {
+                          period: selectedPeriod.label,
+                          total,
+                          breakdown: engineerData.map(e => ({ name: e.name, closed: e.closed }))
+                        });
+                        return total;
+                      })()
                     : "-"
                 }
                 subtitle={selectedPeriod.label}

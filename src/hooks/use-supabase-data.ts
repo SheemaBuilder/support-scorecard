@@ -150,7 +150,7 @@ export function useSupabaseData(
           } : null
         });
 
-        const { engineerData, averageMetrics } = await getLatestMetricsFromDatabase(startDate, endDate);
+        const { engineerData, averageMetrics } = await getLatestMetricsFromDatabase(startDate, endDate, dateRange?.tableName);
 
         console.log("📊 Database metrics:", {
           engineerDataCount: engineerData?.length || 0,
@@ -234,7 +234,7 @@ export function useSupabaseData(
 
     setState((prev) => ({
       ...prev,
-      error: 'Frontend sync is disabled. Run in terminal: npm run sync:incremental'
+      error: 'Frontend sync is disabled. Run in terminal: npm run sync:incremental (syncs last 30 days)'
     }));
 
     return {
@@ -242,7 +242,7 @@ export function useSupabaseData(
       engineersProcessed: 0,
       ticketsProcessed: 0,
       metricsCalculated: 0,
-      errors: ['Frontend sync disabled - use CLI: npm run sync:incremental'],
+      errors: ['Frontend sync disabled - use CLI: npm run sync:incremental (syncs last 30 days)'],
       duration: 0
     };
   }, []);
@@ -253,7 +253,11 @@ export function useSupabaseData(
 
   // Initial data fetch from database
   useEffect(() => {
-    console.log('🚀 Initial useEffect triggered, fetching data...', { initialDateRange });
+    console.log('🚀 Initial useEffect triggered, fetching data...', {
+      initialDateRange,
+      tableName: initialDateRange?.tableName,
+      label: initialDateRange?.label
+    });
     fetchDataFromDatabase(initialDateRange);
   }, [fetchDataFromDatabase, initialDateRange]);
 

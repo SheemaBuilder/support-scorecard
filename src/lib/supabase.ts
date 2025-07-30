@@ -355,10 +355,9 @@ if (supabaseClient) {
   });
 }
 
-// Database types for type safety
+// Database types for type safety (simplified to use zendesk_id instead of UUIDs)
 export interface Engineer {
-  id: string;
-  zendesk_id: number;
+  zendesk_id: number; // Primary key - no UUID needed
   name: string;
   email: string;
   role: string;
@@ -368,8 +367,7 @@ export interface Engineer {
 }
 
 export interface Ticket {
-  id: string;
-  zendesk_id: number;
+  zendesk_id: number; // Primary key - no UUID needed
   subject: string;
   status: 'new' | 'open' | 'pending' | 'hold' | 'solved' | 'closed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
@@ -386,10 +384,9 @@ export interface Ticket {
 }
 
 export interface EngineerMetric {
-  id: string;
-  engineer_id: string;
-  period_start: string;
-  period_end: string;
+  engineer_zendesk_id: number; // Reference engineers directly by zendesk_id
+  period_start: string | null;
+  period_end: string | null;
   ces_percent: number;
   avg_pcc: number;
   closed: number;

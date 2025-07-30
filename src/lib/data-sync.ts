@@ -208,24 +208,26 @@ export class DataSyncService {
   }
 
   private async storeEngineerMetrics(
-    userId: number, 
-    metrics: EngineerMetrics, 
-    startDate?: Date, 
+    userId: number,
+    metrics: EngineerMetrics,
+    startDate?: Date,
     endDate?: Date
   ): Promise<void> {
-    // First, get the engineer's database ID
-    const { data: engineer } = await supabase
-      .from('engineers')
-      .select('id')
-      .eq('zendesk_id', userId)
-      .single();
+    // Determine which monthly table to use based on the date
+    const targetDate = endDate || new Date();
+    const year = targetDate.getFullYear();
+    const monthNames = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december'
+    ];
+    const monthName = monthNames[targetDate.getMonth()];
+    const tableName = `engineer_metrics_${monthName}_${year}`;
 
-    if (!engineer) {
-      throw new Error(`Engineer with Zendesk ID ${userId} not found in database`);
-    }
+    console.log(`📊 Storing metrics for engineer ${userId} in table: ${tableName}`);
 
+    // No need to lookup engineer UUID - use zendesk_id directly
     const metricData: EngineerMetric = {
-      engineer_id: engineer.id,
+      engineer_zendesk_id: userId, // Direct reference to zendesk_id
       ces_percent: metrics.cesPercent,
       avg_pcc: metrics.avgPcc,
       closed: metrics.closed,
@@ -246,14 +248,14 @@ export class DataSyncService {
     };
 
     const { error } = await supabase
-      .from('engineer_metrics')
-      .upsert(metricData, { 
-        onConflict: 'engineer_id,calculated_at',
-        ignoreDuplicates: false 
+      .from(tableName)
+      .upsert(metricData, {
+        onConflict: 'engineer_zendesk_id', // Monthly tables have one record per engineer
+        ignoreDuplicates: false
       });
 
     if (error) {
-      console.error('Failed to store engineer metrics:', error);
+      console.error(`Failed to store engineer metrics in ${tableName}:`, error);
       throw error;
     }
   }

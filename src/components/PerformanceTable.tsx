@@ -287,7 +287,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.cesPercent, true)}
+                  {formatValue(engineer.cesPercent, false)}
                 </td>
                 <td
                   className={cn(
@@ -454,7 +454,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.cesPercent, true)}
+                {formatValue(averageData.cesPercent, false)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"

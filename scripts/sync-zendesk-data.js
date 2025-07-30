@@ -2,6 +2,7 @@
 
 /**
  * Standalone script to sync Zendesk data to Supabase
+ * Default: Syncs last 30 days of data
  * Usage: node scripts/sync-zendesk-data.js [--full] [--from=YYYY-MM-DD] [--to=YYYY-MM-DD]
  */
 
@@ -21,12 +22,16 @@ const isFullSync = args.includes('--full');
 const fromDateArg = args.find(arg => arg.startsWith('--from='));
 const toDateArg = args.find(arg => arg.startsWith('--to='));
 
-const fromDate = fromDateArg ? new Date(fromDateArg.split('=')[1]) : new Date('2025-01-01');
+// Default to last 30 days if no dates specified
+const defaultFromDate = new Date();
+defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+
+const fromDate = fromDateArg ? new Date(fromDateArg.split('=')[1]) : defaultFromDate;
 const toDate = toDateArg ? new Date(toDateArg.split('=')[1]) : new Date();
 
 console.log('🚀 Zendesk Data Sync Script');
 console.log(`📅 Date range: ${fromDate.toISOString().split('T')[0]} to ${toDate.toISOString().split('T')[0]}`);
-console.log(`🔄 Sync type: ${isFullSync ? 'Full' : 'Incremental'}`);
+console.log(`🔄 Sync type: ${isFullSync ? 'Full' : fromDateArg ? 'Custom Range' : 'Last 30 Days (Default)'}`);
 console.log('');
 
 // Validate environment variables
@@ -117,32 +122,82 @@ async function fetchAllUsers() {
 }
 
 async function fetchAllTickets(startDate, endDate) {
-  console.log('🎫 Fetching tickets from Zendesk...');
+  console.log('🎫 Fetching solved and closed tickets from Zendesk...');
   
-  const params = {};
-  if (startDate && endDate) {
-    params.start_time = Math.floor(startDate.getTime() / 1000);
-    params.end_time = Math.floor(endDate.getTime() / 1000);
-  }
-
   let allTickets = [];
-  let nextPage = '/incremental/tickets.json';
-  let pageCount = 0;
+  
+  // Get target engineer IDs for filtering
+  const targetEngineerIds = Array.from(TARGET_ENGINEERS.values());
+  
+  // Fetch solved tickets
+  console.log('   🔍 Fetching solved tickets...');
+  const solvedTickets = await fetchTicketsByStatus('solved', startDate, endDate);
+  allTickets = allTickets.concat(solvedTickets);
+  
+  // Fetch closed tickets
+  console.log('   🔍 Fetching closed tickets...');
+  const closedTickets = await fetchTicketsByStatus('closed', startDate, endDate);
+  allTickets = allTickets.concat(closedTickets);
+  
+  // Filter tickets to only include those assigned to target engineers
+  const filteredTickets = allTickets.filter(ticket => 
+    ticket.assignee_id && targetEngineerIds.includes(ticket.assignee_id)
+  );
+  
+  console.log(`   📊 Total solved/closed tickets fetched: ${allTickets.length}`);
+  console.log(`   🎯 Tickets assigned to target engineers: ${filteredTickets.length}`);
+  return filteredTickets;
+}
 
-  while (nextPage && pageCount < 100) { // Safety limit
-    const response = await fetchZendeskData(nextPage, params);
-    allTickets = allTickets.concat(response.tickets || []);
+async function fetchTicketsByStatus(status, startDate, endDate) {
+  let allTickets = [];
+  let page = 1;
+  const perPage = 100;
+  
+  // Build search query with date range if provided
+  let searchQuery = `status:${status}`;
+  if (startDate && endDate) {
+    // Format dates as YYYY-MM-DD for Zendesk search
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    searchQuery += ` created:${startDateStr}..${endDateStr}`;
+  }
+  
+  console.log(`      Query: ${searchQuery}`);
+  
+  while (page <= 10) { // Safety limit of 10 pages
+    const params = {
+      query: searchQuery,
+      page: page,
+      per_page: perPage,
+      sort_by: 'created_at',
+      sort_order: 'desc'
+    };
     
-    console.log(`   📄 Page ${++pageCount}: ${response.tickets?.length || 0} tickets`);
-    
-    nextPage = response.next_page ? response.next_page.replace(zendeskBaseUrl, '') : null;
-    
-    if (response.end_of_stream) {
-      break;
+    try {
+      const response = await fetchZendeskData('/search.json', params);
+      const tickets = response.results || [];
+      
+      if (tickets.length === 0) {
+        break; // No more results
+      }
+      
+      allTickets = allTickets.concat(tickets);
+      console.log(`      📄 Page ${page}: ${tickets.length} ${status} tickets`);
+      
+      page++;
+    } catch (error) {
+      console.error(`      ❌ Error fetching ${status} tickets on page ${page}:`, error.message);
+      // Try without date range if it fails
+      if (startDate && endDate) {
+        console.log(`      🔄 Retrying without date range...`);
+        return await fetchTicketsByStatus(status, null, null);
+      }
+      throw error;
     }
   }
-
-  console.log(`   📊 Total tickets fetched: ${allTickets.length}`);
+  
+  console.log(`      ✅ Total ${status} tickets: ${allTickets.length}`);
   return allTickets;
 }
 
@@ -215,35 +270,125 @@ async function syncTickets(tickets) {
   }
 }
 
+async function createMonthlyTableIfNotExists(tableName) {
+  console.log(`🔨 Checking if table exists: ${tableName}`);
+  
+  // Try to query the table to see if it exists
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('count')
+    .limit(1);
+  
+  if (error) {
+    if (error.message.includes('does not exist') || error.message.includes('relation') || error.code === '42P01') {
+      console.log(`   📋 Table ${tableName} does not exist - you need to create it manually in Supabase SQL Editor`);
+      console.log(`   📋 Run this SQL in your Supabase SQL Editor:`);
+      console.log(`   📋 CREATE TABLE ${tableName} (`);
+      console.log(`   📋   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,`);
+      console.log(`   📋   engineer_zendesk_id BIGINT NOT NULL,`);
+      console.log(`   📋   period_start DATE NOT NULL,`);
+      console.log(`   📋   period_end DATE NOT NULL,`);
+      console.log(`   📋   ces_percent DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   avg_pcc DECIMAL(8,2) DEFAULT 0,`);
+      console.log(`   📋   closed INTEGER DEFAULT 0,`);
+      console.log(`   📋   open INTEGER DEFAULT 0,`);
+      console.log(`   📋   open_greater_than_14 INTEGER DEFAULT 0,`);
+      console.log(`   📋   closed_less_than_7 DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   closed_equal_1 DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   participation_rate DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   link_count DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   citation_count INTEGER DEFAULT 0,`);
+      console.log(`   📋   creation_count DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   enterprise_percent DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   technical_percent DECIMAL(5,2) DEFAULT 0,`);
+      console.log(`   📋   survey_count INTEGER DEFAULT 0,`);
+      console.log(`   📋   calculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),`);
+      console.log(`   📋   UNIQUE(engineer_zendesk_id)`);
+      console.log(`   📋 );`);
+      throw new Error(`Table ${tableName} does not exist. Please create it manually in Supabase SQL Editor.`);
+    } else {
+      console.error(`   ❌ Error checking table ${tableName}:`, error.message);
+      throw error;
+    }
+  } else {
+    console.log(`   ✅ Table ${tableName} exists and is accessible`);
+  }
+}
+
 async function calculateAndStoreMetrics(engineers, allTickets, startDate, endDate) {
   console.log('📊 Calculating and storing metrics...');
 
-  // Get engineer IDs from database
-  const { data: dbEngineers } = await supabase
-    .from('engineers')
-    .select('id, zendesk_id, name')
-    .in('zendesk_id', engineers.map(e => e.id));
+  // Determine which monthly table to use
+  const year = endDate.getFullYear();
+  const monthNames = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december'
+  ];
+  const monthName = monthNames[endDate.getMonth()];
+  const tableName = `engineer_metrics_${monthName}_${year}`;
+  
+  // Create the monthly table if it doesn't exist
+  await createMonthlyTableIfNotExists(tableName);
+  console.log('');
 
-  if (!dbEngineers) {
-    throw new Error('Failed to fetch engineers from database');
-  }
-
+  // No need to lookup database IDs - use Zendesk IDs directly
   for (const engineer of engineers) {
-    const dbEngineer = dbEngineers.find(e => e.zendesk_id === engineer.id);
-    if (!dbEngineer) continue;
 
-    // Filter tickets for this engineer
+    // Filter tickets for this engineer (all tickets are already solved/closed)
     const engineerTickets = allTickets.filter(ticket => ticket.assignee_id === engineer.id);
+
+    // For monthly tables, filter tickets to only include those closed in the target month
+    const targetYear = endDate.getFullYear();
+    const targetMonth = endDate.getMonth();
+
+    const monthlyClosedTickets = engineerTickets.filter(ticket => {
+      if (!ticket.solved_at && !ticket.updated_at) return false;
+
+      // Use solved_at if available, otherwise use updated_at as fallback
+      const resolvedDate = new Date(ticket.solved_at || ticket.updated_at);
+      const resolvedYear = resolvedDate.getFullYear();
+      const resolvedMonth = resolvedDate.getMonth();
+
+      // Only include tickets that were resolved in the target month/year
+      return resolvedYear === targetYear && resolvedMonth === targetMonth;
+    });
+
+    console.log(`   📊 ${engineer.name}: ${engineerTickets.length} total assigned tickets, ${monthlyClosedTickets.length} closed in target month`);
+
+    // Calculate basic metrics (using monthly filtered tickets)
+    const closedTickets = monthlyClosedTickets;
+    const openTickets = []; // No open tickets since we only fetch solved/closed
     
-    // Calculate basic metrics (simplified version)
-    const closedTickets = engineerTickets.filter(t => t.status === 'closed' || t.status === 'solved');
-    const openTickets = engineerTickets.filter(t => t.status === 'new' || t.status === 'open' || t.status === 'pending');
+    // Calculate CES score from custom fields (using monthly filtered tickets)
+    const cesScores = [];
+    let ticketsWithCesScore = 0;
+
+    for (const ticket of monthlyClosedTickets) {
+      if (ticket.custom_fields && Array.isArray(ticket.custom_fields)) {
+        const cesField = ticket.custom_fields.find(field => field.id === 31797439524887);
+        if (cesField && cesField.value !== null && cesField.value !== undefined) {
+          const score = parseFloat(cesField.value);
+          if (!isNaN(score)) {
+            cesScores.push(score);
+            ticketsWithCesScore++;
+          }
+        }
+      }
+    }
     
+    // Calculate average CES score
+    const cesPercent = cesScores.length > 0 
+      ? (cesScores.reduce((sum, score) => sum + score, 0) / cesScores.length)
+      : 0;
+    
+         console.log(`   📊 ${engineer.name}: ${ticketsWithCesScore}/${engineerTickets.length} tickets have CES scores, avg: ${cesPercent.toFixed(2)}`);
+     console.log(`   📊 Storing ${engineer.name} metrics in table: ${tableName}`);
+
     const metrics = {
-      engineer_id: dbEngineer.id,
+      engineer_zendesk_id: engineer.id, // Use Zendesk ID directly instead of UUID
       period_start: startDate.toISOString().split('T')[0],
       period_end: endDate.toISOString().split('T')[0],
-      ces_percent: 0, // Simplified - would need complex CES calculation
+      ces_percent: Math.round(cesPercent * 100) / 100, // Round to 2 decimal places
       avg_pcc: 24, // Default average
       closed: closedTickets.length,
       open: openTickets.length,
@@ -256,20 +401,20 @@ async function calculateAndStoreMetrics(engineers, allTickets, startDate, endDat
       creation_count: 3.5, // Default score
       enterprise_percent: 20, // Default percentage
       technical_percent: 70, // Default percentage
-      survey_count: Math.floor(Math.random() * 20), // Simplified
+      survey_count: ticketsWithCesScore, // Use actual count of tickets with CES scores
     };
 
     const { error } = await supabase
-      .from('engineer_metrics')
+      .from(tableName)
       .upsert(metrics, {
-        onConflict: 'engineer_id,period_start,period_end',
+        onConflict: 'engineer_zendesk_id', // Monthly tables have one record per engineer
         ignoreDuplicates: false
       });
 
     if (error) {
       console.error(`   ❌ ${engineer.name}: ${error.message}`);
     } else {
-      console.log(`   ✅ ${engineer.name}: ${closedTickets.length} closed, ${openTickets.length} open`);
+      console.log(`   ✅ ${engineer.name}: ${closedTickets.length} solved/closed tickets`);
     }
   }
 }

@@ -7,10 +7,54 @@ import { EngineerMetrics } from './types';
 // Function to get latest metrics from database (frontend-safe)
 export async function getLatestMetricsFromDatabase(
   startDate?: Date,
-  endDate?: Date
+  endDate?: Date,
+  tableName?: string
 ): Promise<{ engineerData: EngineerMetrics[], averageMetrics: EngineerMetrics | null }> {
   try {
-    console.log('🔍 Fetching metrics from database...', { startDate, endDate });
+    console.log('🔍 Fetching metrics from database...', { startDate, endDate, tableName });
+
+    // Detect which schema we're using
+    let useOldSchema = false;
+
+    // Determine which table to query
+    let metricsTableName = tableName || 'engineer_metrics';
+    let shouldFallback = false;
+
+    console.log('📊 Initial table selection:', metricsTableName);
+
+    if (!tableName) {
+      console.warn('⚠️ No tableName provided! This might indicate the monthly table structure is not working correctly.');
+      console.warn('⚠️ Expected table names like: engineer_metrics_july_2025');
+    } else {
+      console.log(`🔍 Attempting to query monthly table: ${tableName}`);
+
+      // Check if the monthly table exists
+      try {
+        const { data: tableCheck, error: tableCheckError } = await supabase
+          .from(metricsTableName)
+          .select('engineer_zendesk_id')
+          .limit(1);
+
+        if (tableCheckError) {
+          console.error(`❌ Monthly table ${metricsTableName} does not exist or has an error:`, tableCheckError);
+          console.log('💡 TIP: Run MONTHLY_TABLES_SETUP_FIXED.sql to create monthly tables');
+          console.log('🔄 Falling back to main engineer_metrics table...');
+
+          // Fall back to main table if monthly table doesn't exist
+          metricsTableName = 'engineer_metrics';
+          shouldFallback = true;
+        } else {
+          console.log(`✅ Monthly table ${metricsTableName} exists and is accessible`);
+        }
+      } catch (err) {
+        console.error(`❌ Error checking monthly table ${metricsTableName}:`, err);
+        console.log('🔄 Falling back to main engineer_metrics table...');
+        metricsTableName = 'engineer_metrics';
+        shouldFallback = true;
+      }
+    }
+
+    console.log('📊 Final table selection:', metricsTableName);
 
     // Debug Supabase configuration
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -51,16 +95,50 @@ export async function getLatestMetricsFromDatabase(
     }
 
     // Now check if we have ANY metrics data at all
-    console.log('🔍 Step 1: Checking if any engineer_metrics exist...');
-    const { data: anyMetrics, error: countError } = await supabase
-      .from('engineer_metrics')
-      .select('id')
+    console.log(`🔍 Step 1: Checking if any data exists in ${metricsTableName}...`);
+
+    // If we fell back to main table, assume old schema
+    if (shouldFallback) {
+      useOldSchema = true;
+      console.log('🔄 Using fallback table, assuming old schema');
+    }
+
+    // Try new schema first (unless we already know it's old schema)
+    let { data: anyMetrics, error: countError } = await supabase
+      .from(metricsTableName)
+      .select(useOldSchema ? 'engineer_id' : 'engineer_zendesk_id')
       .limit(1);
+
+    console.log('🔍 Step 1 result:', {
+      anyMetrics,
+      countError,
+      schema: useOldSchema ? 'old (UUID)' : 'new (zendesk_id)',
+      table: metricsTableName
+    });
+
+    // If we didn't fallback and new schema failed, try old schema
+    if (!shouldFallback && countError) {
+      console.log('🔍 Trying old schema with engineer_id...');
+      const { data: oldMetrics, error: oldError } = await supabase
+        .from(metricsTableName)
+        .select('engineer_id')
+        .limit(1);
+      console.log('🔍 Step 1 (old schema) result:', { oldMetrics, oldError });
+
+      if (!oldError && oldMetrics) {
+        console.log('🚨 FOUND: Database still uses old schema with engineer_id (UUID)');
+        console.log('💡 TIP: Run SUPABASE_CLEANUP.sql to migrate to simplified schema');
+        useOldSchema = true;
+        anyMetrics = oldMetrics;
+        countError = null;
+      }
+    }
 
     if (countError) {
       const { safeErrorToString } = await import('./supabase');
       const errorMessage = safeErrorToString(countError);
       console.error('❌ Count query failed:', errorMessage);
+      console.error('❌ Full error object:', countError);
       console.error('❌ Error details:', {
         message: countError?.message || 'No message',
         details: countError?.details || 'No details',
@@ -86,11 +164,31 @@ export async function getLatestMetricsFromDatabase(
 
     console.log('✅ Found engineer_metrics in database, proceeding with full query...');
 
+    // Show date range available in database to help debug
+    const { data: dateRangeCheck } = await supabase
+      .from(metricsTableName)
+      .select('calculated_at')
+      .order('calculated_at', { ascending: false })
+      .limit(1);
+    const { data: oldestDateCheck } = await supabase
+      .from(metricsTableName)
+      .select('calculated_at')
+      .order('calculated_at', { ascending: true })
+      .limit(1);
+
+    if (dateRangeCheck && oldestDateCheck) {
+      console.log('�� Available data range in database:', {
+        newest: dateRangeCheck[0]?.calculated_at,
+        oldest: oldestDateCheck[0]?.calculated_at
+      });
+    }
+
     // Step 2: Get engineers first
     console.log('🔍 Step 2a: Fetching engineers...');
+    const engineerSelectFields = useOldSchema ? 'id, zendesk_id, name' : 'zendesk_id, name';
     const { data: engineers, error: engineersError } = await supabase
       .from('engineers')
-      .select('id, zendesk_id, name');
+      .select(engineerSelectFields);
 
     if (engineersError) {
       const { safeErrorToString } = await import('./supabase');
@@ -116,9 +214,9 @@ export async function getLatestMetricsFromDatabase(
     console.log(`✅ Found ${engineers.length} engineers`);
 
     // Debug: Show what calculated_at dates are available
-    console.log('🔍 Step 2a-debug: Checking what dates are available in database...');
+    console.log(`🔍 Step 2a-debug: Checking what dates are available in ${metricsTableName}...`);
     const { data: dateCheck } = await supabase
-      .from('engineer_metrics')
+      .from(metricsTableName)
       .select('calculated_at, period_start, period_end')
       .order('calculated_at', { ascending: false })
       .limit(10);
@@ -143,30 +241,56 @@ export async function getLatestMetricsFromDatabase(
 
     // Step 2b: Get metrics with proper date filtering
     console.log('🔍 Step 2b: Fetching engineer_metrics...');
-    let metricsQuery = supabase
-      .from('engineer_metrics')
-      .select(`
-        engineer_id,
-        ces_percent,
-        avg_pcc,
-        closed,
-        open,
-        open_greater_than_14,
-        closed_less_than_7,
-        closed_equal_1,
-        participation_rate,
-        link_count,
-        citation_count,
-        creation_count,
-        enterprise_percent,
-        technical_percent,
-        survey_count,
-        period_start,
-        period_end,
-        calculated_at
-      `);
+    const metricsSelectFields = useOldSchema
+      ? `engineer_id,
+         ces_percent,
+         avg_pcc,
+         closed,
+         open,
+         open_greater_than_14,
+         closed_less_than_7,
+         closed_equal_1,
+         participation_rate,
+         link_count,
+         citation_count,
+         creation_count,
+         enterprise_percent,
+         technical_percent,
+         survey_count,
+         period_start,
+         period_end,
+         calculated_at`
+      : `engineer_zendesk_id,
+         ces_percent,
+         avg_pcc,
+         closed,
+         open,
+         open_greater_than_14,
+         closed_less_than_7,
+         closed_equal_1,
+         participation_rate,
+         link_count,
+         citation_count,
+         creation_count,
+         enterprise_percent,
+         technical_percent,
+         survey_count,
+         period_start,
+         period_end,
+         calculated_at`;
 
-    // Apply date filtering if provided
+    let metricsQuery = supabase
+      .from(metricsTableName)
+      .select(metricsSelectFields);
+
+    // Debug the date filtering issue
+    console.log('🔧 DEBUG: Checking date filtering for technical_percent issue');
+    console.log('📅 Requested date filter:', {
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString()
+    });
+
+    // Apply date filtering if provided (RE-ENABLED)
     if (startDate && endDate) {
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
@@ -185,7 +309,7 @@ export async function getLatestMetricsFromDatabase(
 
       console.log('📅 Date filter applied: calculated_at >= ', startDate.toISOString(), ' AND calculated_at <= ', endDate.toISOString());
     } else {
-      console.log('📅 No date filter applied - showing all metrics');
+      console.log('📅 No date filter applied - showing ALL metrics to debug technical_percent issue');
     }
 
     const { data: metrics, error: metricsError } = await metricsQuery
@@ -231,44 +355,78 @@ export async function getLatestMetricsFromDatabase(
       });
     }
 
-    // Create a map of engineer_id to engineer name
-    const engineerMap = new Map();
-    engineers.forEach(eng => {
-      engineerMap.set(eng.id, eng.name);
-    });
+    // Debug raw metrics data for technical_percent issue
+    console.log('🔧 Technical percent in raw data:', metrics.map(m => ({
+      engineer_ref: useOldSchema ? m.engineer_id : m.engineer_zendesk_id,
+      technical_percent: m.technical_percent,
+      calculated_at: m.calculated_at?.split('T')[0] // Just the date part
+    })).slice(0, 10));
 
-    // Group by engineer_id and take the most recent for each
-    const latestByEngineerId = new Map();
-    metrics.forEach(item => {
-      if (!latestByEngineerId.has(item.engineer_id) ||
-          new Date(item.calculated_at) > new Date(latestByEngineerId.get(item.engineer_id).calculated_at)) {
-        latestByEngineerId.set(item.engineer_id, item);
+    // Create engineer mapping based on schema
+    const engineerMap = new Map();
+    const engineerIdMap = new Map(); // For old schema UUID to zendesk_id mapping
+
+    engineers.forEach(eng => {
+      if (useOldSchema) {
+        engineerMap.set(eng.id, eng.name); // Map UUID to name
+        engineerIdMap.set(eng.id, eng.zendesk_id); // Map UUID to zendesk_id
+      } else {
+        engineerMap.set(eng.zendesk_id, eng.name); // Map zendesk_id to name
       }
     });
 
+    // Group by engineer identifier and take the most recent for each
+    const latestByEngineer = new Map();
+    metrics.forEach(item => {
+      const engineerKey = useOldSchema ? item.engineer_id : item.engineer_zendesk_id;
+      const existing = latestByEngineer.get(engineerKey);
+      if (!existing || new Date(item.calculated_at) > new Date(existing.calculated_at)) {
+        latestByEngineer.set(engineerKey, item);
+      }
+    });
+
+    console.log('🔧 Selected latest metrics (technical_percent focus):', Array.from(latestByEngineer.values()).map(m => ({
+      engineer_key: useOldSchema ? m.engineer_id : m.engineer_zendesk_id,
+      technical_percent: m.technical_percent,
+      calculated_at: m.calculated_at?.split('T')[0]
+    })));
+
     // Transform the data, joining with engineer names
-    const data = Array.from(latestByEngineerId.values())
-      .filter(item => engineerMap.has(item.engineer_id)) // Only include metrics for known engineers
-      .map(item => ({
-        name: engineerMap.get(item.engineer_id),
-        ces_percent: item.ces_percent,
-        avg_pcc: item.avg_pcc,
-        closed: item.closed,
-        open: item.open,
-        open_greater_than_14: item.open_greater_than_14,
-        closed_less_than_7: item.closed_less_than_7,
-        closed_equal_1: item.closed_equal_1,
-        participation_rate: item.participation_rate,
-        link_count: item.link_count,
-        citation_count: item.citation_count,
-        creation_count: item.creation_count,
-        enterprise_percent: item.enterprise_percent,
-        technical_percent: item.technical_percent,
-        survey_count: item.survey_count,
-      }));
+    const data = Array.from(latestByEngineer.values())
+      .filter(item => {
+        const engineerKey = useOldSchema ? item.engineer_id : item.engineer_zendesk_id;
+        return engineerMap.has(engineerKey);
+      })
+      .map(item => {
+        const engineerKey = useOldSchema ? item.engineer_id : item.engineer_zendesk_id;
+        return {
+          name: engineerMap.get(engineerKey),
+          ces_percent: item.ces_percent,
+          avg_pcc: item.avg_pcc,
+          closed: item.closed,
+          open: item.open,
+          open_greater_than_14: item.open_greater_than_14,
+          closed_less_than_7: item.closed_less_than_7,
+          closed_equal_1: item.closed_equal_1,
+          participation_rate: item.participation_rate,
+          link_count: item.link_count,
+          citation_count: item.citation_count,
+          creation_count: item.creation_count,
+          enterprise_percent: item.enterprise_percent,
+          technical_percent: item.technical_percent,
+          survey_count: item.survey_count,
+        };
+      });
 
     console.log(`📊 Final data: ${data.length} unique engineers with metrics`);
     console.log('📊 Sample data:', data[0]);
+
+    // Debug technical_percent values specifically
+    console.log('🔧 Technical percent debug:', data.map(d => ({
+      name: d.name,
+      technical_percent: d.technical_percent,
+      enterprise_percent: d.enterprise_percent
+    })));
 
     if (!data || data.length === 0) {
       console.log('⚠️ No metrics found after filtering');
