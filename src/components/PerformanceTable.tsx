@@ -73,9 +73,9 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
     return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
   };
 
-  const formatValue = (value: number | string, isPercentage = false) => {
+  const formatValue = (value: number | string, isPercentage = false, allowZero = false) => {
     if (typeof value === "string") return value;
-    if (value === 0) return "-"; // Show dash for no data
+    if (value === 0 && !allowZero) return "-"; // Show dash for no data only when zero is not valid
     if (isPercentage) return `${value.toFixed(1)}%`;
     return value % 1 === 0 ? value.toString() : value.toFixed(1);
   };
@@ -84,9 +84,10 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
     value: number,
     averageValue: number,
     higherIsBetter: boolean = true,
+    allowZero: boolean = false,
   ) => {
-    // If no data (0), show gray
-    if (value === 0) {
+    // If no data (0) and zero is not a valid value, show gray
+    if (value === 0 && !allowZero) {
       return "bg-gray-100 text-gray-500";
     }
     // Otherwise use performance color
@@ -283,11 +284,12 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                       engineer.cesPercent,
                       averageData.cesPercent,
                       true,
+                      true, // Allow zero for CES scores
                     ),
                   )}
                   style={{ fontSize: "10px" }}
                 >
-                  {formatValue(engineer.cesPercent, false)}
+                  {formatValue(engineer.cesPercent, true, true)}
                 </td>
                 <td
                   className={cn(
@@ -454,7 +456,7 @@ export function PerformanceTable({ data, averageData }: PerformanceTableProps) {
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"
                 style={{ fontSize: "10px" }}
               >
-                {formatValue(averageData.cesPercent, false)}
+                {formatValue(averageData.cesPercent, true, true)}
               </td>
               <td
                 className="px-0.5 py-0.5 text-xs text-center font-bold text-blue-900"

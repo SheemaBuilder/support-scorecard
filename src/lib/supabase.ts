@@ -196,9 +196,11 @@ export async function checkSupabaseHealth() {
   }
 
   try {
-    // Test basic connectivity to Supabase with shorter timeout
+    // Test basic connectivity to Supabase with longer timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10000); // 10 second timeout
 
     const response = await fetch(`${url}/rest/v1/`, {
       method: 'HEAD',
@@ -219,6 +221,12 @@ export async function checkSupabaseHealth() {
     }
   } catch (error) {
     logError('Supabase health check', error);
+
+    // Handle AbortError specifically
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { success: false, error: 'Connection timeout: Supabase took too long to respond (10s limit)' };
+    }
+
     const errorMessage = extractErrorMessage(error);
 
     if (errorMessage.includes('aborted')) {
@@ -228,7 +236,7 @@ export async function checkSupabaseHealth() {
     if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network Error')) {
       return {
         success: false,
-        error: 'Network connectivity issue: Cannot reach Supabase servers. Please check your internet connection.'
+        error: 'Network connectivity issue: Cannot reach Supabase servers. This may be due to network restrictions or Supabase being temporarily unavailable. The app will use mock data.'
       };
     }
 

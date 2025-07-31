@@ -15,6 +15,9 @@ import {
   Star,
   TrendingUp,
   CheckCircle,
+  Copy,
+  Download,
+  Clock,
 } from "lucide-react";
 import { PerformanceTable } from "../components/PerformanceTable";
 import { RadarChart } from "../components/RadarChart";
@@ -22,6 +25,7 @@ import { MetricCard } from "../components/MetricCard";
 import { useSupabaseData, useSupabaseConfig } from "../hooks/use-supabase-data";
 import { DateRange } from "../lib/types";
 import { cn } from "../lib/utils";
+import { nameToIdMap } from "../lib/engineerMap.js";
 import {
   Tabs,
   TabsList,
@@ -121,8 +125,12 @@ export default function Index() {
     if (engineerData.length > 0 && !selectedEngineer) {
       setSelectedEngineer(engineerData[0].name);
     }
+    // Set default engineer only if none is selected
     if (engineerData.length > 0 && !selectedComparisonEngineer) {
-      setSelectedComparisonEngineer(engineerData[0].name);
+      const jaredBeckler = engineerData.find(e => e.name === "Jared Beckler");
+      const defaultEngineer = jaredBeckler ? "Jared Beckler" : engineerData[0].name;
+      console.log(`🎯 Setting default CES engineer to: ${defaultEngineer}`);
+      setSelectedComparisonEngineer(defaultEngineer);
     }
     if (engineerData.length > 0 && !selectedIndividualEngineer) {
       setSelectedIndividualEngineer(engineerData[0].name);
@@ -150,6 +158,23 @@ export default function Index() {
           open: e.open,
         })),
       });
+
+      // Debug Akash Singh's data specifically
+      const akashData = engineerData.find(e => e.name === "Akash Singh");
+      if (akashData) {
+        console.log("🎯 AKASH SINGH RAW DATA:", {
+          name: akashData.name,
+          cesPercent: akashData.cesPercent,
+          cesType: typeof akashData.cesPercent,
+          cesValueIs0: akashData.cesPercent === 0,
+          cesValueIsNull: akashData.cesPercent === null,
+          cesValueIsUndefined: akashData.cesPercent === undefined,
+          allMetrics: akashData
+        });
+      } else {
+        console.log("❌ AKASH SINGH NOT FOUND IN ENGINEER DATA");
+        console.log("📋 Available engineers:", engineerData.map(e => e.name));
+      }
     }
   }, [engineerData, averageMetrics, isLoading, error, lastUpdated]);
 
@@ -443,55 +468,174 @@ export default function Index() {
       const startDate = selectedPeriod.start.toISOString().split("T")[0];
       const endDate = selectedPeriod.end.toISOString().split("T")[0];
 
-      // Mock data for now - in real app, this would query actual survey/CES data
-      const mockCESData = {
-        highScoring: [
-          {
-            ticketId: "T-12345",
-            score: 6,
-            subject: "Database optimization issue resolved",
-          },
-          {
-            ticketId: "T-12346",
-            score: 7,
-            subject: "API integration help completed",
-          },
-          {
-            ticketId: "T-12347",
-            score: 5,
-            subject: "UI component styling fixed",
-          },
-        ],
-        averageScoring: [
-          {
-            ticketId: "T-12348",
-            score: 4,
-            subject: "General support query answered",
-          },
-        ],
-        lowScoring: [
-          {
-            ticketId: "T-12349",
-            score: 3,
-            subject: "Complex troubleshooting session",
-          },
-          {
-            ticketId: "T-12350",
-            score: 2,
-            subject: "Multiple follow-up required",
-          },
-          {
-            ticketId: "T-12351",
-            score: 1,
-            subject: "Issue escalated to development team",
-          },
-        ],
+      // Get engineer's Zendesk ID
+      const engineerZendeskId = nameToIdMap.get(engineerName);
+      if (!engineerZendeskId) {
+        throw new Error(`Engineer ${engineerName} not found in mapping`);
+      }
+
+      console.log(`🔍 Fetching CES details from Supabase for ${engineerName} (ID: ${engineerZendeskId})`);
+      console.log(`📅 Date range: ${startDate} to ${endDate}`);
+
+      // Special debugging for Akash Singh
+      if (engineerName === "Akash Singh") {
+        console.log(`🎯 DEBUGGING AKASH SINGH SPECIFICALLY:`);
+        console.log(`   - Engineer Name: ${engineerName}`);
+        console.log(`   - Zendesk ID: ${engineerZendeskId}`);
+        console.log(`   - Date Range: ${startDate} to ${endDate}`);
+        console.log(`   - nameToIdMap has Akash:`, nameToIdMap.has("Akash Singh"));
+        console.log(`   - Full nameToIdMap:`, Array.from(nameToIdMap.entries()));
+
+        // Check what assignee_ids actually exist in the database
+        console.log(`🎯 CHECKING WHAT ASSIGNEE IDS EXIST IN DATABASE...`);
+        try {
+          const { data: uniqueAssignees, error: assigneeError } = await supabase
+            .from('tickets')
+            .select('assignee_id')
+            .not('assignee_id', 'is', null)
+            .limit(1000);
+
+          if (!assigneeError && uniqueAssignees) {
+            const uniqueIds = [...new Set(uniqueAssignees.map(t => t.assignee_id))];
+            console.log(`   - Unique assignee IDs in database (first 20):`, uniqueIds.slice(0, 20));
+            console.log(`   - Looking for Akash's ID: ${engineerZendeskId}`);
+            console.log(`   - Is Akash's ID in database?`, uniqueIds.includes(engineerZendeskId));
+            console.log(`   - Total unique assignee IDs: ${uniqueIds.length}`);
+          }
+        } catch (err) {
+          console.error('Error checking assignee IDs:', err);
+        }
+      }
+
+      // First, let's check if this engineer has any tickets at all
+      const { data: allTickets, error: allError } = await supabase
+        .from('tickets')
+        .select('zendesk_id, subject, status, created_at, updated_at, solved_at, assignee_id')
+        .eq('assignee_id', engineerZendeskId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (allError) {
+        console.error('❌ Error fetching all tickets:', allError);
+      } else {
+        console.log(`📊 Found ${allTickets?.length || 0} total tickets for ${engineerName} (all time)`);
+        console.log('📋 Sample tickets:', allTickets?.slice(0, 3).map(t => ({
+          id: t.zendesk_id,
+          subject: t.subject?.substring(0, 50) + '...',
+          status: t.status,
+          created: t.created_at?.split('T')[0]
+        })));
+
+        // Special debugging for Akash Singh
+        if (engineerName === "Akash Singh") {
+          console.log(`🎯 AKASH ALL-TIME TICKETS DEBUG:`);
+          console.log(`   - Total tickets found (all time): ${allTickets?.length || 0}`);
+          if (allTickets && allTickets.length > 0) {
+            console.log(`   - Date range of tickets:`, {
+              oldest: allTickets[allTickets.length - 1]?.created_at,
+              newest: allTickets[0]?.created_at
+            });
+            console.log(`   - All ticket IDs:`, allTickets.map(t => t.zendesk_id));
+          } else {
+            console.log(`   - ❌ NO TICKETS FOUND FOR AKASH AT ALL!`);
+            console.log(`   - This suggests either:`);
+            console.log(`     1. Wrong Zendesk ID (${engineerZendeskId})`);
+            console.log(`     2. No tickets assigned to this ID in database`);
+            console.log(`     3. Database connection issue`);
+          }
+        }
+      }
+
+      // Fetch tickets assigned to this engineer in the date range
+      const { data: tickets, error } = await supabase
+        .from('tickets')
+        .select('zendesk_id, subject, status, created_at, updated_at, solved_at, custom_fields')
+        .eq('assignee_id', engineerZendeskId)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      console.log(`📊 Found ${tickets?.length || 0} tickets in date range for ${engineerName}`);
+
+      // Special debugging for Akash Singh
+      if (engineerName === "Akash Singh") {
+        console.log(`🎯 AKASH DEBUGGING - Tickets query result:`);
+        console.log(`   - Tickets found: ${tickets?.length || 0}`);
+        console.log(`   - Query details: assignee_id = ${engineerZendeskId}, created_at >= ${startDate}, created_at <= ${endDate}`);
+        if (tickets && tickets.length > 0) {
+          console.log(`   - Sample tickets:`, tickets.slice(0, 3).map(t => ({
+            zendesk_id: t.zendesk_id,
+            subject: t.subject?.substring(0, 50),
+            created_at: t.created_at,
+            assignee_id: t.assignee_id
+          })));
+        }
+      }
+
+      // Show all tickets for this engineer, whether they have CES scores or not
+      const allTicketsForPeriod = tickets?.map(ticket => {
+        const cesField = ticket.custom_fields?.find(field => field.id === 31797439524887);
+        let score = null;
+
+        if (cesField && cesField.value !== null) {
+          const parsedScore = typeof cesField.value === 'string' ? parseFloat(cesField.value) : Number(cesField.value);
+          if (!isNaN(parsedScore) && parsedScore >= 1 && parsedScore <= 7) {
+            score = parsedScore;
+          }
+        }
+
+        return {
+          ticketId: ticket.zendesk_id,
+          subject: ticket.subject || 'No subject',
+          score: score,
+          date: new Date(ticket.created_at).toLocaleDateString('en-GB'),
+          status: ticket.status
+        };
+      }) || [];
+
+      console.log(`📊 All tickets for period:`, allTicketsForPeriod.slice(0, 5));
+
+      // Separate tickets with CES scores from those without
+      const ticketsWithCES = allTicketsForPeriod.filter(t => t.score !== null);
+      const ticketsWithoutCES = allTicketsForPeriod.filter(t => t.score === null);
+
+      console.log(`📊 Tickets with CES: ${ticketsWithCES.length}, without CES: ${ticketsWithoutCES.length}`);
+
+      // Categorize CES tickets by score
+      const highScoring = ticketsWithCES.filter(t => t.score >= 6);
+      const averageScoring = ticketsWithCES.filter(t => t.score >= 4 && t.score < 6);
+      const lowScoring = ticketsWithCES.filter(t => t.score < 4);
+
+      const cesData = {
+        highScoring: highScoring.slice(0, 10),
+        averageScoring: averageScoring.slice(0, 10),
+        lowScoring: lowScoring.slice(0, 10),
+        ticketsWithoutCES: ticketsWithoutCES.slice(0, 10), // Show tickets without CES scores
+        totalTickets: ticketsWithCES.length,
+        totalAllTickets: allTicketsForPeriod.length,
+        engineerName,
+        period: selectedPeriod.label
       };
 
-      setModalData(mockCESData);
+      console.log(`📊 Final CES data:`, {
+        high: cesData.highScoring.length,
+        average: cesData.averageScoring.length,
+        low: cesData.lowScoring.length,
+        withoutCES: cesData.ticketsWithoutCES.length,
+        total: cesData.totalTickets
+      });
+
+      setModalData(cesData);
     } catch (error) {
-      console.error("Failed to fetch CES details:", error);
-      setModalData({ error: "Failed to load CES details" });
+      console.error("Failed to fetch CES details from Supabase:", error);
+      setModalData({
+        error: `Failed to load CES details: ${error.message}`,
+        engineerName,
+        period: selectedPeriod.label
+      });
     } finally {
       setModalLoading(false);
     }
@@ -501,19 +645,90 @@ export default function Index() {
   const fetchSurveyDetails = async (engineerName: string) => {
     setModalLoading(true);
     try {
-      // Mock data for tickets that received survey responses
-      const mockSurveyData = {
-        responses: [
-          { ticketId: "T-12345", responseDate: "2025-01-20", rating: 6 },
-          { ticketId: "T-12346", responseDate: "2025-01-21", rating: 7 },
-          { ticketId: "T-12347", responseDate: "2025-01-22", rating: 5 },
-          { ticketId: "T-12348", responseDate: "2025-01-23", rating: 4 },
-          { ticketId: "T-12352", responseDate: "2025-01-24", rating: 6 },
-          { ticketId: "T-12353", responseDate: "2025-01-25", rating: 5 },
-        ],
+      const { supabase } = await import("../lib/supabase");
+      const startDate = selectedPeriod.start.toISOString().split("T")[0];
+      const endDate = selectedPeriod.end.toISOString().split("T")[0];
+
+      // Get engineer's Zendesk ID
+      const engineerZendeskId = nameToIdMap.get(engineerName);
+      if (!engineerZendeskId) {
+        throw new Error(`Engineer ${engineerName} not found in mapping`);
+      }
+
+      console.log(`🔍 Fetching survey responses for ${engineerName} (ID: ${engineerZendeskId})`);
+
+      // Fetch tickets for this engineer (remove date/status restrictions temporarily)
+      const { data: tickets, error } = await supabase
+        .from('tickets')
+        .select('zendesk_id, subject, status, created_at, updated_at, solved_at, custom_fields')
+        .eq('assignee_id', engineerZendeskId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Extract survey responses from custom fields
+      const CES_FIELD_ID = 31797439524887;
+
+      // Debug custom fields structure
+      if (tickets && tickets.length > 0) {
+        console.log(`🔍 Sample ticket custom_fields:`, tickets[0].custom_fields);
+        console.log(`🔍 Looking for CES field ID: ${CES_FIELD_ID}`);
+
+        // Check all custom field IDs in first few tickets
+        const allFieldIds = new Set();
+        tickets.slice(0, 5).forEach(ticket => {
+          ticket.custom_fields?.forEach(field => {
+            allFieldIds.add(field.id);
+          });
+        });
+        console.log(`🔍 All custom field IDs found:`, Array.from(allFieldIds));
+      }
+
+      const surveyResponses = tickets
+        ?.map(ticket => {
+          const cesField = ticket.custom_fields?.find(field => field.id === CES_FIELD_ID);
+
+          // Debug specific field search
+          if (engineerName === "Akash Singh" && ticket.custom_fields) {
+            console.log(`🎯 Ticket ${ticket.zendesk_id} custom fields:`, ticket.custom_fields.map(f => ({ id: f.id, value: f.value })));
+          }
+
+          if (cesField && cesField.value !== null) {
+            const rating = typeof cesField.value === 'string' ? parseFloat(cesField.value) : Number(cesField.value);
+            if (!isNaN(rating) && rating >= 1 && rating <= 7) {
+              console.log(`✅ Found CES rating ${rating} for ticket ${ticket.zendesk_id}`);
+              return {
+                ticketId: ticket.zendesk_id,
+                subject: ticket.subject || 'No subject',
+                responseDate: new Date(ticket.solved_at || ticket.updated_at).toLocaleDateString('en-GB'),
+                rating: rating
+              };
+            } else {
+              console.log(`❌ Invalid CES rating ${rating} for ticket ${ticket.zendesk_id}`);
+            }
+          }
+          return null;
+        })
+        .filter(Boolean) || [];
+
+      console.log(`📊 Found ${surveyResponses.length} survey responses for ${engineerName}`);
+      console.log(`📋 Sample survey responses:`, surveyResponses.slice(0, 3));
+      console.log(`📊 Total tickets found: ${tickets?.length || 0}`);
+
+      const surveyData = {
+        responses: surveyResponses,
+        totalResponses: surveyResponses.length,
+        averageRating: surveyResponses.length > 0
+          ? (surveyResponses.reduce((sum, r) => sum + r.rating, 0) / surveyResponses.length).toFixed(1)
+          : 0,
+        engineerName,
+        period: selectedPeriod.label
       };
 
-      setModalData(mockSurveyData);
+      console.log(`📊 Final survey data:`, surveyData);
+
+      setModalData(surveyData);
     } catch (error) {
       console.error("Failed to fetch survey details:", error);
       setModalData({ error: "Failed to load survey details" });
@@ -526,31 +741,102 @@ export default function Index() {
   const fetchEnterpriseDetails = async (engineerName: string) => {
     setModalLoading(true);
     try {
-      // Mock data for enterprise tickets closed
-      const mockEnterpriseData = {
-        tickets: [
-          {
-            ticketId: "E-12001",
-            company: "TechCorp Inc",
-            subject: "SSO integration setup",
-            closedDate: "2025-01-20",
-          },
-          {
-            ticketId: "E-12002",
-            company: "MegaData Ltd",
-            subject: "Custom API endpoint development",
-            closedDate: "2025-01-21",
-          },
-          {
-            ticketId: "E-12003",
-            company: "GlobalSoft",
-            subject: "Enterprise dashboard configuration",
-            closedDate: "2025-01-22",
-          },
-        ],
+      const { supabase } = await import("../lib/supabase");
+      const startDate = selectedPeriod.start.toISOString().split("T")[0];
+      const endDate = selectedPeriod.end.toISOString().split("T")[0];
+
+      // Get engineer's Zendesk ID
+      const engineerZendeskId = nameToIdMap.get(engineerName);
+      if (!engineerZendeskId) {
+        throw new Error(`Engineer ${engineerName} not found in mapping`);
+      }
+
+      console.log(`🔍 Fetching enterprise tickets for ${engineerName} (ID: ${engineerZendeskId})`);
+      console.log(`📅 Date range: ${startDate} to ${endDate}`);
+
+      // Fetch ALL tickets for this engineer first (remove restrictions)
+      const { data: tickets, error } = await supabase
+        .from('tickets')
+        .select('zendesk_id, subject, status, created_at, updated_at, solved_at, tags, custom_fields, requester_id')
+        .eq('assignee_id', engineerZendeskId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      console.log(`📊 Found ${tickets?.length || 0} total tickets for ${engineerName}`);
+
+      // Debug tags structure
+      if (tickets && tickets.length > 0) {
+        console.log(`🔍 Sample ticket tags:`, tickets[0].tags);
+        console.log(`🔍 Sample ticket custom_fields:`, tickets[0].custom_fields?.slice(0, 3));
+      }
+
+      // Filter for enterprise tickets (look for enterprise tags or indicators)
+      const enterpriseTickets = tickets
+        ?.filter(ticket => {
+          const tags = ticket.tags || [];
+          const hasEnterpriseTag = tags.some(tag =>
+            tag.toLowerCase().includes('enterprise') ||
+            tag.toLowerCase().includes('ent_') ||
+            tag.toLowerCase().includes('premium') ||
+            tag.toLowerCase().includes('business')
+          );
+
+          // You can also check custom fields for enterprise indicators
+          const hasEnterpriseCustomField = ticket.custom_fields?.some(field => {
+            if (typeof field.value === 'string') {
+              return field.value.toLowerCase().includes('enterprise');
+            }
+            return false;
+          });
+
+          // Debug for first few tickets
+          if (tickets.indexOf(ticket) < 5) {
+            console.log(`🎫 Ticket ${ticket.zendesk_id}:`, {
+              tags: tags,
+              hasEnterpriseTag,
+              hasEnterpriseCustomField
+            });
+          }
+
+          return hasEnterpriseTag || hasEnterpriseCustomField;
+        })
+        .map(ticket => ({
+          ticketId: ticket.zendesk_id,
+          subject: ticket.subject || 'No subject',
+          closedDate: new Date(ticket.solved_at || ticket.updated_at).toLocaleDateString('en-GB'),
+          tags: ticket.tags || [],
+          requesterId: ticket.requester_id
+        })) || [];
+
+      console.log(`📊 Found ${enterpriseTickets.length} enterprise tickets for ${engineerName}`);
+
+      // If no enterprise tickets found, show recent tickets as fallback
+      let ticketsToShow = enterpriseTickets;
+      let isEnterpriseData = true;
+
+      if (enterpriseTickets.length === 0 && tickets && tickets.length > 0) {
+        console.log(`⚠️ No enterprise tickets found, showing recent tickets as fallback`);
+        ticketsToShow = tickets.slice(0, 10).map(ticket => ({
+          ticketId: ticket.zendesk_id,
+          subject: ticket.subject || 'No subject',
+          closedDate: new Date(ticket.created_at).toLocaleDateString('en-GB'),
+          tags: ticket.tags || [],
+          requesterId: ticket.requester_id
+        }));
+        isEnterpriseData = false;
+      }
+
+      const enterpriseData = {
+        tickets: ticketsToShow.slice(0, 20), // Show top 20
+        totalTickets: isEnterpriseData ? enterpriseTickets.length : tickets?.length || 0,
+        isActualEnterpriseData: isEnterpriseData,
+        engineerName,
+        period: selectedPeriod.label
       };
 
-      setModalData(mockEnterpriseData);
+      setModalData(enterpriseData);
     } catch (error) {
       console.error("Failed to fetch enterprise details:", error);
       setModalData({ error: "Failed to load enterprise details" });
@@ -760,6 +1046,32 @@ Builder.io Support Team Performance Report`;
     }
   };
 
+  // Copy recommendations to clipboard
+  const copyRecommendations = async () => {
+    try {
+      const recommendationsText = `Recommendations for Next Month - ${selectedPeriod.label}
+Generated: ${new Date().toLocaleDateString("en-GB")}
+
+�� Training Focus
+Implement advanced customer communication workshops for engineers with CES scores below 85%
+
+🔧 Process Improvement
+Deploy new knowledge base tools to reduce average response times
+
+📊 Quality Enhancement
+Continue focus on rapid resolution while maintaining customer satisfaction standards
+
+---
+Builder.io Support Team Performance Report`;
+
+      await navigator.clipboard.writeText(recommendationsText);
+      alert("✅ Recommendations copied to clipboard!");
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+      alert("❌ Failed to copy to clipboard. Please try again.");
+    }
+  };
+
   // Modal component
   const DetailsModal = () => {
     if (!activeModal || !modalData) return null;
@@ -795,6 +1107,22 @@ Builder.io Support Team Performance Report`;
               <div>
                 {activeModal === "ces" && (
                   <div className="space-y-6">
+                    {modalData.totalTickets !== undefined && (
+                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                        <h4 className="font-medium text-blue-900 mb-2">
+                          CES Data Summary for {modalData.engineerName}
+                        </h4>
+                        <div className="text-sm text-blue-800">
+                          <p>Period: {modalData.period}</p>
+                          <p>Total tickets in period: {modalData.totalAllTickets || 0}</p>
+                          <p>Tickets with CES scores: {modalData.totalTickets}</p>
+                          <p>High scoring (6-7): {modalData.highScoring?.length || 0}</p>
+                          <p>Average scoring (4-5): {modalData.averageScoring?.length || 0}</p>
+                          <p>Low scoring (1-3): {modalData.lowScoring?.length || 0}</p>
+                          <p>Without CES scores: {modalData.ticketsWithoutCES?.length || 0}</p>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <h4 className="font-medium text-green-800 mb-3">
                         High Scoring Tickets (6-7 CES)
@@ -878,61 +1206,150 @@ Builder.io Support Team Performance Report`;
                         ))}
                       </div>
                     </div>
+
+                    {modalData.ticketsWithoutCES && modalData.ticketsWithoutCES.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-800 mb-3">
+                          Tickets Without CES Scores
+                        </h4>
+                        <div className="space-y-2">
+                          {modalData.ticketsWithoutCES.map((ticket: any) => (
+                            <div
+                              key={ticket.ticketId}
+                              className="p-3 bg-gray-50 rounded border-l-4 border-gray-400"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="font-medium">
+                                    #{ticket.ticketId}
+                                  </span>
+                                  <span className="ml-2 text-sm text-gray-600">
+                                    {ticket.subject}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="bg-gray-500 text-white px-2 py-1 rounded text-sm">
+                                    No CES
+                                  </span>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {ticket.status}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Created: {ticket.date}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {activeModal === "survey" && (
                   <div>
-                    <h4 className="font-medium mb-3">
-                      Tickets that Received Survey Responses
-                    </h4>
-                    <div className="space-y-2">
-                      {modalData.responses?.map((response: any) => (
-                        <div
-                          key={response.ticketId}
-                          className="p-3 bg-blue-50 rounded border-l-4 border-blue-500"
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <span className="font-medium">
-                                {response.ticketId}
-                              </span>
-                              <span className="ml-3 text-sm text-gray-600">
-                                Response Date: {response.responseDate}
-                              </span>
-                            </div>
-                            <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm">
-                              Rating: {response.rating}
-                            </span>
-                          </div>
+                    {modalData.totalResponses !== undefined && (
+                      <div className="bg-purple-50 p-4 rounded-lg mb-4">
+                        <h4 className="font-medium text-purple-900 mb-2">
+                          Survey Response Summary for {modalData.engineerName}
+                        </h4>
+                        <div className="text-sm text-purple-800">
+                          <p>Period: {modalData.period}</p>
+                          <p>Total survey responses: {modalData.totalResponses}</p>
+                          <p>Average rating: {modalData.averageRating}/7</p>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+                    <h4 className="font-medium mb-3">
+                      Tickets with Survey Responses ({modalData.totalResponses || 0} found)
+                    </h4>
+                    {modalData.responses && modalData.responses.length > 0 ? (
+                      <div className="space-y-2">
+                        {modalData.responses.map((response: any) => (
+                          <div
+                            key={response.ticketId}
+                            className="p-3 bg-blue-50 rounded border-l-4 border-blue-500"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="font-bold text-blue-900">
+                                  Ticket #{response.ticketId}
+                                </div>
+                                <div className="text-sm text-gray-700 mt-1 font-medium">
+                                  {response.subject}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Survey Date: {response.responseDate}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm font-medium">
+                                  {response.rating}/7
+                                </span>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {response.rating >= 5 ? 'Good' : response.rating >= 4 ? 'Average' : 'Poor'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center p-8 bg-gray-50 rounded-lg">
+                        <div className="text-gray-500 mb-2">No Survey Responses Found</div>
+                        <div className="text-sm text-gray-400">
+                          No tickets with survey responses in the selected period.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {activeModal === "enterprise" && (
                   <div>
+                    {modalData.totalTickets !== undefined && (
+                      <div className="bg-red-50 p-4 rounded-lg mb-4">
+                        <h4 className="font-medium text-red-900 mb-2">
+                          Enterprise Tickets Summary for {modalData.engineerName}
+                        </h4>
+                        <div className="text-sm text-red-800">
+                          <p>Period: {modalData.period}</p>
+                          <p>Total {modalData.isActualEnterpriseData ? 'enterprise' : 'recent'} tickets: {modalData.totalTickets}</p>
+                          {!modalData.isActualEnterpriseData && (
+                            <p className="text-amber-700 mt-1">⚠️ No enterprise tags found, showing recent tickets</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <h4 className="font-medium mb-3">
-                      Enterprise Tickets Closed
+                      {modalData.isActualEnterpriseData ? 'Enterprise Tickets' : 'Recent Tickets'} ({modalData.tickets?.length || 0} found)
                     </h4>
                     <div className="space-y-2">
                       {modalData.tickets?.map((ticket: any) => (
                         <div
                           key={ticket.ticketId}
-                          className="p-3 bg-purple-50 rounded border-l-4 border-purple-500"
+                          className="p-3 bg-red-50 rounded border-l-4 border-red-500"
                         >
                           <div className="flex justify-between items-start">
-                            <div>
-                              <span className="font-medium">
+                            <div className="flex-1">
+                              <div className="font-medium">
                                 {ticket.ticketId}
-                              </span>
-                              <div className="text-sm text-gray-600">
-                                <div>Company: {ticket.company}</div>
-                                <div>Subject: {ticket.subject}</div>
                               </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {ticket.subject}
+                              </div>
+                              {ticket.tags && ticket.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {ticket.tags.slice(0, 3).map((tag: string, index: number) => (
+                                    <span key={index} className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 ml-4">
                               Closed: {ticket.closedDate}
                             </span>
                           </div>
@@ -989,7 +1406,7 @@ Builder.io Support Team Performance Report`;
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <div className="text-gray-900 text-xl font-normal leading-7 pl-2">
+              <div className="text-gray-900 text-lg font-normal leading-7 pl-2">
                 <p>Builder.io Support Score Card</p>
               </div>
             </div>
@@ -1155,7 +1572,7 @@ Builder.io Support Team Performance Report`;
                         "Application is fetching real data from Supabase.\n\n";
 
                       if (!hasSupabaseUrl || !hasSupabaseKey) {
-                        details += "❌ Supabase credentials not configured\n";
+                        details += "��� Supabase credentials not configured\n";
                       } else {
                         details += "✅ Supabase credentials configured\n";
                       }
@@ -1163,11 +1580,11 @@ Builder.io Support Team Performance Report`;
                       if (!isOnline) {
                         details += "❌ Browser is offline\n";
                       } else {
-                        details += "✅ Browser is online\n";
+                        details += "��� Browser is online\n";
                       }
 
                       details +=
-                        "\n🎯 All features are working with live data!\n";
+                        "\n���� All features are working with live data!\n";
                       details +=
                         "📊 Engineer metrics, comparisons, and exports are fully functional.";
 
@@ -1457,7 +1874,7 @@ Builder.io Support Team Performance Report`;
                   <button
                     onClick={async () => {
                       console.log(
-                        "🔍 Finding first and last closed tickets...",
+                        "��� Finding first and last closed tickets...",
                       );
                       try {
                         const { supabase } = await import("../lib/supabase");
@@ -1773,23 +2190,18 @@ Builder.io Support Team Performance Report`;
                           }
 
                           const dailyTickets = bestResults;
-                          const error = bestResults
-                            ? null
-                            : new Error("No suitable date field found");
 
-                          if (error) throw error;
+                          if (!bestResults || bestResults.length === 0) {
+                            alert(
+                              `❌ No closed tickets found on ${selectedDebugDate}\n\nThis could be because:\n• No tickets were closed on this date\n• The selected date is outside the data range\n• Data hasn't been synced from Zendesk\n\nTry selecting a different date or run: npm run sync:incremental`
+                            );
+                            return;
+                          }
 
                           console.log(
                             `📊 Tickets found for ${selectedDebugDate} using field '${bestField}':`,
                             dailyTickets,
                           );
-
-                          if (!dailyTickets || dailyTickets.length === 0) {
-                            alert(
-                              `❌ No closed tickets found on ${selectedDebugDate}\n\nDebug Info:\nTried multiple date fields but found no matches.\nCheck console for detailed field analysis.`,
-                            );
-                            return;
-                          }
 
                           // Group by engineer name for better analysis
                           const byEngineer = dailyTickets.reduce(
@@ -2183,7 +2595,7 @@ Builder.io Support Team Performance Report`;
 
           {/* CES Deep Dive Tab - Engineer Comparison */}
           <TabsContent value="ces">
-            <div className="space-y-6">
+            <div className="space-y-6" key={`ces-${selectedComparisonEngineer}`}>
               {/* Engineer Selection */}
               <Card>
                 <CardHeader>
@@ -2194,6 +2606,16 @@ Builder.io Support Team Performance Report`;
                   <CardDescription>
                     Compare comprehensive metrics between engineers for{" "}
                     {selectedPeriod.label}
+                    {!error && (
+                      <span className="ml-2 text-green-600 text-xs">
+                        • Live Data
+                      </span>
+                    )}
+                    {error && error.includes('demo data') && (
+                      <span className="ml-2 text-amber-600 text-xs">
+                        • Demo Data
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -2228,9 +2650,13 @@ Builder.io Support Team Performance Report`;
 
               {/* Comprehensive Comparison */}
               {(() => {
+                console.log(`🔥 RENDER: selectedComparisonEngineer = "${selectedComparisonEngineer}"`);
+                console.log(`🔥 RENDER: Available engineers:`, engineerData.map(e => e.name));
+
                 const selectedEngineerData = engineerData.find(
                   (e) => e.name === selectedComparisonEngineer,
                 );
+                console.log(`🔥 RENDER: Using engineer data for:`, selectedEngineerData ? selectedEngineerData.name : 'NOT FOUND');
                 if (!selectedEngineerData || !averageMetrics) {
                   return (
                     <Card>
@@ -2251,11 +2677,35 @@ Builder.io Support Team Performance Report`;
                   const difference = higherIsBetter
                     ? value - average
                     : average - value;
-                  if (difference > average * 0.1)
-                    return "text-green-600 bg-green-50";
-                  if (difference < -average * 0.1)
-                    return "text-red-600 bg-red-50";
-                  return "text-yellow-600 bg-yellow-50";
+
+                  // Debug CES color calculation specifically
+                  if (selectedEngineerData.name === "Akash Singh" && average === averageMetrics.cesPercent) {
+                    console.log(`🎯 CES COLOR DEBUG for ${selectedEngineerData.name}:`);
+                    console.log(`   - Value: ${value}`);
+                    console.log(`   - Average: ${average}`);
+                    console.log(`   - Higher is better: ${higherIsBetter}`);
+                    console.log(`   - Difference: ${difference}`);
+                    console.log(`   - Threshold (average * 0.1): ${average * 0.1}`);
+                    console.log(`   - Condition checks:`);
+                    console.log(`     - difference > ${average * 0.1}: ${difference > average * 0.1} (green)`);
+                    console.log(`     - difference < ${-average * 0.1}: ${difference < -average * 0.1} (red)`);
+                  }
+
+                  let colorClass;
+                  if (difference > average * 0.1) {
+                    colorClass = "text-green-600 bg-green-50";
+                  } else if (difference < -average * 0.1) {
+                    colorClass = "text-red-600 bg-red-50";
+                  } else {
+                    colorClass = "text-yellow-600 bg-yellow-50";
+                  }
+
+                  // Debug color return for CES
+                  if (selectedEngineerData.name === "Akash Singh" && average === averageMetrics.cesPercent) {
+                    console.log(`��� CES COLOR RESULT: ${colorClass}`);
+                  }
+
+                  return colorClass;
                 };
 
                 const getComparisonIndicator = (
@@ -2288,6 +2738,53 @@ Builder.io Support Team Performance Report`;
                   return `${position}/${engineerData.length}`;
                 };
 
+                const getRankNumber = (
+                  value: number,
+                  metric: keyof typeof selectedEngineerData,
+                  higherIsBetter = true,
+                ) => {
+                  const sorted = [...engineerData].sort((a, b) =>
+                    higherIsBetter
+                      ? (b[metric] as number) - (a[metric] as number)
+                      : (a[metric] as number) - (b[metric] as number),
+                  );
+                  return sorted.findIndex(
+                    (e) => e.name === selectedEngineerData.name,
+                  ) + 1;
+                };
+
+                const calculateAverageRanking = () => {
+                  const ranks = [
+                    // Core Performance Metrics
+                    getRankNumber(selectedEngineerData.cesPercent, "cesPercent", true),
+                    getRankNumber(selectedEngineerData.closed, "closed", true),
+                    getRankNumber(selectedEngineerData.surveyCount, "surveyCount", true),
+                    getRankNumber(selectedEngineerData.avgPcc, "avgPcc", false), // lower is better
+                    getRankNumber(selectedEngineerData.participationRate, "participationRate", true),
+                    getRankNumber(selectedEngineerData.enterprisePercent, "enterprisePercent", true),
+
+                    // Resolution Efficiency Metrics
+                    getRankNumber(selectedEngineerData.closedEqual1, "closedEqual1", true), // % closed within 1 day
+                    getRankNumber(selectedEngineerData.closedLessThan7, "closedLessThan7", true), // % closed within 7 days
+
+                    // Quality & Communication Metrics
+                    getRankNumber(selectedEngineerData.linkCount, "linkCount", true), // communication score
+                    getRankNumber(selectedEngineerData.citationCount, "citationCount", true), // citations provided
+                    getRankNumber(selectedEngineerData.creationCount, "creationCount", true), // content creation
+                  ];
+                  const averageRank = ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length;
+                  return {
+                    averageRank: averageRank.toFixed(1),
+                    totalEngineers: engineerData.length,
+                    individualRanks: ranks,
+                    categoryRanks: {
+                      core: ranks.slice(0, 6),
+                      resolutionEfficiency: ranks.slice(6, 8),
+                      qualityCommunication: ranks.slice(8, 11)
+                    }
+                  };
+                };
+
                 return (
                   <div className="space-y-6">
                     {/* Performance Overview */}
@@ -2302,6 +2799,60 @@ Builder.io Support Team Performance Report`;
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
+                        {/* Average Ranking Card */}
+                        {(() => {
+                          const avgRanking = calculateAverageRanking();
+                          const rankPercentile = ((engineerData.length - parseFloat(avgRanking.averageRank) + 1) / engineerData.length) * 100;
+
+                          const getRankingColor = () => {
+                            if (rankPercentile >= 75) return "text-green-600 bg-green-50 border-green-200";
+                            if (rankPercentile >= 50) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+                            return "text-red-600 bg-red-50 border-red-200";
+                          };
+
+                          const getRankingLabel = () => {
+                            if (rankPercentile >= 75) return "🏆 Top Performer";
+                            if (rankPercentile >= 50) return "📊 Average Performer";
+                            return "📈 Needs Improvement";
+                          };
+
+                          return (
+                            <div className={`p-6 rounded-lg border-2 mb-6 ${getRankingColor()}`}>
+                              <div className="text-center">
+                                <h3 className="text-lg font-bold mb-2">Overall Performance Ranking</h3>
+                                <div className="text-3xl font-bold mb-2">
+                                  #{avgRanking.averageRank} / {avgRanking.totalEngineers}
+                                </div>
+                                <div className="text-sm font-medium mb-2">
+                                  {getRankingLabel()} ({rankPercentile.toFixed(0)}th percentile)
+                                </div>
+                                <div className="text-xs text-gray-600 space-y-1">
+                                  <div>
+                                    <strong>Core Performance:</strong> CES ({avgRanking.individualRanks[0]}),
+                                    Closed ({avgRanking.individualRanks[1]}),
+                                    Surveys ({avgRanking.individualRanks[2]}),
+                                    Response Time ({avgRanking.individualRanks[3]}),
+                                    Quality ({avgRanking.individualRanks[4]}),
+                                    Enterprise ({avgRanking.individualRanks[5]})
+                                  </div>
+                                  <div>
+                                    <strong>Resolution Efficiency:</strong> 1-Day Close ({avgRanking.individualRanks[6]}),
+                                    7-Day Close ({avgRanking.individualRanks[7]})
+                                  </div>
+                                  <div>
+                                    <strong>Quality & Communication:</strong> Links ({avgRanking.individualRanks[8]}),
+                                    Citations ({avgRanking.individualRanks[9]}),
+                                    Content Creation ({avgRanking.individualRanks[10]})
+                                  </div>
+                                  <div className="mt-2 pt-1 border-t border-gray-300">
+                                    <em>Average across all 11 comprehensive metrics</em>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* CES Performance */}
                           <div
@@ -2323,7 +2874,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.cesPercent.toFixed(1)}%
                             </div>
                             <div className="text-sm">
@@ -2357,7 +2908,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.closed}
                             </div>
                             <div className="text-sm">
@@ -2394,7 +2945,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.surveyCount}
                             </div>
                             <div className="text-sm">
@@ -2428,7 +2979,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.avgPcc.toFixed(1)}h
                             </div>
                             <div className="text-sm">
@@ -2460,7 +3011,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.participationRate.toFixed(
                                 1,
                               )}
@@ -2500,7 +3051,7 @@ Builder.io Support Team Performance Report`;
                                 )}
                               </span>
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-xl font-bold">
                               {selectedEngineerData.enterprisePercent.toFixed(
                                 1,
                               )}
@@ -2771,7 +3322,7 @@ Builder.io Support Team Performance Report`;
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
+                      <div className="text-xl font-bold text-purple-600">
                         {averageMetrics
                           ? averageMetrics.participationRate.toFixed(1)
                           : "--"}
@@ -2781,7 +3332,7 @@ Builder.io Support Team Performance Report`;
                       </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
+                      <div className="text-xl font-bold text-blue-600">
                         {averageMetrics
                           ? averageMetrics.citationCount.toFixed(1)
                           : "--"}
@@ -2791,7 +3342,7 @@ Builder.io Support Team Performance Report`;
                       </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
+                      <div className="text-xl font-bold text-green-600">
                         {averageMetrics
                           ? averageMetrics.creationCount.toFixed(1)
                           : "--"}
@@ -2801,7 +3352,7 @@ Builder.io Support Team Performance Report`;
                       </div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-orange-600">
+                      <div className="text-xl font-bold text-orange-600">
                         {averageMetrics
                           ? averageMetrics.linkCount.toFixed(1)
                           : "--"}
@@ -2819,7 +3370,7 @@ Builder.io Support Team Performance Report`;
             <div className="space-y-6">
               {/* Header */}
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
                   Monthly Performance Summary
                 </h2>
                 <p className="text-gray-600">
@@ -2850,7 +3401,7 @@ Builder.io Support Team Performance Report`;
                   {/* Main Metrics Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="text-center p-8 bg-green-50 rounded-xl border border-green-200">
-                      <div className="text-6xl font-bold text-green-600 mb-3">
+                      <div className="text-4xl font-bold text-green-600 mb-3">
                         {engineerData.length > 0
                           ? engineerData.reduce(
                               (sum, eng) => sum + eng.closed,
@@ -2863,7 +3414,7 @@ Builder.io Support Team Performance Report`;
                       </div>
                     </div>
                     <div className="text-center p-8 bg-blue-50 rounded-xl border border-blue-200">
-                      <div className="text-6xl font-bold text-blue-600 mb-3">
+                      <div className="text-4xl font-bold text-blue-600 mb-3">
                         {averageMetrics
                           ? averageMetrics.cesPercent.toFixed(1)
                           : "0.0"}
@@ -2874,7 +3425,7 @@ Builder.io Support Team Performance Report`;
                       </div>
                     </div>
                     <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-200">
-                      <div className="text-6xl font-bold text-purple-600 mb-3">
+                      <div className="text-4xl font-bold text-purple-600 mb-3">
                         {averageMetrics
                           ? (averageMetrics.avgPcc / 24).toFixed(1)
                           : "0.0"}
@@ -2891,29 +3442,32 @@ Builder.io Support Team Performance Report`;
                     {/* Key Achievements */}
                     <div>
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-gray-900">
+                        <h3 className="text-lg font-bold text-gray-900">
                           Key Achievements
                         </h3>
-                        <button
-                          onClick={copyKeyAchievements}
-                          className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors w-[100px] h-[50px]"
-                          title="Copy achievements to clipboard"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={copyKeyAchievements}
+                            className="flex items-center justify-center p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            title="Copy achievements to clipboard"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <span>Copy</span>
-                        </button>
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={exportRecommendationsToPDF}
+                            className="flex items-center justify-center p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Export to PDF"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            disabled
+                            className="flex items-center justify-center p-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                            title="15Five integration - Coming soon"
+                          >
+                            <Clock className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-4">
                         <div className="flex items-start space-x-3">
@@ -2967,58 +3521,192 @@ Builder.io Support Team Performance Report`;
                     {/* Recommendations */}
                     <div>
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-gray-900">
+                        <h3 className="text-lg font-bold text-gray-900">
                           Recommendations for Next Month
                         </h3>
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={copyRecommendations}
+                            className="flex items-center justify-center p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            title="Copy recommendations to clipboard"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={exportRecommendationsToPDF}
-                            className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors w-[100px] h-[50px]"
+                            className="flex items-center justify-center p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Export to PDF"
                           >
-                            <FileText className="w-4 h-4" />
-                            <span>Export PDF</span>
+                            <Download className="w-4 h-4" />
                           </button>
                           <button
                             disabled
-                            className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-300 text-blue-600 text-sm font-medium rounded-lg cursor-not-allowed opacity-60 w-[140px] h-[50px]"
-                            title="Coming soon - Export to 15Five"
+                            className="flex items-center justify-center p-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                            title="15Five integration - Coming soon"
                           >
-                            <FileText className="w-4 h-4" />
-                            <span>15Five</span>
-                            <span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded-full ml-1">
-                              Soon
-                            </span>
+                            <Clock className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                          <div className="font-semibold text-blue-900 mb-1">
-                            Training Focus
-                          </div>
-                          <div className="text-sm text-blue-800">
-                            Implement advanced customer communication workshops
-                            for engineers with CES scores below 85%
-                          </div>
-                        </div>
-                        <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                          <div className="font-semibold text-green-900 mb-1">
-                            Process Improvement
-                          </div>
-                          <div className="text-sm text-green-800">
-                            Deploy new knowledge base tools to reduce average
-                            response time by 15%
-                          </div>
-                        </div>
-                        <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
-                          <div className="font-semibold text-purple-900 mb-1">
-                            Team Development
-                          </div>
-                          <div className="text-sm text-purple-800">
-                            Establish peer mentoring program to share best
-                            practices across the team
-                          </div>
-                        </div>
+                        {(() => {
+                          const recommendations = [];
+
+                          if (!engineerData.length || !averageMetrics) {
+                            return <div className="text-gray-500">No data available for recommendations</div>;
+                          }
+
+                          // 1. CES Analysis & Training Needs
+                          const lowCESEngineers = engineerData.filter(e => e.cesPercent < 70);
+                          const highCESEngineers = engineerData.filter(e => e.cesPercent >= 85);
+                          const avgCES = averageMetrics.cesPercent;
+
+                          if (lowCESEngineers.length > 0) {
+                            recommendations.push({
+                              title: "Customer Satisfaction Training",
+                              message: `${lowCESEngineers.length} engineer(s) with CES below 70%: ${lowCESEngineers.map(e => e.name).join(", ")}. Implement targeted communication training and pair with high-performing mentors.`,
+                              color: "red",
+                              priority: "high"
+                            });
+                          } else if (avgCES < 75) {
+                            recommendations.push({
+                              title: "Team-wide CES Enhancement",
+                              message: `Team average CES of ${avgCES.toFixed(1)}% needs improvement. Consider customer empathy workshops and solution clarity training for all engineers.`,
+                              color: "yellow",
+                              priority: "medium"
+                            });
+                          }
+
+                          // 2. Response Time Optimization
+                          const slowResponseEngineers = engineerData.filter(e => e.avgPcc > averageMetrics.avgPcc * 1.3);
+                          const avgResponseDays = (averageMetrics.avgPcc / 24).toFixed(1);
+
+                          if (slowResponseEngineers.length > 0) {
+                            recommendations.push({
+                              title: "Response Time Optimization",
+                              message: `${slowResponseEngineers.length} engineer(s) have response times >30% above average (${avgResponseDays}d): ${slowResponseEngineers.map(e => e.name).join(", ")}. Deploy knowledge base improvements and response templates.`,
+                              color: "orange",
+                              priority: "medium"
+                            });
+                          } else if (averageMetrics.avgPcc > 72) { // >3 days average
+                            recommendations.push({
+                              title: "Team Response Time Initiative",
+                              message: `Team average response time of ${avgResponseDays} days exceeds target. Implement automated routing and expand knowledge base coverage.`,
+                              color: "blue",
+                              priority: "medium"
+                            });
+                          }
+
+                          // 3. Workload Distribution Analysis
+                          const totalTickets = engineerData.reduce((sum, e) => sum + e.closed, 0);
+                          const ticketDistribution = engineerData.map(e => e.closed);
+                          const maxTickets = Math.max(...ticketDistribution);
+                          const minTickets = Math.min(...ticketDistribution);
+                          const workloadImbalance = (maxTickets - minTickets) / averageMetrics.closed;
+
+                          if (workloadImbalance > 0.5) {
+                            const highVolumeEngineers = engineerData.filter(e => e.closed > averageMetrics.closed * 1.3);
+                            const lowVolumeEngineers = engineerData.filter(e => e.closed < averageMetrics.closed * 0.7);
+
+                            recommendations.push({
+                              title: "Workload Rebalancing Needed",
+                              message: `Significant workload imbalance detected. High volume: ${highVolumeEngineers.map(e => `${e.name} (${e.closed})`).join(", ")}. Low volume: ${lowVolumeEngineers.map(e => `${e.name} (${e.closed})`).join(", ")}. Review ticket routing logic.`,
+                              color: "purple",
+                              priority: "high"
+                            });
+                          }
+
+                          // 4. Quality vs Quantity Analysis
+                          const highVolumeHighQuality = engineerData.filter(e => e.closed > averageMetrics.closed && e.cesPercent > avgCES);
+                          const lowVolumeHighQuality = engineerData.filter(e => e.closed < averageMetrics.closed * 0.8 && e.cesPercent > avgCES + 10);
+
+                          if (highVolumeHighQuality.length > 0) {
+                            recommendations.push({
+                              title: "Excellence Recognition & Mentoring",
+                              message: `Top performers with high volume AND quality: ${highVolumeHighQuality.map(e => e.name).join(", ")}. Consider for mentoring roles and advanced responsibilities.`,
+                              color: "green",
+                              priority: "low"
+                            });
+                          }
+
+                          if (lowVolumeHighQuality.length > 0) {
+                            recommendations.push({
+                              title: "Capacity Expansion Opportunity",
+                              message: `High-quality low-volume engineers: ${lowVolumeHighQuality.map(e => e.name).join(", ")}. Could handle increased workload while maintaining standards.`,
+                              color: "blue",
+                              priority: "medium"
+                            });
+                          }
+
+                          // 5. Resolution Efficiency Analysis
+                          const avgQuickResolution = engineerData.reduce((sum, e) => sum + e.closedEqual1, 0) / engineerData.length;
+                          const inefficientEngineers = engineerData.filter(e => e.closedEqual1 < avgQuickResolution * 0.7);
+
+                          if (avgQuickResolution < 40) {
+                            recommendations.push({
+                              title: "Quick Resolution Training Program",
+                              message: `Team average 1-day resolution rate of ${avgQuickResolution.toFixed(1)}% is below target. Implement triage training and expand self-service options.`,
+                              color: "orange",
+                              priority: "medium"
+                            });
+                          }
+
+                          // 6. Survey Participation & Feedback
+                          const avgSurveyCount = averageMetrics.surveyCount;
+                          const lowSurveyEngineers = engineerData.filter(e => e.surveyCount < avgSurveyCount * 0.6);
+
+                          if (lowSurveyEngineers.length > 0) {
+                            recommendations.push({
+                              title: "Customer Feedback Engagement",
+                              message: `Low survey participation from ${lowSurveyEngineers.length} engineer(s): ${lowSurveyEngineers.map(e => e.name).join(", ")}. Implement follow-up automation to increase feedback collection.`,
+                              color: "indigo",
+                              priority: "low"
+                            });
+                          }
+
+                          // 7. Technical vs Enterprise Balance
+                          const avgTechnical = averageMetrics.technicalPercent;
+                          const avgEnterprise = averageMetrics.enterprisePercent;
+
+                          if (avgEnterprise < 15) {
+                            recommendations.push({
+                              title: "Enterprise Customer Focus",
+                              message: `Enterprise ticket percentage (${avgEnterprise.toFixed(1)}%) is low. Consider dedicated enterprise support training and routing improvements.`,
+                              color: "purple",
+                              priority: "medium"
+                            });
+                          }
+
+                          // Sort by priority and limit to top 4 recommendations
+                          const priorityOrder = { high: 3, medium: 2, low: 1 };
+                          const topRecommendations = recommendations
+                            .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+                            .slice(0, 4);
+
+                          const colorClasses = {
+                            red: "bg-red-50 border-red-500 text-red-900 text-red-800",
+                            yellow: "bg-yellow-50 border-yellow-500 text-yellow-900 text-yellow-800",
+                            green: "bg-green-50 border-green-500 text-green-900 text-green-800",
+                            blue: "bg-blue-50 border-blue-500 text-blue-900 text-blue-800",
+                            purple: "bg-purple-50 border-purple-500 text-purple-900 text-purple-800",
+                            orange: "bg-orange-50 border-orange-500 text-orange-900 text-orange-800",
+                            indigo: "bg-indigo-50 border-indigo-500 text-indigo-900 text-indigo-800"
+                          };
+
+                          return topRecommendations.map((rec, index) => (
+                            <div key={index} className={`p-4 rounded-lg border-l-4 ${colorClasses[rec.color].split(' ').slice(0, 2).join(' ')}`}>
+                              <div className={`font-semibold mb-1 ${colorClasses[rec.color].split(' ')[2]} flex items-center justify-between`}>
+                                {rec.title}
+                                <span className={`text-xs px-2 py-1 rounded ${rec.priority === 'high' ? 'bg-red-200 text-red-800' : rec.priority === 'medium' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
+                                  {rec.priority.toUpperCase()}
+                                </span>
+                              </div>
+                              <div className={`text-sm ${colorClasses[rec.color].split(' ')[3]}`}>
+                                {rec.message}
+                              </div>
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -3033,7 +3721,7 @@ Builder.io Support Team Performance Report`;
                         <div className="text-sm font-medium text-gray-500 mb-1">
                           Total Surveys
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-xl font-bold text-gray-900">
                           {averageMetrics
                             ? engineerData.reduce(
                                 (sum, eng) => sum + eng.surveyCount,
@@ -3046,7 +3734,7 @@ Builder.io Support Team Performance Report`;
                         <div className="text-sm font-medium text-gray-500 mb-1">
                           Avg Technical %
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-xl font-bold text-gray-900">
                           {averageMetrics
                             ? averageMetrics.technicalPercent.toFixed(1)
                             : "0.0"}
@@ -3057,7 +3745,7 @@ Builder.io Support Team Performance Report`;
                         <div className="text-sm font-medium text-gray-500 mb-1">
                           Enterprise %
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-xl font-bold text-gray-900">
                           {averageMetrics
                             ? averageMetrics.enterprisePercent.toFixed(1)
                             : "0.0"}
@@ -3068,7 +3756,7 @@ Builder.io Support Team Performance Report`;
                         <div className="text-sm font-medium text-gray-500 mb-1">
                           Open Tickets
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-xl font-bold text-gray-900">
                           {engineerData.length > 0
                             ? engineerData.reduce(
                                 (sum, eng) => sum + eng.open,
@@ -3117,7 +3805,7 @@ Builder.io Support Team Performance Report`;
                         {/* Individual Metrics Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                           <div className="text-center p-8 bg-green-50 rounded-xl border border-green-200">
-                            <div className="text-6xl font-bold text-green-600 mb-3">
+                            <div className="text-4xl font-bold text-green-600 mb-3">
                               {selectedEngineerData.closed}
                             </div>
                             <div className="text-lg font-medium text-gray-700">
@@ -3125,7 +3813,7 @@ Builder.io Support Team Performance Report`;
                             </div>
                           </div>
                           <div className="text-center p-8 bg-blue-50 rounded-xl border border-blue-200">
-                            <div className="text-6xl font-bold text-blue-600 mb-3">
+                            <div className="text-4xl font-bold text-blue-600 mb-3">
                               {selectedEngineerData.cesPercent.toFixed(1)}%
                             </div>
                             <div className="text-lg font-medium text-gray-700">
@@ -3133,7 +3821,7 @@ Builder.io Support Team Performance Report`;
                             </div>
                           </div>
                           <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-200">
-                            <div className="text-6xl font-bold text-purple-600 mb-3">
+                            <div className="text-4xl font-bold text-purple-600 mb-3">
                               {(selectedEngineerData.avgPcc / 24).toFixed(1)}d
                             </div>
                             <div className="text-lg font-medium text-gray-700">
@@ -3147,29 +3835,32 @@ Builder.io Support Team Performance Report`;
                           {/* Individual Achievements */}
                           <div>
                             <div className="flex items-center justify-between mb-6">
-                              <h3 className="text-xl font-bold text-gray-900">
+                              <h3 className="text-lg font-bold text-gray-900">
                                 Key Achievements
                               </h3>
-                              <button
-                                onClick={copyKeyAchievements}
-                                className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors w-[100px] h-[50px]"
-                                title="Copy achievements to clipboard"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                  />
-                                </svg>
-                                <span>Copy</span>
-                              </button>
+                              <div className="flex items-center space-x-2">
+                          <button
+                            onClick={copyKeyAchievements}
+                            className="flex items-center justify-center p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            title="Copy achievements to clipboard"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={exportRecommendationsToPDF}
+                            className="flex items-center justify-center p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Export to PDF"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            disabled
+                            className="flex items-center justify-center p-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                            title="15Five integration - Coming soon"
+                          >
+                            <Clock className="w-4 h-4" />
+                          </button>
+                        </div>
                             </div>
                             <div className="space-y-4">
                               <div className="flex items-start space-x-3">
@@ -3229,78 +3920,301 @@ Builder.io Support Team Performance Report`;
                           {/* Individual Recommendations */}
                           <div>
                             <div className="flex items-center justify-between mb-6">
-                              <h3 className="text-xl font-bold text-gray-900">
+                              <h3 className="text-lg font-bold text-gray-900">
                                 Recommendations
                               </h3>
-                              <div className="flex items-center space-x-3">
-                                <button
-                                  onClick={exportRecommendationsToPDF}
-                                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors w-[100px] h-[50px]"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  <span>Export PDF</span>
-                                </button>
-                                <button
-                                  disabled
-                                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-300 text-blue-600 text-sm font-medium rounded-lg cursor-not-allowed opacity-60 w-[140px] h-[50px]"
-                                  title="Coming soon - Export to 15Five"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  <span>15Five</span>
-                                  <span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded-full ml-1">
-                                    Soon
-                                  </span>
-                                </button>
-                              </div>
+                              <div className="flex items-center space-x-2">
+                          <button
+                            onClick={copyRecommendations}
+                            className="flex items-center justify-center p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            title="Copy recommendations to clipboard"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={exportRecommendationsToPDF}
+                            className="flex items-center justify-center p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Export to PDF"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            disabled
+                            className="flex items-center justify-center p-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                            title="15Five integration - Coming soon"
+                          >
+                            <Clock className="w-4 h-4" />
+                          </button>
+                        </div>
                             </div>
                             <div className="space-y-4">
-                              {selectedEngineerData.cesPercent < 75 && (
-                                <div className="p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
-                                  <div className="font-semibold text-red-900 mb-1">
-                                    CES Improvement
-                                  </div>
-                                  <div className="text-sm text-red-800">
-                                    Focus on customer communication skills
-                                    training to improve satisfaction scores
-                                  </div>
-                                </div>
-                              )}
-                              {selectedEngineerData.avgPcc >
-                                (averageMetrics?.avgPcc || 0) && (
-                                <div className="p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-                                  <div className="font-semibold text-yellow-900 mb-1">
-                                    Response Time
-                                  </div>
-                                  <div className="text-sm text-yellow-800">
-                                    Work on reducing first response time through
-                                    better knowledge base utilization
-                                  </div>
-                                </div>
-                              )}
-                              {selectedEngineerData.openGreaterThan14 > 3 && (
-                                <div className="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                                  <div className="font-semibold text-orange-900 mb-1">
-                                    Ticket Management
-                                  </div>
-                                  <div className="text-sm text-orange-800">
-                                    Focus on closing older tickets to improve
-                                    overall workflow efficiency
-                                  </div>
-                                </div>
-                              )}
-                              {selectedEngineerData.cesPercent >= 85 &&
-                                selectedEngineerData.closed >=
-                                  (averageMetrics?.closed || 0) && (
-                                  <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                                    <div className="font-semibold text-green-900 mb-1">
-                                      Excellence Recognition
+                              {(() => {
+                                const recommendations = [];
+                                const avgCES = averageMetrics?.cesPercent || 75;
+                                const avgClosed = averageMetrics?.closed || 50;
+                                const avgResponseTime = averageMetrics?.avgPcc || 150;
+                                const avgSurveyCount = averageMetrics?.surveyCount || 5;
+                                const avgParticipation = averageMetrics?.participationRate || 3.5;
+                                const avgTechnical = averageMetrics?.technicalPercent || 60;
+                                const avgEnterprise = averageMetrics?.enterprisePercent || 20;
+
+                                // 1. CES Performance Analysis
+                                if (selectedEngineerData.cesPercent < 40) {
+                                  recommendations.push({
+                                    title: "🚨 Urgent CES Intervention",
+                                    message: `CES score of ${selectedEngineerData.cesPercent.toFixed(1)}% requires immediate action. Schedule daily coaching sessions, implement communication script templates, and pair with top performer for shadowing.`,
+                                    color: "red",
+                                    priority: "critical"
+                                  });
+                                } else if (selectedEngineerData.cesPercent < 60) {
+                                  recommendations.push({
+                                    title: "📈 CES Recovery Plan",
+                                    message: `CES score of ${selectedEngineerData.cesPercent.toFixed(1)}% needs structured improvement. Recommend customer empathy training, solution explanation workshops, and weekly progress reviews.`,
+                                    color: "red",
+                                    priority: "high"
+                                  });
+                                } else if (selectedEngineerData.cesPercent < avgCES) {
+                                  recommendations.push({
+                                    title: "🎯 CES Enhancement Focus",
+                                    message: `CES score of ${selectedEngineerData.cesPercent.toFixed(1)}% is ${(avgCES - selectedEngineerData.cesPercent).toFixed(1)} points below average. Focus on active listening techniques and clear solution communication.`,
+                                    color: "yellow",
+                                    priority: "medium"
+                                  });
+                                } else if (selectedEngineerData.cesPercent > avgCES + 15) {
+                                  recommendations.push({
+                                    title: "🌟 CES Excellence - Leadership Role",
+                                    message: `Outstanding CES score of ${selectedEngineerData.cesPercent.toFixed(1)}% (${(selectedEngineerData.cesPercent - avgCES).toFixed(1)} points above average). Perfect candidate for mentoring program and customer escalation handling.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                // 2. Workload & Efficiency Analysis
+                                const volumeRatio = selectedEngineerData.closed / avgClosed;
+                                const responseRatio = selectedEngineerData.avgPcc / avgResponseTime;
+
+                                if (volumeRatio > 1.4) {
+                                  recommendations.push({
+                                    title: "⚖️ Workload Balance Review",
+                                    message: `High volume (${selectedEngineerData.closed} tickets, ${(volumeRatio * 100 - 100).toFixed(0)}% above average). Monitor for burnout signs and ensure quality isn't compromised. Consider workload redistribution.`,
+                                    color: "orange",
+                                    priority: "medium"
+                                  });
+                                } else if (volumeRatio < 0.7) {
+                                  recommendations.push({
+                                    title: "🚀 Capacity Expansion",
+                                    message: `Lower volume (${selectedEngineerData.closed} tickets) with good performance suggests capacity for additional responsibilities. Consider complex ticket assignments or cross-training.`,
+                                    color: "blue",
+                                    priority: "opportunity"
+                                  });
+                                }
+
+                                if (responseRatio > 1.5) {
+                                  recommendations.push({
+                                    title: "⏱️ Response Time Acceleration",
+                                    message: `Response time of ${(selectedEngineerData.avgPcc / 24).toFixed(1)} days is ${((selectedEngineerData.avgPcc - avgResponseTime) / 24).toFixed(1)} days slower than average. Implement time-blocking, knowledge base shortcuts, and template responses.`,
+                                    color: "orange",
+                                    priority: "high"
+                                  });
+                                } else if (responseRatio < 0.7) {
+                                  recommendations.push({
+                                    title: "⚡ Speed Excellence",
+                                    message: `Excellent response time of ${(selectedEngineerData.avgPcc / 24).toFixed(1)} days. Share time management techniques with slower responders and consider handling priority escalations.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                // 3. Resolution Efficiency Deep Dive
+                                if (selectedEngineerData.closedEqual1 < 25) {
+                                  recommendations.push({
+                                    title: "🎯 Quick Resolution Training",
+                                    message: `Only ${selectedEngineerData.closedEqual1.toFixed(1)}% same-day resolution rate. Focus on triage skills, common issue patterns, and automated response tools to improve quick wins.`,
+                                    color: "yellow",
+                                    priority: "medium"
+                                  });
+                                } else if (selectedEngineerData.closedEqual1 > 50) {
+                                  recommendations.push({
+                                    title: "🏆 Resolution Speed Champion",
+                                    message: `Exceptional same-day resolution rate of ${selectedEngineerData.closedEqual1.toFixed(1)}%. Consider as trainer for efficiency best practices and triage techniques.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                if (selectedEngineerData.closedLessThan7 < 60) {
+                                  recommendations.push({
+                                    title: "📅 Weekly Resolution Focus",
+                                    message: `Weekly resolution rate of ${selectedEngineerData.closedLessThan7.toFixed(1)}% needs improvement. Implement daily ticket review processes and escalation protocols for complex issues.`,
+                                    color: "yellow",
+                                    priority: "medium"
+                                  });
+                                }
+
+                                // 4. Customer Engagement Analysis
+                                if (selectedEngineerData.surveyCount < avgSurveyCount * 0.6) {
+                                  recommendations.push({
+                                    title: "📋 Survey Collection Enhancement",
+                                    message: `Low survey collection (${selectedEngineerData.surveyCount} vs ${avgSurveyCount.toFixed(1)} average). Implement follow-up email automation and teach customers about feedback importance.`,
+                                    color: "indigo",
+                                    priority: "medium"
+                                  });
+                                } else if (selectedEngineerData.surveyCount > avgSurveyCount * 1.3) {
+                                  recommendations.push({
+                                    title: "💬 Customer Engagement Expert",
+                                    message: `High survey collection rate (${selectedEngineerData.surveyCount}). Share customer engagement techniques with team to improve overall feedback collection.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                // 5. Specialization & Development
+                                if (selectedEngineerData.technicalPercent > avgTechnical + 20) {
+                                  recommendations.push({
+                                    title: "🔧 Technical Specialist Track",
+                                    message: `High technical focus (${selectedEngineerData.technicalPercent.toFixed(1)}% vs ${avgTechnical.toFixed(1)}% average). Consider advanced technical training, API documentation roles, or developer relations.`,
+                                    color: "purple",
+                                    priority: "development"
+                                  });
+                                } else if (selectedEngineerData.technicalPercent < avgTechnical - 20) {
+                                  recommendations.push({
+                                    title: "📚 Technical Skills Development",
+                                    message: `Lower technical exposure (${selectedEngineerData.technicalPercent.toFixed(1)}%). Consider technical training sessions, pairing with technical specialists, or gradual technical ticket assignment.`,
+                                    color: "blue",
+                                    priority: "development"
+                                  });
+                                }
+
+                                if (selectedEngineerData.enterprisePercent > avgEnterprise + 15) {
+                                  recommendations.push({
+                                    title: "🏢 Enterprise Excellence",
+                                    message: `Strong enterprise focus (${selectedEngineerData.enterprisePercent.toFixed(1)}% vs ${avgEnterprise.toFixed(1)}% average). Perfect for account management training and high-value customer relationships.`,
+                                    color: "purple",
+                                    priority: "development"
+                                  });
+                                }
+
+                                // 6. Quality & Communication Analysis
+                                if (selectedEngineerData.participationRate < avgParticipation * 0.8) {
+                                  recommendations.push({
+                                    title: "🎯 Quality Improvement Program",
+                                    message: `Quality score of ${selectedEngineerData.participationRate.toFixed(1)} is below average (${avgParticipation.toFixed(1)}). Focus on solution documentation, customer communication clarity, and peer review processes.`,
+                                    color: "yellow",
+                                    priority: "medium"
+                                  });
+                                } else if (selectedEngineerData.participationRate > avgParticipation + 0.5) {
+                                  recommendations.push({
+                                    title: "⭐ Quality Leader",
+                                    message: `Excellent quality score of ${selectedEngineerData.participationRate.toFixed(1)}. Consider for quality assurance role, new hire training, and best practice documentation.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                // 7. Workload Management Insights
+                                if (selectedEngineerData.openGreaterThan14 > 5) {
+                                  recommendations.push({
+                                    title: "📊 Backlog Management",
+                                    message: `${selectedEngineerData.openGreaterThan14} tickets open >14 days indicates backlog issues. Implement daily ticket review, escalation protocols, and time-boxing for complex issues.`,
+                                    color: "orange",
+                                    priority: "high"
+                                  });
+                                } else if (selectedEngineerData.openGreaterThan14 === 0) {
+                                  recommendations.push({
+                                    title: "📈 Backlog Management Expert",
+                                    message: `Zero long-term open tickets shows excellent workflow management. Share time management and prioritization techniques with team members.`,
+                                    color: "green",
+                                    priority: "recognition"
+                                  });
+                                }
+
+                                // 8. Performance-Based Career Development
+                                const isTopPerformer = selectedEngineerData.cesPercent > avgCES + 10 &&
+                                                     selectedEngineerData.closed > avgClosed * 0.9 &&
+                                                     selectedEngineerData.avgPcc < avgResponseTime * 1.2;
+
+                                const needsImprovement = selectedEngineerData.cesPercent < avgCES - 10 ||
+                                                       selectedEngineerData.avgPcc > avgResponseTime * 1.5;
+
+                                if (isTopPerformer) {
+                                  recommendations.push({
+                                    title: "🎖️ Leadership Development Path",
+                                    message: `Consistently excellent across all metrics. Recommend for senior support role, team leadership training, customer success management, or technical documentation ownership.`,
+                                    color: "green",
+                                    priority: "career"
+                                  });
+                                } else if (needsImprovement) {
+                                  recommendations.push({
+                                    title: "📋 Performance Improvement Plan",
+                                    message: `Multiple metrics below expectations. Implement weekly 1-on-1s, skill-specific training modules, and measurable improvement goals with regular check-ins.`,
+                                    color: "red",
+                                    priority: "improvement"
+                                  });
+                                }
+
+                                // 9. Balanced Development Recommendations
+                                if (recommendations.filter(r => r.priority === "recognition").length === 0 &&
+                                    recommendations.filter(r => r.priority === "critical" || r.priority === "high").length === 0) {
+                                  recommendations.push({
+                                    title: "🔄 Continuous Development",
+                                    message: `Solid performance across metrics. Focus on cross-training in different support areas, advanced communication techniques, or specialized certification programs for career growth.`,
+                                    color: "blue",
+                                    priority: "development"
+                                  });
+                                }
+
+                                // Sort by priority
+                                const priorityOrder = {
+                                  critical: 6,
+                                  high: 5,
+                                  improvement: 4,
+                                  medium: 3,
+                                  development: 2,
+                                  opportunity: 2,
+                                  recognition: 1,
+                                  career: 1
+                                };
+
+                                recommendations.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+
+                                // Limit to top 5 recommendations
+                                const topRecommendations = recommendations.slice(0, 5);
+
+                                const colorClasses = {
+                                  red: "bg-red-50 border-red-500 text-red-900 text-red-800",
+                                  yellow: "bg-yellow-50 border-yellow-500 text-yellow-900 text-yellow-800",
+                                  green: "bg-green-50 border-green-500 text-green-900 text-green-800",
+                                  blue: "bg-blue-50 border-blue-500 text-blue-900 text-blue-800",
+                                  purple: "bg-purple-50 border-purple-500 text-purple-900 text-purple-800",
+                                  orange: "bg-orange-50 border-orange-500 text-orange-900 text-orange-800",
+                                  indigo: "bg-indigo-50 border-indigo-500 text-indigo-900 text-indigo-800"
+                                };
+
+                                const priorityColors = {
+                                  critical: "bg-red-600 text-white",
+                                  high: "bg-red-500 text-white",
+                                  improvement: "bg-red-400 text-white",
+                                  medium: "bg-yellow-500 text-white",
+                                  development: "bg-blue-500 text-white",
+                                  opportunity: "bg-green-500 text-white",
+                                  recognition: "bg-green-600 text-white",
+                                  career: "bg-purple-600 text-white"
+                                };
+
+                                return topRecommendations.map((rec, index) => (
+                                  <div key={index} className={`p-4 rounded-lg border-l-4 ${colorClasses[rec.color].split(' ').slice(0, 2).join(' ')}`}>
+                                    <div className={`font-semibold mb-1 ${colorClasses[rec.color].split(' ')[2]} flex items-center justify-between`}>
+                                      <span>{rec.title}</span>
+                                      <span className={`text-xs px-2 py-1 rounded font-medium ${priorityColors[rec.priority]}`}>
+                                        {rec.priority.toUpperCase()}
+                                      </span>
                                     </div>
-                                    <div className="text-sm text-green-800">
-                                      Consider for mentoring opportunities and
-                                      advanced training programs
+                                    <div className={`text-sm ${colorClasses[rec.color].split(' ')[3]} leading-relaxed`}>
+                                      {rec.message}
                                     </div>
                                   </div>
-                                )}
+                                ));
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -3315,7 +4229,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Surveys Received
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.surveyCount}
                               </div>
                             </div>
@@ -3323,7 +4237,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Technical %
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.technicalPercent.toFixed(
                                   1,
                                 )}
@@ -3334,7 +4248,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Enterprise %
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.enterprisePercent.toFixed(
                                   1,
                                 )}
@@ -3345,7 +4259,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Open Tickets
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.open}
                               </div>
                             </div>
@@ -3353,7 +4267,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Tickets &gt;14 Days
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.openGreaterThan14}
                               </div>
                             </div>
@@ -3361,7 +4275,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Resolved in 1 Day
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.closedEqual1.toFixed(1)}%
                               </div>
                             </div>
@@ -3369,7 +4283,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Resolved &lt;7 Days
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.closedLessThan7.toFixed(
                                   1,
                                 )}
@@ -3380,7 +4294,7 @@ Builder.io Support Team Performance Report`;
                               <div className="text-sm font-medium text-gray-500 mb-1">
                                 Quality Score
                               </div>
-                              <div className="text-2xl font-bold text-gray-900">
+                              <div className="text-xl font-bold text-gray-900">
                                 {selectedEngineerData.participationRate.toFixed(
                                   1,
                                 )}

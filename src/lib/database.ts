@@ -36,9 +36,9 @@ export async function getLatestMetricsFromDatabase(
           .limit(1);
 
         if (tableCheckError) {
-          console.error(`❌ Monthly table ${metricsTableName} does not exist or has an error:`, tableCheckError);
-          console.log('💡 TIP: Run MONTHLY_TABLES_SETUP_FIXED.sql to create monthly tables');
-          console.log('🔄 Falling back to main engineer_metrics table...');
+          console.warn(`⚠️ Monthly table ${metricsTableName} does not exist, falling back to main table`);
+          console.log('💡 TIP: Monthly tables can be created when data is synced from Zendesk');
+          console.log('🔄 Using main engineer_metrics table instead...');
 
           // Fall back to main table if monthly table doesn't exist
           metricsTableName = 'engineer_metrics';
@@ -434,23 +434,56 @@ export async function getLatestMetricsFromDatabase(
     }
 
     // Convert to EngineerMetrics format
-    const engineerData: EngineerMetrics[] = data.map(metric => ({
-      name: metric.name,
-      cesPercent: metric.ces_percent || 0,
-      avgPcc: metric.avg_pcc || 0,
-      closed: metric.closed || 0,
-      open: metric.open || 0,
-      openGreaterThan14: metric.open_greater_than_14 || 0,
-      closedLessThan7: metric.closed_less_than_7 || 0,
-      closedEqual1: metric.closed_equal_1 || 0,
-      participationRate: metric.participation_rate || 0,
-      linkCount: metric.link_count || 0,
-      citationCount: metric.citation_count || 0,
-      creationCount: metric.creation_count || 0,
-      enterprisePercent: metric.enterprise_percent || 0,
-      technicalPercent: metric.technical_percent || 0,
-      surveyCount: metric.survey_count || 0,
-    }));
+    const engineerData: EngineerMetrics[] = data.map(metric => {
+      // Handle CES percentage conversion - if values are low (< 10), they might be raw scores that need conversion
+      let cesPercent = metric.ces_percent || 0;
+      const originalCesPercent = cesPercent;
+
+      // Special debugging for Akash Singh
+      if (metric.name === "Akash Singh") {
+        console.log(`🎯 AKASH CES CONVERSION DEBUG:`);
+        console.log(`   - Raw ces_percent from DB: ${metric.ces_percent}`);
+        console.log(`   - After || 0: ${cesPercent}`);
+        console.log(`   - Condition (> 0 && < 10): ${cesPercent > 0 && cesPercent < 10}`);
+      }
+
+      if (cesPercent > 0 && cesPercent <= 7) {
+        // Convert full 1-7 CES scale to percentage
+        // 1-3 = bad (0-42%), 4 = average (~50%), 5-7 = good (58-100%)
+        console.log(`⚠️ Converting CES score ${cesPercent} to percentage for ${metric.name}`);
+        const beforeConversion = cesPercent;
+
+        // Linear conversion: ((score - 1) / 6) * 100
+        cesPercent = ((cesPercent - 1) / 6) * 100;
+
+        if (metric.name === "Akash Singh") {
+          console.log(`🎯 AKASH CONVERSION DETAILS:`);
+          console.log(`   - Before conversion: ${beforeConversion}`);
+          console.log(`   - Calculation: ((${beforeConversion} - 1) / 6) * 100 = ${cesPercent}`);
+          console.log(`   - Final cesPercent: ${cesPercent.toFixed(1)}%`);
+        }
+      } else if (metric.name === "Akash Singh") {
+        console.log(`🎯 AKASH NO CONVERSION: Value ${cesPercent} not in CES range (1-7)`);
+      }
+
+      return {
+        name: metric.name,
+        cesPercent: cesPercent,
+        avgPcc: metric.avg_pcc || 0,
+        closed: metric.closed || 0,
+        open: metric.open || 0,
+        openGreaterThan14: metric.open_greater_than_14 || 0,
+        closedLessThan7: metric.closed_less_than_7 || 0,
+        closedEqual1: metric.closed_equal_1 || 0,
+        participationRate: metric.participation_rate || 0,
+        linkCount: metric.link_count || 0,
+        citationCount: metric.citation_count || 0,
+        creationCount: metric.creation_count || 0,
+        enterprisePercent: metric.enterprise_percent || 0,
+        technicalPercent: metric.technical_percent || 0,
+        surveyCount: metric.survey_count || 0,
+      };
+    });
 
     console.log('📊 Final engineerData:', { count: engineerData.length, sample: engineerData[0] });
 
