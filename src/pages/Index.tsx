@@ -90,7 +90,10 @@ export default function Index() {
   });
   const [selectedEngineer, setSelectedEngineer] = useState("");
   const [selectedComparisonEngineer, setSelectedComparisonEngineer] =
-    useState("");
+    useState(() => {
+      // Initialize with default value to prevent race condition
+      return "Jared Beckler"; // This will be validated when engineerData loads
+    });
   const [summaryTab, setSummaryTab] = useState("team"); // team or individual
   const [selectedIndividualEngineer, setSelectedIndividualEngineer] =
     useState("");
@@ -125,12 +128,33 @@ export default function Index() {
     if (engineerData.length > 0 && !selectedEngineer) {
       setSelectedEngineer(engineerData[0].name);
     }
-    // Set default engineer only if none is selected
-    if (engineerData.length > 0 && !selectedComparisonEngineer) {
-      const jaredBeckler = engineerData.find(e => e.name === "Jared Beckler");
-      const defaultEngineer = jaredBeckler ? "Jared Beckler" : engineerData[0].name;
-      console.log(`🎯 Setting default CES engineer to: ${defaultEngineer}`);
-      setSelectedComparisonEngineer(defaultEngineer);
+    // CRITICAL: Set default engineer and ensure consistency
+    if (engineerData.length > 0) {
+      if (!selectedComparisonEngineer) {
+        // No engineer selected, set default IMMEDIATELY
+        const jaredBeckler = engineerData.find(e => e.name === "Jared Beckler");
+        const defaultEngineer = jaredBeckler ? "Jared Beckler" : engineerData[0].name;
+        console.log(`🎯 IMMEDIATE: Setting default CES engineer to: ${defaultEngineer}`);
+        console.log(`🎯 Available engineers for selection:`, engineerData.map(e => e.name));
+        console.log(`🎯 Jared Beckler found:`, !!jaredBeckler);
+        setSelectedComparisonEngineer(defaultEngineer);
+
+        // FORCE immediate update to prevent race condition
+        React.startTransition(() => {
+          setSelectedComparisonEngineer(defaultEngineer);
+        });
+      } else {
+        // Verify that the currently selected engineer still exists in the data
+        const engineerStillExists = engineerData.some(e => e.name === selectedComparisonEngineer);
+        if (!engineerStillExists) {
+          console.warn(`⚠️ Previously selected engineer "${selectedComparisonEngineer}" no longer exists in data, resetting to default`);
+          const jaredBeckler = engineerData.find(e => e.name === "Jared Beckler");
+          const defaultEngineer = jaredBeckler ? "Jared Beckler" : engineerData[0].name;
+          setSelectedComparisonEngineer(defaultEngineer);
+        } else {
+          console.log(`✅ Engineer selection validated: ${selectedComparisonEngineer} exists in current data`);
+        }
+      }
     }
     if (engineerData.length > 0 && !selectedIndividualEngineer) {
       setSelectedIndividualEngineer(engineerData[0].name);
@@ -2595,7 +2619,26 @@ Builder.io Support Team Performance Report`;
 
           {/* CES Deep Dive Tab - Engineer Comparison */}
           <TabsContent value="ces">
-            <div className="space-y-6" key={`ces-${selectedComparisonEngineer}`}>
+            {/* Show loading spinner until all data is ready and synchronized */}
+            {(!engineerData.length || !averageMetrics || !selectedComparisonEngineer || isLoading ||
+              !engineerData.some(e => e.name === selectedComparisonEngineer)) ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="text-gray-600 text-lg">Loading engineer performance data...</div>
+                  <div className="text-gray-500 text-sm">
+                    {!engineerData.length && "Loading engineer data..."}
+                    {engineerData.length && !averageMetrics && "Calculating team averages..."}
+                    {engineerData.length && averageMetrics && !selectedComparisonEngineer && "Selecting default engineer..."}
+                    {engineerData.length && averageMetrics && selectedComparisonEngineer &&
+                     !engineerData.some(e => e.name === selectedComparisonEngineer) && "Synchronizing engineer selection..."}
+                    {engineerData.length && averageMetrics && selectedComparisonEngineer &&
+                     engineerData.some(e => e.name === selectedComparisonEngineer) && isLoading && "Finalizing data sync..."}
+                  </div>
+                </div>
+              </div>
+            ) : (
+            <div className="space-y-6" key={`ces-${selectedComparisonEngineer}-${engineerData.length}`}>
               {/* Engineer Selection */}
               <Card>
                 <CardHeader>
@@ -2626,10 +2669,22 @@ Builder.io Support Team Performance Report`;
                       </label>
                       {engineerData.length > 0 ? (
                         <select
-                          value={selectedComparisonEngineer}
-                          onChange={(e) =>
-                            setSelectedComparisonEngineer(e.target.value)
-                          }
+                          value={(() => {
+                            // Force immediate synchronization
+                            if (!selectedComparisonEngineer && engineerData.length > 0) {
+                              const jaredBeckler = engineerData.find(e => e.name === "Jared Beckler");
+                              const defaultEngineer = jaredBeckler ? "Jared Beckler" : engineerData[0].name;
+                              console.log(`🚨 DROPDOWN: Force-setting engineer to ${defaultEngineer} (was: "${selectedComparisonEngineer}")`);
+                              // Set state immediately
+                              setTimeout(() => setSelectedComparisonEngineer(defaultEngineer), 0);
+                              return defaultEngineer;
+                            }
+                            return selectedComparisonEngineer || '';
+                          })()}
+                          onChange={(e) => {
+                            console.log(`🔄 DROPDOWN: Changing from "${selectedComparisonEngineer}" to "${e.target.value}"`);
+                            setSelectedComparisonEngineer(e.target.value);
+                          }}
                           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]"
                         >
                           {engineerData.map((engineer) => (
@@ -2656,13 +2711,33 @@ Builder.io Support Team Performance Report`;
                 const selectedEngineerData = engineerData.find(
                   (e) => e.name === selectedComparisonEngineer,
                 );
+                console.log(`🔥 RENDER: selectedComparisonEngineer state: "${selectedComparisonEngineer}"`);
                 console.log(`🔥 RENDER: Using engineer data for:`, selectedEngineerData ? selectedEngineerData.name : 'NOT FOUND');
-                if (!selectedEngineerData || !averageMetrics) {
+                console.log(`🔥 RENDER: Engineer data names:`, engineerData.map(e => e.name));
+
+                // Don't render until we have the correct engineer selected and data loaded
+                // CRITICAL: Ensure state consistency before rendering any data
+                if (!selectedComparisonEngineer || !selectedEngineerData || !averageMetrics || engineerData.length === 0) {
+                  console.log(`🔥 RENDER: Waiting for complete data sync - selectedComparisonEngineer: "${selectedComparisonEngineer}", selectedEngineerData: ${selectedEngineerData?.name}, averageMetrics: ${!!averageMetrics}, engineerCount: ${engineerData.length}`);
                   return (
                     <Card>
                       <CardContent className="py-8">
                         <div className="text-center text-gray-500">
-                          Select an engineer to see comprehensive comparison
+                          Loading engineer data...
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                // Verify that the selected engineer actually matches what we found
+                if (selectedEngineerData.name !== selectedComparisonEngineer) {
+                  console.error(`🚨 MISMATCH: selectedComparisonEngineer="${selectedComparisonEngineer}" but found engineer="${selectedEngineerData.name}"`);
+                  return (
+                    <Card>
+                      <CardContent className="py-8">
+                        <div className="text-center text-red-500">
+                          Engineer data mismatch - please refresh
                         </div>
                       </CardContent>
                     </Card>
@@ -2718,13 +2793,14 @@ Builder.io Support Team Performance Report`;
                     : average - value;
                   if (difference > average * 0.1) return "↗️ Above Average";
                   if (difference < -average * 0.1) return "↘️ Below Average";
-                  return "➡️ Near Average";
+                  return "➡��� Near Average";
                 };
 
                 const getRankPosition = (
                   value: number,
                   metric: keyof typeof selectedEngineerData,
                   higherIsBetter = true,
+                  engineerName: string = selectedEngineerData.name,
                 ) => {
                   const sorted = [...engineerData].sort((a, b) =>
                     higherIsBetter
@@ -2733,7 +2809,7 @@ Builder.io Support Team Performance Report`;
                   );
                   const position =
                     sorted.findIndex(
-                      (e) => e.name === selectedEngineerData.name,
+                      (e) => e.name === engineerName,
                     ) + 1;
                   return `${position}/${engineerData.length}`;
                 };
@@ -2742,37 +2818,80 @@ Builder.io Support Team Performance Report`;
                   value: number,
                   metric: keyof typeof selectedEngineerData,
                   higherIsBetter = true,
+                  engineerName: string = selectedEngineerData.name,
                 ) => {
                   const sorted = [...engineerData].sort((a, b) =>
                     higherIsBetter
                       ? (b[metric] as number) - (a[metric] as number)
                       : (a[metric] as number) - (b[metric] as number),
                   );
-                  return sorted.findIndex(
-                    (e) => e.name === selectedEngineerData.name,
+                  const rank = sorted.findIndex(
+                    (e) => e.name === engineerName,
                   ) + 1;
+
+                  // If rank is 0, the engineer wasn't found - this is a bug
+                  if (rank === 0) {
+                    console.error(`🚨 RANK ERROR: Engineer ${engineerName} not found in data for metric ${metric}`);
+                    console.error(`   Available engineers:`, engineerData.map(e => e.name));
+                    return engineerData.length; // Return worst rank as fallback
+                  }
+
+                  return rank;
                 };
 
-                const calculateAverageRanking = () => {
+                const calculateAverageRanking = (engineerForRanking = selectedEngineerData) => {
+                  if (!engineerForRanking) {
+                    console.error('🚨 RANKING ERROR: No engineer data provided');
+                    return {
+                      averageRank: '0.0',
+                      totalEngineers: 0,
+                      individualRanks: [],
+                      categoryRanks: { core: [], resolutionEfficiency: [], qualityCommunication: [] }
+                    };
+                  }
+
+                  // Calculate each rank individually with detailed logging
+                  const cesRank = getRankNumber(engineerForRanking.cesPercent, "cesPercent", true, engineerForRanking.name);
+                  const closedRank = getRankNumber(engineerForRanking.closed, "closed", true, engineerForRanking.name);
+                  const surveyRank = getRankNumber(engineerForRanking.surveyCount, "surveyCount", true, engineerForRanking.name);
+                  const avgPccRank = getRankNumber(engineerForRanking.avgPcc, "avgPcc", false, engineerForRanking.name);
+
+                  console.log(`🎯 INDIVIDUAL RANKS for ${engineerForRanking.name}:`);
+                  console.log(`   CES: ${cesRank}/8 (value: ${engineerForRanking.cesPercent})`);
+                  console.log(`   Closed: ${closedRank}/8 (value: ${engineerForRanking.closed})`);
+                  console.log(`   Survey: ${surveyRank}/8 (value: ${engineerForRanking.surveyCount})`);
+                  console.log(`   AvgPcc: ${avgPccRank}/8 (value: ${engineerForRanking.avgPcc})`);
+
                   const ranks = [
                     // Core Performance Metrics
-                    getRankNumber(selectedEngineerData.cesPercent, "cesPercent", true),
-                    getRankNumber(selectedEngineerData.closed, "closed", true),
-                    getRankNumber(selectedEngineerData.surveyCount, "surveyCount", true),
-                    getRankNumber(selectedEngineerData.avgPcc, "avgPcc", false), // lower is better
-                    getRankNumber(selectedEngineerData.participationRate, "participationRate", true),
-                    getRankNumber(selectedEngineerData.enterprisePercent, "enterprisePercent", true),
+                    cesRank,
+                    closedRank,
+                    surveyRank,
+                    avgPccRank,
+                    getRankNumber(engineerForRanking.participationRate, "participationRate", true, engineerForRanking.name),
+                    getRankNumber(engineerForRanking.enterprisePercent, "enterprisePercent", true, engineerForRanking.name),
 
                     // Resolution Efficiency Metrics
-                    getRankNumber(selectedEngineerData.closedEqual1, "closedEqual1", true), // % closed within 1 day
-                    getRankNumber(selectedEngineerData.closedLessThan7, "closedLessThan7", true), // % closed within 7 days
+                    getRankNumber(engineerForRanking.closedEqual1, "closedEqual1", true, engineerForRanking.name), // % closed within 1 day
+                    getRankNumber(engineerForRanking.closedLessThan7, "closedLessThan7", true, engineerForRanking.name), // % closed within 7 days
 
                     // Quality & Communication Metrics
-                    getRankNumber(selectedEngineerData.linkCount, "linkCount", true), // communication score
-                    getRankNumber(selectedEngineerData.citationCount, "citationCount", true), // citations provided
-                    getRankNumber(selectedEngineerData.creationCount, "creationCount", true), // content creation
+                    getRankNumber(engineerForRanking.linkCount, "linkCount", true, engineerForRanking.name), // communication score
+                    getRankNumber(engineerForRanking.citationCount, "citationCount", true, engineerForRanking.name), // citations provided
+                    getRankNumber(engineerForRanking.creationCount, "creationCount", true, engineerForRanking.name), // content creation
                   ];
+
+                  // Validate ranks - all should be between 1 and engineerData.length
+                  const invalidRanks = ranks.filter(rank => rank < 1 || rank > engineerData.length);
+                  if (invalidRanks.length > 0) {
+                    console.error(`🚨 INVALID RANKS: Found ${invalidRanks.length} invalid ranks:`, invalidRanks);
+                    console.error(`🚨 Engineer data length: ${engineerData.length}`);
+                    console.error(`🚨 All ranks:`, ranks);
+                  }
+
                   const averageRank = ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length;
+                  console.log(`📊 RANKING: ${engineerForRanking.name} = ${averageRank.toFixed(1)}/${engineerData.length} (ranks: ${ranks.join(', ')})`);
+
                   return {
                     averageRank: averageRank.toFixed(1),
                     totalEngineers: engineerData.length,
@@ -2801,7 +2920,58 @@ Builder.io Support Team Performance Report`;
                       <CardContent>
                         {/* Average Ranking Card */}
                         {(() => {
-                          const avgRanking = calculateAverageRanking();
+                          // Make sure we have valid data before calculating ranking
+                          if (!selectedEngineerData || !engineerData.length || engineerData.length < 2 || !averageMetrics) {
+                            return <div className="p-6 text-center text-gray-500">Loading ranking data...</div>;
+                          }
+
+                          // Verify the selected engineer actually exists in current data
+                          const engineerExists = engineerData.some(e => e.name === selectedEngineerData.name);
+                          if (!engineerExists) {
+                            console.error(`🚨 RANKING ERROR: Selected engineer ${selectedEngineerData.name} not found in current data`);
+                            return <div className="p-6 text-center text-red-500">Data inconsistency detected...</div>;
+                          }
+
+                          // CRITICAL: Verify we're calculating ranking for the correct engineer
+                          if (selectedEngineerData.name !== selectedComparisonEngineer) {
+                            console.error(`🚨 RANKING MISMATCH: UI shows "${selectedEngineerData.name}" but selectedComparisonEngineer is "${selectedComparisonEngineer}"`);
+                            return <div className="p-6 text-center text-red-500">Engineer selection mismatch - ranking calculation aborted</div>;
+                          }
+
+                          console.log(`✅ RANKING: Confirmed calculating for correct engineer: ${selectedEngineerData.name} (matches selectedComparisonEngineer: ${selectedComparisonEngineer})`);;
+
+                          console.log(`🔢 RANKING: Calculating for ${selectedEngineerData.name} among ${engineerData.length} engineers`);
+
+                          // Check for duplicate engineers
+                          const engineerNames = engineerData.map(e => e.name);
+                          const uniqueNames = [...new Set(engineerNames)];
+                          if (engineerNames.length !== uniqueNames.length) {
+                            console.error(`🚨 DUPLICATE ENGINEERS DETECTED:`, {
+                              total: engineerNames.length,
+                              unique: uniqueNames.length,
+                              names: engineerNames
+                            });
+                          }
+
+                          console.log(`🔢 RANKING: Engineer data snapshot:`, engineerData.map(e => ({ name: e.name, cesPercent: e.cesPercent, closed: e.closed })));
+                          console.log(`🔢 RANKING: Selected engineer data:`, {
+                            name: selectedEngineerData.name,
+                            cesPercent: selectedEngineerData.cesPercent,
+                            closed: selectedEngineerData.closed,
+                            avgPcc: selectedEngineerData.avgPcc
+                          });
+                          // Force completely fresh calculation with current data
+                          const currentTime = Date.now();
+                          // Create a fresh copy of engineer data to avoid any reference issues
+                          const freshEngineerData = [...engineerData];
+                          const freshSelectedEngineer = freshEngineerData.find(e => e.name === selectedEngineerData.name);
+
+                          if (!freshSelectedEngineer) {
+                            console.error(`🚨 Fresh engineer not found: ${selectedEngineerData.name}`);
+                            return <div className="p-6 text-center text-red-500">Engineer data error</div>;
+                          }
+
+                          const avgRanking = calculateAverageRanking(freshSelectedEngineer);
                           const rankPercentile = ((engineerData.length - parseFloat(avgRanking.averageRank) + 1) / engineerData.length) * 100;
 
                           const getRankingColor = () => {
@@ -2871,6 +3041,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.cesPercent,
                                   "cesPercent",
                                   true,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -2905,6 +3076,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.closed,
                                   "closed",
                                   true,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -2942,6 +3114,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.surveyCount,
                                   "surveyCount",
                                   true,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -2976,6 +3149,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.avgPcc,
                                   "avgPcc",
                                   false,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -3008,6 +3182,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.participationRate,
                                   "participationRate",
                                   true,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -3048,6 +3223,7 @@ Builder.io Support Team Performance Report`;
                                   selectedEngineerData.enterprisePercent,
                                   "enterprisePercent",
                                   true,
+                                  selectedEngineerData.name,
                                 )}
                               </span>
                             </div>
@@ -3091,7 +3267,7 @@ Builder.io Support Team Performance Report`;
                           <div className="space-y-4">
                             <div className="flex justify-between items-center">
                               <span className="text-sm font-medium">
-                                Closed ≤ 3 Days
+                                Closed �� 3 Days
                               </span>
                               <div className="text-right">
                                 <div className="font-bold">
@@ -3304,6 +3480,7 @@ Builder.io Support Team Performance Report`;
                 );
               })()}
             </div>
+            )}
           </TabsContent>
 
           {/* Quality Assurance Tab */}
@@ -3470,51 +3647,125 @@ Builder.io Support Team Performance Report`;
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <div className="flex items-start space-x-3">
-                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              Excellent Team Performance
+                        {(() => {
+                          const achievements = [];
+
+                          if (!engineerData.length || !averageMetrics) {
+                            return <div className="text-gray-500">Loading achievements...</div>;
+                          }
+
+                          const totalTickets = engineerData.reduce((sum, eng) => sum + eng.closed, 0);
+                          const totalSurveys = engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0);
+                          const highCESCount = engineerData.filter((e) => e.cesPercent >= 85).length;
+                          const fastResponseCount = engineerData.filter((e) => e.avgPcc <= averageMetrics.avgPcc * 0.8).length;
+                          const quickResolutionCount = engineerData.filter((e) => e.closedEqual1 >= 30).length;
+                          const enterpriseExpertCount = engineerData.filter((e) => e.enterprisePercent >= averageMetrics.enterprisePercent * 1.2).length;
+                          const zeroBacklogCount = engineerData.filter((e) => e.openGreaterThan14 === 0).length;
+
+                          // 1. Customer Satisfaction Excellence
+                          if (highCESCount > 0) {
+                            achievements.push({
+                              icon: "🌟",
+                              title: "Outstanding Customer Satisfaction",
+                              detail: `${highCESCount} engineers achieved CES scores above 85% (${((highCESCount/engineerData.length)*100).toFixed(0)}% of team)`,
+                              engineers: engineerData.filter((e) => e.cesPercent >= 85).map(e => `${e.name} (${e.cesPercent.toFixed(1)}%)`).join(", ")
+                            });
+                          }
+
+                          // 2. Volume Achievement
+                          achievements.push({
+                            icon: "🎯",
+                            title: "High Volume Resolution",
+                            detail: `Successfully resolved ${totalTickets} tickets with ${totalSurveys} customer survey responses`,
+                            additional: `Average ${(totalTickets/engineerData.length).toFixed(0)} tickets per engineer`
+                          });
+
+                          // 3. Speed Champions
+                          if (fastResponseCount > 0) {
+                            achievements.push({
+                              icon: "⚡",
+                              title: "Response Time Excellence",
+                              detail: `${fastResponseCount} engineers consistently respond 20% faster than team average`,
+                              engineers: engineerData.filter((e) => e.avgPcc <= averageMetrics.avgPcc * 0.8).map(e => `${e.name} (${(e.avgPcc/24).toFixed(1)}d)`).join(", ")
+                            });
+                          }
+
+                          // 4. Quick Resolution Masters
+                          if (quickResolutionCount > 0) {
+                            achievements.push({
+                              icon: "🚀",
+                              title: "Same-Day Resolution Leaders",
+                              detail: `${quickResolutionCount} engineers achieve 30%+ same-day resolution rates`,
+                              engineers: engineerData.filter((e) => e.closedEqual1 >= 30).map(e => `${e.name} (${e.closedEqual1.toFixed(1)}%)`).join(", ")
+                            });
+                          }
+
+                          // 5. Enterprise Specialists
+                          if (enterpriseExpertCount > 0) {
+                            achievements.push({
+                              icon: "🏢",
+                              title: "Enterprise Customer Focus",
+                              detail: `${enterpriseExpertCount} engineers specialize in enterprise accounts with above-average volume`,
+                              engineers: engineerData.filter((e) => e.enterprisePercent >= averageMetrics.enterprisePercent * 1.2).map(e => `${e.name} (${e.enterprisePercent.toFixed(1)}%)`).join(", ")
+                            });
+                          }
+
+                          // 6. Zero Backlog Heroes
+                          if (zeroBacklogCount > 0) {
+                            achievements.push({
+                              icon: "✅",
+                              title: "Backlog Management Excellence",
+                              detail: `${zeroBacklogCount} engineers maintain zero tickets older than 14 days`,
+                              engineers: engineerData.filter((e) => e.openGreaterThan14 === 0).map(e => e.name).join(", ")
+                            });
+                          }
+
+                          // 7. Quality Consistency
+                          const avgQuality = averageMetrics.participationRate;
+                          if (avgQuality >= 7.5) {
+                            achievements.push({
+                              icon: "💎",
+                              title: "Quality Consistency",
+                              detail: `Team maintains ${avgQuality.toFixed(1)}/10 average quality score across all interactions`,
+                              additional: "Consistent high-quality support delivery"
+                            });
+                          }
+
+                          // 8. Technical Excellence
+                          const technicalExperts = engineerData.filter((e) => e.technicalPercent >= 70);
+                          if (technicalExperts.length > 0) {
+                            achievements.push({
+                              icon: "🔧",
+                              title: "Technical Expertise",
+                              detail: `${technicalExperts.length} engineers specialize in technical support (70%+ technical tickets)`,
+                              engineers: technicalExperts.map(e => `${e.name} (${e.technicalPercent.toFixed(1)}%)`).join(", ")
+                            });
+                          }
+
+                          return achievements.slice(0, 6).map((achievement, index) => (
+                            <div key={index} className="flex items-start space-x-3">
+                              <div className="text-green-500 mt-0.5 flex-shrink-0 text-lg">{achievement.icon}</div>
+                              <div>
+                                <div className="font-semibold text-gray-900">
+                                  {achievement.title}
+                                </div>
+                                <div className="text-sm text-gray-600 mb-1">
+                                  {achievement.detail}
+                                </div>
+                                {achievement.engineers && (
+                                  <div className="text-xs text-blue-600 font-medium">
+                                    {achievement.engineers}
+                                  </div>
+                                )}
+                                {achievement.additional && (
+                                  <div className="text-xs text-gray-500 italic">
+                                    {achievement.additional}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600">
-                              {
-                                engineerData.filter((e) => e.cesPercent >= 85)
-                                  .length
-                              }{" "}
-                              engineers achieved CES scores above 85%
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              High Resolution Rate
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Successfully resolved{" "}
-                              {engineerData.length > 0
-                                ? engineerData.reduce(
-                                    (sum, eng) => sum + eng.closed,
-                                    0,
-                                  )
-                                : 0}{" "}
-                              tickets this period
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              Quality Consistency
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Maintained high quality standards across all
-                              support channels
-                            </div>
-                          </div>
-                        </div>
+                          ));
+                        })()}
                       </div>
                     </div>
 
@@ -3863,57 +4114,143 @@ Builder.io Support Team Performance Report`;
                         </div>
                             </div>
                             <div className="space-y-4">
-                              <div className="flex items-start space-x-3">
-                                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <div className="font-semibold text-gray-900">
-                                    {selectedEngineerData.cesPercent >= 90
-                                      ? "Outstanding Customer Satisfaction"
-                                      : selectedEngineerData.cesPercent >= 75
-                                        ? "Good Customer Satisfaction"
-                                        : "Improving Customer Satisfaction"}
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    Achieved{" "}
-                                    {selectedEngineerData.cesPercent.toFixed(1)}
-                                    % CES score based on{" "}
-                                    {selectedEngineerData.surveyCount} customer
-                                    surveys
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-start space-x-3">
-                                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <div className="font-semibold text-gray-900">
-                                    {selectedEngineerData.closed >=
-                                    (averageMetrics?.closed || 0)
+                              {(() => {
+                                const achievements = [];
+
+                                if (!selectedEngineerData || !averageMetrics) {
+                                  return <div className="text-gray-500">Loading achievements...</div>;
+                                }
+
+                                // Calculate rankings for this engineer
+                                const cesRank = engineerData.filter(e => e.cesPercent > selectedEngineerData.cesPercent).length + 1;
+                                const volumeRank = engineerData.filter(e => e.closed > selectedEngineerData.closed).length + 1;
+                                const speedRank = engineerData.filter(e => e.avgPcc < selectedEngineerData.avgPcc).length + 1;
+                                const quickResolutionRank = engineerData.filter(e => e.closedEqual1 > selectedEngineerData.closedEqual1).length + 1;
+
+                                // 1. Customer Satisfaction Achievement
+                                const cesComparison = selectedEngineerData.cesPercent - averageMetrics.cesPercent;
+                                achievements.push({
+                                  icon: selectedEngineerData.cesPercent >= 90 ? "🌟" : selectedEngineerData.cesPercent >= 75 ? "😊" : "📈",
+                                  title: selectedEngineerData.cesPercent >= 90
+                                    ? "Outstanding Customer Satisfaction"
+                                    : selectedEngineerData.cesPercent >= 75
+                                      ? "Good Customer Satisfaction"
+                                      : "Improving Customer Satisfaction",
+                                  detail: `${selectedEngineerData.cesPercent.toFixed(1)}% CES score (Rank ${cesRank}/${engineerData.length})`,
+                                  comparison: cesComparison >= 0
+                                    ? `${cesComparison.toFixed(1)} points above team average`
+                                    : `${Math.abs(cesComparison).toFixed(1)} points below team average`,
+                                  surveys: `Based on ${selectedEngineerData.surveyCount} customer surveys`
+                                });
+
+                                // 2. Volume Achievement
+                                const volumeComparison = selectedEngineerData.closed - averageMetrics.closed;
+                                achievements.push({
+                                  icon: volumeRank <= 2 ? "🏆" : volumeRank <= 4 ? "🎯" : "📊",
+                                  title: volumeRank <= 2
+                                    ? "High Volume Champion"
+                                    : volumeComparison >= 0
                                       ? "Above Average Resolution Rate"
-                                      : "Consistent Resolution Rate"}
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    Successfully resolved{" "}
-                                    {selectedEngineerData.closed} tickets this
-                                    period
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-start space-x-3">
-                                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <div className="font-semibold text-gray-900">
-                                    {selectedEngineerData.avgPcc <=
-                                    (averageMetrics?.avgPcc || 200)
+                                      : "Consistent Resolution Rate",
+                                  detail: `${selectedEngineerData.closed} tickets resolved (Rank ${volumeRank}/${engineerData.length})`,
+                                  comparison: volumeComparison >= 0
+                                    ? `${volumeComparison} tickets above team average`
+                                    : `${Math.abs(volumeComparison)} tickets below team average`
+                                });
+
+                                // 3. Response Time Achievement
+                                const speedComparison = (averageMetrics.avgPcc - selectedEngineerData.avgPcc) / 24;
+                                achievements.push({
+                                  icon: speedRank <= 2 ? "⚡" : selectedEngineerData.avgPcc <= averageMetrics.avgPcc ? "🚀" : "⏰",
+                                  title: speedRank <= 2
+                                    ? "Speed Leader"
+                                    : selectedEngineerData.avgPcc <= averageMetrics.avgPcc
                                       ? "Fast Response Time"
-                                      : "Improving Response Time"}
+                                      : "Improving Response Time",
+                                  detail: `${(selectedEngineerData.avgPcc / 24).toFixed(1)} day average response (Rank ${speedRank}/${engineerData.length})`,
+                                  comparison: speedComparison >= 0
+                                    ? `${speedComparison.toFixed(1)} days faster than team average`
+                                    : `${Math.abs(speedComparison).toFixed(1)} days slower than team average`
+                                });
+
+                                // 4. Quick Resolution Achievement
+                                if (selectedEngineerData.closedEqual1 >= 20) {
+                                  achievements.push({
+                                    icon: quickResolutionRank <= 2 ? "🚀" : "⚡",
+                                    title: quickResolutionRank <= 2 ? "Same-Day Resolution Master" : "Quick Resolution Expert",
+                                    detail: `${selectedEngineerData.closedEqual1.toFixed(1)}% same-day resolution (Rank ${quickResolutionRank}/${engineerData.length})`,
+                                    comparison: `${(selectedEngineerData.closedEqual1 - averageMetrics.closedEqual1).toFixed(1)} points vs team average`
+                                  });
+                                }
+
+                                // 5. Specialization Achievements
+                                if (selectedEngineerData.enterprisePercent >= 50) {
+                                  achievements.push({
+                                    icon: "🏢",
+                                    title: "Enterprise Specialist",
+                                    detail: `${selectedEngineerData.enterprisePercent.toFixed(1)}% enterprise customer focus`,
+                                    comparison: `${(selectedEngineerData.enterprisePercent - averageMetrics.enterprisePercent).toFixed(1)} points above team average`
+                                  });
+                                }
+
+                                if (selectedEngineerData.technicalPercent >= 60) {
+                                  achievements.push({
+                                    icon: "🔧",
+                                    title: "Technical Expert",
+                                    detail: `${selectedEngineerData.technicalPercent.toFixed(1)}% technical ticket specialization`,
+                                    comparison: `${(selectedEngineerData.technicalPercent - averageMetrics.technicalPercent).toFixed(1)} points above team average`
+                                  });
+                                }
+
+                                // 6. Backlog Management
+                                if (selectedEngineerData.openGreaterThan14 === 0) {
+                                  achievements.push({
+                                    icon: "✅",
+                                    title: "Zero Backlog Champion",
+                                    detail: "No tickets older than 14 days",
+                                    comparison: "Perfect backlog management"
+                                  });
+                                } else if (selectedEngineerData.openGreaterThan14 <= 2) {
+                                  achievements.push({
+                                    icon: "📋",
+                                    title: "Excellent Backlog Management",
+                                    detail: `Only ${selectedEngineerData.openGreaterThan14} tickets older than 14 days`,
+                                    comparison: "Well-managed workload"
+                                  });
+                                }
+
+                                // 7. Quality Achievement
+                                if (selectedEngineerData.participationRate >= 8) {
+                                  achievements.push({
+                                    icon: "💎",
+                                    title: "Quality Excellence",
+                                    detail: `${selectedEngineerData.participationRate.toFixed(1)}/10 quality score`,
+                                    comparison: `${(selectedEngineerData.participationRate - averageMetrics.participationRate).toFixed(1)} points above team average`
+                                  });
+                                }
+
+                                return achievements.slice(0, 6).map((achievement, index) => (
+                                  <div key={index} className="flex items-start space-x-3">
+                                    <div className="text-green-500 mt-0.5 flex-shrink-0 text-lg">{achievement.icon}</div>
+                                    <div>
+                                      <div className="font-semibold text-gray-900">
+                                        {achievement.title}
+                                      </div>
+                                      <div className="text-sm text-gray-600 mb-1">
+                                        {achievement.detail}
+                                      </div>
+                                      <div className="text-xs text-blue-600 font-medium">
+                                        {achievement.comparison}
+                                      </div>
+                                      {achievement.surveys && (
+                                        <div className="text-xs text-gray-500 italic">
+                                          {achievement.surveys}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-sm text-gray-600">
-                                    Maintained{" "}
-                                    {selectedEngineerData.avgPcc.toFixed(1)}h
-                                    average response time
-                                  </div>
-                                </div>
-                              </div>
+                                ));
+                              })()}
                             </div>
                           </div>
 
@@ -3982,7 +4319,7 @@ Builder.io Support Team Performance Report`;
                                   });
                                 } else if (selectedEngineerData.cesPercent > avgCES + 15) {
                                   recommendations.push({
-                                    title: "🌟 CES Excellence - Leadership Role",
+                                    title: "��� CES Excellence - Leadership Role",
                                     message: `Outstanding CES score of ${selectedEngineerData.cesPercent.toFixed(1)}% (${(selectedEngineerData.cesPercent - avgCES).toFixed(1)} points above average). Perfect candidate for mentoring program and customer escalation handling.`,
                                     color: "green",
                                     priority: "recognition"

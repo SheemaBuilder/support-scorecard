@@ -196,35 +196,60 @@ export async function checkSupabaseHealth() {
   }
 
   try {
-    // Test basic connectivity to Supabase with longer timeout
+    // Test basic connectivity to Supabase with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 10000); // 10 second timeout
+    let timeoutId: NodeJS.Timeout | null = null;
 
-    const response = await fetch(`${url}/rest/v1/`, {
-      method: 'HEAD',
-      headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Accept': 'application/json'
-      },
-      signal: controller.signal
+    // Create timeout with proper cleanup
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        console.log('⏰ Supabase health check timeout after 10 seconds');
+        controller.abort('Health check timeout');
+        reject(new Error('Connection timeout: Supabase took too long to respond (10s limit)'));
+      }, 10000);
     });
 
-    clearTimeout(timeoutId);
+    try {
+      const fetchPromise = fetch(`${url}/rest/v1/`, {
+        method: 'HEAD',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      });
 
-    if (response.ok) {
-      return { success: true, message: 'Supabase is reachable' };
-    } else {
-      return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      // Race between fetch and timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
+      if (response.ok) {
+        return { success: true, message: 'Supabase is reachable' };
+      } else {
+        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+    } finally {
+      // Ensure cleanup happens
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   } catch (error) {
     logError('Supabase health check', error);
 
-    // Handle AbortError specifically
+    // Handle AbortError specifically with better messaging
     if (error instanceof DOMException && error.name === 'AbortError') {
       return { success: false, error: 'Connection timeout: Supabase took too long to respond (10s limit)' };
+    }
+
+    // Handle timeout errors from Promise.race
+    if (error instanceof Error && error.message.includes('timeout')) {
+      return { success: false, error: error.message };
     }
 
     const errorMessage = extractErrorMessage(error);
