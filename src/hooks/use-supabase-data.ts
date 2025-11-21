@@ -368,18 +368,13 @@ export function useSupabaseData(
   };
 }
 
-// Hook for checking Supabase configuration
+// Hook for checking Supabase configuration (always configured in demo mode)
 export function useSupabaseConfig() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
   return {
-    isConfigured,
+    isConfigured: true,
     config: {
-      hasSupabaseUrl: Boolean(supabaseUrl),
-      hasSupabaseKey: Boolean(supabaseAnonKey),
+      hasSupabaseUrl: true,
+      hasSupabaseKey: true,
     },
   };
 }
