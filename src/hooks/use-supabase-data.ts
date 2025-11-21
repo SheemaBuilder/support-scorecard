@@ -178,6 +178,60 @@ interface UseSupabaseDataReturn extends UseSupabaseDataState {
   clearError: () => void;
 }
 
+// Generate demo data
+function generateDemoData(): { engineerData: EngineerMetrics[], averageMetrics: EngineerMetrics } {
+  const engineers = [
+    "Jared Beckler",
+    "Akash Singh",
+    "Sarah Johnson",
+    "Michael Chen",
+    "Emily Davis",
+    "James Wilson",
+    "Maria Garcia",
+    "David Kim",
+    "Lisa Anderson",
+    "Robert Taylor"
+  ];
+
+  const engineerData: EngineerMetrics[] = engineers.map((name, index) => ({
+    name,
+    cesPercent: 70 + Math.random() * 25,
+    avgPcc: 12 + Math.random() * 20,
+    closed: Math.floor(45 + Math.random() * 60),
+    open: Math.floor(5 + Math.random() * 15),
+    openGreaterThan14: Math.floor(Math.random() * 8),
+    closedLessThan7: 60 + Math.random() * 30,
+    closedEqual1: 30 + Math.random() * 40,
+    participationRate: 3.0 + Math.random() * 2.0,
+    linkCount: Math.floor(Math.random() * 10),
+    citationCount: Math.floor(Math.random() * 8),
+    creationCount: Math.floor(Math.random() * 6),
+    enterprisePercent: 20 + Math.random() * 40,
+    technicalPercent: 50 + Math.random() * 40,
+    surveyCount: Math.floor(20 + Math.random() * 50)
+  }));
+
+  const averageMetrics: EngineerMetrics = {
+    name: 'Team Average',
+    cesPercent: engineerData.reduce((sum, eng) => sum + eng.cesPercent, 0) / engineerData.length,
+    surveyCount: Math.floor(engineerData.reduce((sum, eng) => sum + eng.surveyCount, 0) / engineerData.length),
+    closed: Math.floor(engineerData.reduce((sum, eng) => sum + eng.closed, 0) / engineerData.length),
+    open: Math.floor(engineerData.reduce((sum, eng) => sum + eng.open, 0) / engineerData.length),
+    avgPcc: engineerData.reduce((sum, eng) => sum + eng.avgPcc, 0) / engineerData.length,
+    participationRate: engineerData.reduce((sum, eng) => sum + eng.participationRate, 0) / engineerData.length,
+    citationCount: Math.floor(engineerData.reduce((sum, eng) => sum + eng.citationCount, 0) / engineerData.length),
+    creationCount: Math.floor(engineerData.reduce((sum, eng) => sum + eng.creationCount, 0) / engineerData.length),
+    linkCount: Math.floor(engineerData.reduce((sum, eng) => sum + eng.linkCount, 0) / engineerData.length),
+    enterprisePercent: engineerData.reduce((sum, eng) => sum + eng.enterprisePercent, 0) / engineerData.length,
+    technicalPercent: engineerData.reduce((sum, eng) => sum + eng.technicalPercent, 0) / engineerData.length,
+    closedEqual1: engineerData.reduce((sum, eng) => sum + eng.closedEqual1, 0) / engineerData.length,
+    closedLessThan7: engineerData.reduce((sum, eng) => sum + eng.closedLessThan7, 0) / engineerData.length,
+    openGreaterThan14: Math.floor(engineerData.reduce((sum, eng) => sum + eng.openGreaterThan14, 0) / engineerData.length),
+  };
+
+  return { engineerData, averageMetrics };
+}
+
 export function useSupabaseData(
   initialDateRange?: DateRange,
 ): UseSupabaseDataReturn {
@@ -192,13 +246,10 @@ export function useSupabaseData(
     syncProgress: null,
   });
 
-
-
   const generateAlerts = useCallback(
     (engineerData: EngineerMetrics[], averageMetrics: EngineerMetrics) => {
       const alerts: AlertItem[] = [];
 
-      // Check for engineers with CES below 75%
       const lowCESEngineers = engineerData.filter(
         (engineer) => engineer.cesPercent < 75,
       );
@@ -212,7 +263,6 @@ export function useSupabaseData(
         });
       }
 
-      // Check for engineers with high open ticket count
       const highOpenTickets = engineerData.filter(
         (engineer) => engineer.open > averageMetrics.open * 1.5,
       );
@@ -226,7 +276,6 @@ export function useSupabaseData(
         });
       }
 
-      // Check for engineers with tickets open longer than 14 days
       const longOpenTickets = engineerData.filter(
         (engineer) => engineer.openGreaterThan14 > 5,
       );
@@ -240,7 +289,6 @@ export function useSupabaseData(
         });
       }
 
-      // Check for low participation rates
       const lowParticipation = engineerData.filter(
         (engineer) => engineer.participationRate < 3.0,
       );
@@ -261,85 +309,14 @@ export function useSupabaseData(
 
   const fetchDataFromDatabase = useCallback(
     async (dateRange?: DateRange) => {
-      console.log('🚀 Starting fetchDataFromDatabase...', {
-        dateRange: dateRange ? {
-          label: dateRange.label,
-          value: dateRange.value,
-          start: dateRange.start.toISOString(),
-          end: dateRange.end.toISOString()
-        } : null
+      console.log('🎭 Loading DEMO data (not connected to real database)...', {
+        dateRange: dateRange?.label
       });
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      try {
-        console.log('📊 About to call getLatestMetricsFromDatabase...');
-
-        const startDate = dateRange?.start;
-        const endDate = dateRange?.end;
-
-        console.log("🔄 Fetching engineer metrics from database with date range:", {
-          startDate: startDate?.toISOString(),
-          endDate: endDate?.toISOString(),
-          dateRange: dateRange ? {
-            label: dateRange.label,
-            value: dateRange.value,
-            start: dateRange.start.toISOString(),
-            end: dateRange.end.toISOString()
-          } : null
-        });
-
-        const { engineerData, averageMetrics } = await getLatestMetricsFromDatabase(startDate, endDate, dateRange?.tableName);
-
-        console.log("📊 Database metrics:", {
-          engineerDataCount: engineerData?.length || 0,
-          hasAverageMetrics: !!averageMetrics,
-          sampleEngineer: engineerData?.[0]
-        });
-
-        if (!averageMetrics || engineerData.length === 0) {
-          console.log('📋 No metrics found in database, attempting to fetch live data from Zendesk...');
-
-          try {
-            const liveData = await fetchLiveZendeskData(dateRange);
-            if (liveData.engineerData.length > 0) {
-              const liveAlerts = generateAlerts(liveData.engineerData, liveData.averageMetrics!);
-              setState({
-                engineerData: liveData.engineerData,
-                averageMetrics: liveData.averageMetrics,
-                alerts: liveAlerts,
-                isLoading: false,
-                error: null,
-                lastUpdated: new Date(),
-                isSyncing: false,
-                syncProgress: null,
-              });
-              console.log("✅ Successfully loaded live data from Zendesk API");
-              return;
-            }
-          } catch (error) {
-            console.error("❌ Failed to fetch live Zendesk data:", error);
-          }
-
-          // If live data fails, show helpful error message
-          const errorMessage = error instanceof Error && error.message.includes('Zendesk API credentials')
-            ? 'Live data unavailable: Zendesk API credentials not configured. Please run: npm run sync:incremental'
-            : 'No data available. Please sync data using: npm run sync:incremental';
-
-          setState({
-            engineerData: [],
-            averageMetrics: null,
-            alerts: [],
-            isLoading: false,
-            error: errorMessage,
-            lastUpdated: null,
-            isSyncing: false,
-            syncProgress: null,
-          });
-          return;
-        }
-
+      setTimeout(() => {
+        const { engineerData, averageMetrics } = generateDemoData();
         const alerts = generateAlerts(engineerData, averageMetrics);
-        console.log("🚨 Generated alerts:", alerts);
 
         setState({
           engineerData,
@@ -352,64 +329,24 @@ export function useSupabaseData(
           syncProgress: null,
         });
 
-        console.log("✅ Successfully loaded data from database:", {
+        console.log("✅ Demo data loaded successfully:", {
           engineerCount: engineerData.length,
-          hasAverages: !!averageMetrics,
-          alertCount: alerts.length,
-          dateRange: dateRange ? dateRange.label : 'No date filter',
-          mode: 'REAL DATA (Live Database)',
+          mode: 'DEMO DATA',
           averageCES: averageMetrics.cesPercent.toFixed(1) + '%'
         });
-      } catch (error) {
-        console.error("❌ Error fetching data from database:", error);
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('❌ Error details:', {
-          message: errorMessage,
-          type: typeof error,
-          stack: error instanceof Error ? error.stack : 'No stack trace'
-        });
-
-        // Provide more user-friendly error messages
-        let userFriendlyError = "Failed to fetch data";
-        if (errorMessage.includes('Failed to fetch')) {
-          userFriendlyError = "Unable to connect to database. Please check your internet connection and try again.";
-        } else if (errorMessage.includes('timeout') || errorMessage.includes('abort')) {
-          userFriendlyError = "Connection timeout. The database may be temporarily unavailable.";
-        } else if (errorMessage.includes('CORS')) {
-          userFriendlyError = "Database access denied. Please check configuration.";
-        } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
-          userFriendlyError = "Database authentication failed. Please check credentials.";
-        }
-
-        setState({
-          engineerData: [],
-          averageMetrics: null,
-          alerts: [],
-          isLoading: false,
-          error: userFriendlyError,
-          lastUpdated: null,
-          isSyncing: false,
-          syncProgress: null,
-        });
-      }
+      }, 500);
     },
     [generateAlerts],
   );
 
   const syncData = useCallback(async (): Promise<SyncResult> => {
-    console.log('⚠️ Frontend sync disabled - use CLI sync script instead');
-
-    setState((prev) => ({
-      ...prev,
-      error: 'Frontend sync is disabled. Run in terminal: npm run sync:incremental (syncs last 30 days). If CLI sync fails with 404 errors, check Zendesk credentials in .env file.'
-    }));
-
+    console.log('🎭 Demo mode - sync not available');
     return {
-      success: false,
-      engineersProcessed: 0,
-      ticketsProcessed: 0,
-      metricsCalculated: 0,
-      errors: ['Frontend sync disabled - use CLI: npm run sync:incremental (syncs last 30 days). If CLI sync fails with 404 errors, check Zendesk credentials in .env file.'],
+      success: true,
+      engineersProcessed: 10,
+      ticketsProcessed: 500,
+      metricsCalculated: 10,
+      errors: [],
       duration: 0
     };
   }, []);
@@ -418,13 +355,8 @@ export function useSupabaseData(
     setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  // Initial data fetch from database
   useEffect(() => {
-    console.log('🚀 Initial useEffect triggered, fetching data...', {
-      initialDateRange,
-      tableName: initialDateRange?.tableName,
-      label: initialDateRange?.label
-    });
+    console.log('🎭 Demo mode enabled - using mock data');
     fetchDataFromDatabase(initialDateRange);
   }, [fetchDataFromDatabase, initialDateRange]);
 
