@@ -299,6 +299,7 @@ export function useSupabaseData(
         if (!averageMetrics || engineerData.length === 0) {
           console.log('📋 No metrics found in database, attempting to fetch live data from Zendesk...');
 
+          let zendeskError: any = null;
           try {
             const liveData = await fetchLiveZendeskData(dateRange);
             if (liveData.engineerData.length > 0) {
@@ -318,10 +319,11 @@ export function useSupabaseData(
             }
           } catch (error) {
             console.error("❌ Failed to fetch live Zendesk data:", error);
+            zendeskError = error;
           }
 
           // If live data fails, show helpful error message
-          const errorMessage = error instanceof Error && error.message.includes('Zendesk API credentials')
+          const errorMessage = zendeskError instanceof Error && zendeskError.message.includes('Zendesk API credentials')
             ? 'Live data unavailable: Zendesk API credentials not configured. Please run: npm run sync:incremental'
             : 'No data available. Please sync data using: npm run sync:incremental';
 
